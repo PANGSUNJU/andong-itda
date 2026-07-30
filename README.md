@@ -58,10 +58,40 @@
 pnpm install
 cp .env.example .env   # 실제 키를 채운다
 pnpm dev
+
+# 회귀 검증 (프레임워크 없음, node로 바로 실행)
+node scripts/check-bus-logic.ts
+node scripts/check-spot-match.ts
 ```
 
 ⚠️ 프로젝트 경로에 한글이 포함되면 pnpm의 심볼릭 링크 생성이 실패한다.
 영문 경로에 두어야 한다. ([ADR-017](docs/decisions.md))
+
+⚠️ `TOUR_API_KEY`는 data.go.kr의 **Encoding·Decoding 키 어느 쪽을 넣어도 동작한다.**
+코드가 한 번 디코딩해 정규화하기 때문이다. 직접 URL을 조립할 때 Encoding 키를
+다시 인코딩하면 401이 난다. ([ADR-018](docs/decisions.md))
+
+안동시 버스 API는 인증키가 필요 없다.
+
+---
+
+## 구현 상태
+
+**서버 라우트** (`server/api/`)
+
+| 라우트 | 캐시 | 상태 |
+|---|---|---|
+| `GET /api/bus/stations` | 1일 | ✅ 2107건 (`useYn='Y'` 필터) |
+| `GET /api/bus/arrivals?stationId=` | 없음 | ✅ `predictTm` 오름차순, null 후순위 |
+| `GET /api/bus/routes` | 1분 | ✅ 421건 (`runTotCnt` 포함) |
+| `GET /api/spot-bus/[spot]` | 없음 | ✅ 실시간 + 시간표 + 운행여부 결합 |
+| `GET /api/spots` | 1일 | ✅ 64건 (숙박 제외, 19건 병합) |
+| `GET /api/spots/[id]` | — | 미구현 (`detailCommon2` 미검증) |
+| `GET /api/spots/nearby` | — | 미구현 |
+| `GET /api/food` | — | 미구현 |
+
+화면(`app/`)은 아직 없다. 다음 작업은 [docs/dev-log.md](docs/dev-log.md)의
+"다음에 할 일"에 있다.
 
 ---
 
@@ -69,10 +99,10 @@ pnpm dev
 
 | 문서 | 내용 |
 |---|---|
-| [docs/decisions.md](docs/decisions.md) | 설계 결정 기록 (ADR 17건) |
-| [docs/dev-log.md](docs/dev-log.md) | 날짜별 개발 로그 |
+| [docs/decisions.md](docs/decisions.md) | 설계 결정 기록 (ADR 21건) |
+| [docs/dev-log.md](docs/dev-log.md) | 날짜별 개발 로그 · 다음에 할 일 |
 | [docs/api-reference.md](docs/api-reference.md) | 검증된 API 명세 |
-| [PROJECT-PROMPT.md](PROJECT-PROMPT.md) | 프로젝트 구축 지시서 |
+| [PROJECT-PROMPT.md](PROJECT-PROMPT.md) | 프로젝트 구축 지시서 (초기 기준, 일부는 실측으로 갱신됨) |
 
 이 프로젝트에서 반복해 확인된 사실은 하나다.
 **문서보다 실물이 정확하다.** 공식 명세서에 없던 필드가 실제 응답에는 있었고,

@@ -28,22 +28,68 @@
 - `stTm`·`edTm`·`maxInterval`·`minInterval`·`runCnt` 필드 전부 null
 - `runTotCnt: 0` 확인 → 호출 시점에 운행 종료 상태
 
+**서버 API 구현 — 라우트 5개**
+
+| 라우트 | 캐시 | 검증 |
+|---|---|---|
+| `GET /api/bus/stations` | 1일 | 2107건, 전부 `useYn: 'Y'` |
+| `GET /api/bus/arrivals?stationId=` | 없음 | 정렬·400·빈배열 확인 |
+| `GET /api/bus/routes` | 1분 | 421건, 운행 중 52개 |
+| `GET /api/spot-bus/[spot]` | 없음 | 관광지 7곳 + 404 2종 |
+| `GET /api/spots` | 1일 | 64건 중 19건 병합 |
+
+- 공용 유틸 2개: `server/utils/andongBus.ts`, `server/utils/tourApi.ts`
+- 외부 API 실패는 전부 **502 + 원인**으로 감싼다. 타임아웃 10초.
+  502 경로는 타임아웃을 1ms로 일시 강제해 실제로 확인했다.
+- 프로덕션 빌드(`.output`)에서도 5개 라우트 전부 실호출 검증
+
+**막힌 것 — TourAPI 401**
+- 원인은 키가 아니라 **이중 인코딩**이었다. `.env`의 키가 Encoding 형태(96자)라
+  쿼리 직렬화 때 한 번 더 인코딩돼 `%`가 `%25`가 됐다 → ADR-018
+- 해결: 키를 한 번 디코딩해두고 인코딩은 직렬화에 한 번만 맡긴다.
+  Encoding 키든 Decoding 키든 그대로 동작한다.
+
+**회귀 검증 스크립트 2개** (프레임워크 없이 `node`로 바로 실행)
+- `node scripts/check-bus-logic.ts` — 도착 정렬(null 후순위) · 운행상태 3분기
+- `node scripts/check-spot-match.ts` — 이름 정규화 · 유사도 · 거리 · 좌표 1순위 매칭
+
 ### 알게 된 것
 - Nuxt 4는 소스 루트가 `app/` 하위다. `server/`는 여전히 루트에 위치한다.
 - 기점 정류장은 도착정보 조회가 원리적으로 불가능하다 → ADR-015
 - 안동시가 노선 시간표 필드를 입력하지 않았으므로 첫차·막차는 정적 데이터에 의존해야 한다
+- **버스 API가 http에서 https로 302 리다이렉트한다.** 지시서 기준과 다르다 → ADR-019
+- **`baseYm=202607`이 7월 말에도 0건이다.** "매월 8일 갱신"을 믿으면 빈 화면이 된다.
+  최대 3개월 뒤로 폴백한다 → ADR-021
+- **KorService2 결측 범위가 문서보다 넓다.** 하회마을·도산서원·월영교뿐 아니라
+  병산서원·봉정사·안동역·만휴정·부용대도 없다. 인기 상위 6곳이 전부 이미지 없이 표시된다
+- **`hubRank`는 매월 바뀐다.** 202606 기준 1위는 하회마을이 아니라 월영교다.
+  순위를 하드코딩하면 안 된다
+- 좌표만으로 매칭하면 틀린다. 안동시립박물관의 최근접 항목은 1m 거리의 "안동민속촌"이었다
+- 두 정적 데이터가 서로 어긋난다. `timetable-spots.json`(파싱 원본)과
+  `spot-station-map.json`(정리본) 중 후자만 런타임 소스로 쓴다 → ADR-020
 
 ### 결정한 것
 - ADR-015 관광지 정류장 방향별 ID 매핑
 - ADR-016 버스 시간표 정적 파일 활용
 - ADR-017 개발 경로 영문 유지
 - **ADR-007 번복** — 막차 안내 "제외"에서 "실시간 3단 결합으로 구현"으로
+- ADR-018 인증키는 한 번 디코딩해서 사용
+- ADR-019 버스 API는 https 직접 호출
+- ADR-020 시간표 소스는 `spot-station-map.json` 단일화
+- ADR-021 관광 API 조인은 좌표 1순위 + 이름 게이트(200m / 0.4)
 
 ### 다음에 할 일
-- [ ] `types/` 실제 API 응답 기준 타입 정의
-- [ ] `constants/region.ts` API별 지역코드 분리
-- [ ] `server/api/bus/*` 프록시 3종
+- [x] ~~`types/` 실제 API 응답 기준 타입 정의~~
+- [x] ~~`constants/region.ts` API별 지역코드 분리~~
+- [x] ~~`server/api/bus/*` 프록시 3종~~
+- [x] ~~`/api/spot-bus/[spot]` 통합 엔드포인트~~
+- [x] ~~`/api/spots` LocgoHub 조회 + 숙박 필터 + KorService2 조인~~
+- [ ] `/api/spots/[id]` 상세 — `detailCommon2` 미검증. 먼저 실호출부터 할 것
+- [ ] `/api/spots/nearby?lat=&lng=` — `distanceMeters()`가 이미 있어 바로 붙는다
+- [ ] `/api/food` 음식점 목록 (contentTypeId=39, 16건, 캐시 6h)
 - [ ] 미확인 관광지 정류장 채우기 (도산면 8곳, 부용대, 군자마을, 학가산온천)
+- [ ] UI — 디자인 토큰부터. `status === 'arriving'`이면 "운행 종료" 배지를 띄우지 말 것
+      (정류장에 여러 노선이 서므로 `isOperating: false`와 동시에 발생한다)
 
 ---
 
