@@ -1,0 +1,204 @@
+[
+  {
+    "spot": "안동하회마을",
+    "routes": [
+      {
+        "routeCode": "210",
+        "effectiveFrom": "2024-01-05",
+        "note": "하회 출발 시각은 시간표에 표기되어 있지 않습니다.",
+        "outbound": {
+          "arrivesAt": "하회마을",
+          "first": "07:35",
+          "last": "19:10",
+          "runs": 13,
+          "times": [
+            "07:35",
+            "08:50",
+            "09:45",
+            "10:30",
+            "11:30",
+            "12:40",
+            "13:40",
+            "14:20",
+            "15:45",
+            "16:30",
+            "17:00",
+            "18:20",
+            "19:10"
+          ],
+          "departsFrom": "교보건너",
+          "departFirst": "06:30",
+          "departLast": "18:20"
+        },
+        "inbound": null
+      },
+      {
+        "routeCode": "급행2",
+        "effectiveFrom": null,
+        "note": "매년 8월 토·일·공휴일과 탈춤축제기간(9/26~10/5)에만 운행합니다.",
+        "outbound": null,
+        "inbound": {
+          "departsFrom": "출발",
+          "first": "08:30",
+          "last": "18:40",
+          "runs": 5,
+          "times": [
+            "08:30",
+            "11:10",
+            "14:00",
+            "16:50",
+            "18:40"
+          ]
+        }
+      }
+    ],
+    "summary": {
+      "lastInbound": "18:40",
+      "lastOutboundArrival": "19:10",
+      "hasReturnTimetable": true
+    }
+  },
+  {
+    "spot": "병산서원",
+    "routes": [
+      {
+        "routeCode": "210",
+        "effectiveFrom": "2024-01-05",
+        "note": "하회마을을 경유해 하루 3회만 들어갑니다.",
+        "outbound": {
+          "arrivesAt": "병산서원",
+          "first": "09:30",
+          "last": "15:30",
+          "runs": 3,
+          "times": [
+            "09:30",
+            "12:25",
+            "15:30"
+          ],
+          "departsFrom": "교보건너",
+          "departFirst": "06:30",
+          "departLast": "18:20"
+        },
+        "inbound": null
+      }
+    ],
+    "summary": {
+      "lastInbound": null,
+      "lastOutboundArrival": "15:30",
+      "hasReturnTimetable": false
+    }
+  },
+  {
+    "spot": "봉정사",
+    "routes": [
+      {
+        "routeCode": "310",
+        "effectiveFrom": "2026-08-01",
+        "note": null,
+        "outbound": {
+          "arrivesAt": "봉정사",
+          "first": "06:55",
+          "last": "19:25",
+          "runs": 6,
+          "times": [
+            "06:55",
+            "09:20",
+            "11:30",
+            "14:50",
+            "17:50",
+            "19:25"
+          ]
+        },
+        "inbound": null
+      },
+      {
+        "routeCode": "급행2",
+        "effectiveFrom": null,
+        "note": "매년 8월 토·일·공휴일과 탈춤축제기간에만 운행합니다.",
+        "outbound": null,
+        "inbound": {
+          "departsFrom": "봉정사발",
+          "first": "07:40",
+          "last": "17:40",
+          "runs": 5,
+          "times": [
+            "07:40",
+            "10:00",
+            "12:20",
+            "15:10",
+            "17:40"
+          ]
+        }
+      }
+    ],
+    "summary": {
+      "lastInbound": "17:40",
+      "lastOutboundArrival": "19:25",
+      "hasReturnTimetable": true
+    }
+  },
+  {
+    "spot": "도산서원",
+    "routes": [
+      {
+        "routeCode": "급행3",
+        "effectiveFrom": null,
+        "note": null,
+        "outbound": {
+          "arrivesAt": "급행3(도산서원)",
+          "first": "06:10",
+          "last": "19:50",
+          "runs": 7,
+          "times": [
+            "06:10",
+            "08:15",
+            "09:35",
+            "12:15",
+            "13:15",
+            "16:15",
+            "19:50"
+          ]
+        },
+        "inbound": null
+      }
+    ],
+    "summary": {
+      "lastInbound": null,
+      "lastOutboundArrival": "19:50",
+      "hasReturnTimetable": false
+    }
+  },
+  {
+    "spot": "안동댐·월영교",
+    "routes": [
+      {
+        "routeCode": "112",
+        "effectiveFrom": "2026-08-01",
+        "note": "관광단지 방면 노선입니다.",
+        "outbound": {
+          "arrivesAt": "112번(구3번,관광단지)",
+          "first": "07:40",
+          "last": "18:45",
+          "runs": 9,
+          "times": [
+            "07:40",
+            "08:25",
+            "10:30",
+            "10:30",
+            "12:50",
+            "12:50",
+            "16:40",
+            "17:55",
+            "18:45"
+          ]
+        },
+        "inbound": null
+      }
+    ],
+    "summary": {
+      "lastInbound": null,
+      "lastOutboundArrival": "18:45",
+      "hasReturnTimetable": false
+    }
+  }
+]

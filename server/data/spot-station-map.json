@@ -1,0 +1,313 @@
+{
+  "_meta": {
+    "description": "관광지 ↔ 정류장ID ↔ 노선ID 매핑. 안동시 버스정보 API 검증 결과를 기반으로 작성.",
+    "verifiedAt": "2026-07-29",
+    "rules": {
+      "inboundStationId": "시내에서 관광지로 들어오는 편의 도착 정류장. tab=2 실시간 도착정보 조회 가능.",
+      "outboundStationId": "관광지에서 시내로 나가는 편의 출발 정류장. 기점이라 tab=2는 빈 배열을 반환하므로 시간표와 runTotCnt로 대체한다.",
+      "runTotCnt": "tab=3 노선 목록 응답의 필드. 현재 운행 중인 차량 수. 0이면 금일 운행 종료 또는 미운행일."
+    },
+    "verified": {
+      "354000701": "210번 도착 확인 (via: 교보생명 -> 하회마을, stationOrd 52)",
+      "354002046": "빈 배열 반환 확인 — 기점 정류장",
+      "354000716": "월영교 정류장 확인 (112번 7번째, 교보생명에서 3386m)",
+      "354000064": "법흥동 정류장 확인 (임청각·칠층전탑 인접)",
+      "354300004": "112번 노선: 정류장 14개, 7146m, runTotCnt로 운행 여부 판별 가능. stTm/edTm/interval 필드는 모두 null."
+    }
+  },
+  "spots": [
+    {
+      "spot": "안동하회마을",
+      "hubRank": 1,
+      "area": "풍천면",
+      "inbound": {
+        "stationId": 354000701,
+        "stationNm": "하회보건진료소",
+        "routeId": 354300006,
+        "routeNum": "210",
+        "routeNm": "210(교보생명-하회마을)"
+      },
+      "outbound": {
+        "stationId": 354002046,
+        "stationNm": "하회보건진료소",
+        "routeId": 354300008,
+        "routeNum": "210",
+        "routeNm": "210(하회마을-교보생명)",
+        "realtimeAvailable": false
+      },
+      "seasonal": [
+        {
+          "routeId": 354300196,
+          "routeNum": "급행2",
+          "note": "주말·공휴일, 8월 및 탈춤축제기간(9/26~10/5) 한정",
+          "departTimes": [
+            "08:30",
+            "11:10",
+            "14:00",
+            "16:50",
+            "18:40"
+          ]
+        }
+      ],
+      "shuttle": [
+        {
+          "routeId": 354300197,
+          "routeNm": "하회셔틀1(하회마을-탈놀이전수관앞)"
+        },
+        {
+          "routeId": 354300198,
+          "routeNm": "하회셔틀2(탈놀이전수관앞-하회마을)"
+        }
+      ],
+      "timetable": {
+        "outboundFrom": "교보건너",
+        "departFirst": "06:30",
+        "departLast": "18:20",
+        "arriveFirst": "07:35",
+        "arriveLast": "19:10",
+        "runs": 13,
+        "effectiveFrom": "2024-01-05",
+        "returnTimesKnown": false,
+        "note": "하회 출발 시각은 공식 시간표에 표기되어 있지 않다. 도착 편이 회차하여 나가는 구조."
+      }
+    },
+    {
+      "spot": "병산서원",
+      "hubRank": 3,
+      "area": "풍천면",
+      "inbound": {
+        "stationId": 354002027,
+        "stationNm": "병산서원",
+        "routeId": 354300007,
+        "routeNum": "210",
+        "routeNm": "210(교보생명-병산서원)"
+      },
+      "outbound": {
+        "stationId": null,
+        "routeId": 354300009,
+        "routeNum": "210",
+        "routeNm": "210(병산서원-교보생명)",
+        "realtimeAvailable": false
+      },
+      "timetable": {
+        "outboundFrom": "교보건너",
+        "arriveFirst": "09:30",
+        "arriveLast": "15:30",
+        "runs": 3,
+        "effectiveFrom": "2024-01-05",
+        "returnTimesKnown": false,
+        "warning": "하루 3회만 운행하며 마지막 도착 편이 15:30이다. 오후 늦게 출발하면 방문할 수 없다."
+      }
+    },
+    {
+      "spot": "봉정사",
+      "hubRank": 5,
+      "area": "서후면",
+      "inbound": {
+        "stationId": 354002024,
+        "stationNm": "봉정사",
+        "routeId": 354300060,
+        "routeNum": "310",
+        "routeNm": "310(교보생명-봉정사)"
+      },
+      "outbound": {
+        "stationId": null,
+        "routeId": 354300063,
+        "routeNum": "310",
+        "routeNm": "310(봉정사-교보생명)",
+        "realtimeAvailable": false
+      },
+      "seasonal": [
+        {
+          "routeId": 354300199,
+          "routeNum": "급행2",
+          "note": "주말·공휴일 한정",
+          "departTimes": [
+            "07:40",
+            "10:00",
+            "12:20",
+            "15:10",
+            "17:40"
+          ]
+        }
+      ],
+      "timetable": {
+        "outboundFrom": "교보생명건너",
+        "departFirst": "06:10",
+        "departLast": "18:50",
+        "arriveFirst": "06:55",
+        "arriveLast": "19:25",
+        "runs": 6,
+        "effectiveFrom": "2026-08-01",
+        "returnTimesKnown": false
+      }
+    },
+    {
+      "spot": "도산서원",
+      "hubRank": 4,
+      "area": "도산면",
+      "inbound": {
+        "stationId": 354001832,
+        "stationNm": "도산서원(서원)",
+        "routeId": 354300386,
+        "routeNum": "급행3",
+        "routeNm": "급행3(안동터미널-도산서원)"
+      },
+      "outbound": {
+        "stationId": null,
+        "routeId": 354300387,
+        "routeNum": "급행3",
+        "routeNm": "급행3(도산서원-안동터미널)",
+        "realtimeAvailable": false
+      },
+      "timetable": {
+        "outboundFrom": "터미널",
+        "departFirst": "06:10",
+        "departLast": "19:50",
+        "runs": 7,
+        "returnFrom": "온혜발",
+        "returnFirst": "07:50",
+        "returnLast": "20:40",
+        "returnRuns": 7,
+        "returnTimesKnown": true,
+        "note": "귀로 시각이 온혜 기준으로 시간표에 존재한다. 도산서원에서 온혜까지의 이동을 고려해야 한다."
+      }
+    },
+    {
+      "spot": "월영교",
+      "hubRank": 2,
+      "area": "상아동",
+      "inbound": {
+        "stationId": 354000716,
+        "stationNm": "월영교",
+        "routeId": 354300004,
+        "routeNum": "112",
+        "routeNm": "112(교보생명-월영교-문화관광단지)",
+        "stationOrd": 7,
+        "gpsX": 128.7586465619,
+        "gpsY": 36.5776967404,
+        "distanceFromStart": 3386
+      },
+      "outbound": {
+        "stationId": null,
+        "routeId": 354300005,
+        "routeNum": "112",
+        "routeNm": "112(문화관광단지-교보생명)",
+        "realtimeAvailable": false
+      },
+      "timetable": {
+        "outboundFrom": "터미널발",
+        "departFirst": "08:25",
+        "departLast": "18:45",
+        "runs": 7,
+        "effectiveFrom": "2026-08-01",
+        "returnTimesKnown": false,
+        "note": "월영교 정류장ID 확인 완료(354000716). 운행 08:25~18:45로 야간 조명 시간대에는 버스가 없다.",
+        "warning": "야경 명소이지만 막차가 18:45다. 해가 진 뒤 방문하면 돌아오는 버스가 없다."
+      },
+      "routeInfo": {
+        "routeId": 354300004,
+        "stationCnt": 14,
+        "routeLen": 7146,
+        "startStation": {
+          "id": 354001808,
+          "name": "교보생명"
+        },
+        "endStation": {
+          "id": 354000754,
+          "name": "리첼호텔건너"
+        },
+        "note": "노선명은 '문화관광단지'이나 종점 정류장명은 리첼호텔건너로 등록되어 있다."
+      }
+    },
+    {
+      "spot": "만휴정",
+      "hubRank": 9,
+      "area": "길안면",
+      "inbound": {
+        "stationId": 354002164,
+        "stationNm": "만휴정",
+        "routeId": 354300204,
+        "routeNum": "610",
+        "routeNm": "610(안동터미널-만휴정)"
+      },
+      "outbound": {
+        "stationId": null,
+        "routeId": 354300214,
+        "routeNum": "610",
+        "routeNm": "610(만휴정-안동터미널)",
+        "realtimeAvailable": false
+      },
+      "timetable": {
+        "outboundFrom": "교보생명",
+        "departFirst": "05:50",
+        "departLast": "20:15",
+        "returnFrom": "길안에서안동출발",
+        "returnFirst": "06:20",
+        "returnLast": "20:00",
+        "returnRuns": 38,
+        "returnTimesKnown": true,
+        "note": "귀로 시간표가 완전하게 존재하는 몇 안 되는 관광지. 배차도 촘촘하다."
+      }
+    },
+    {
+      "spot": "안동임청각·법흥사지칠층전탑",
+      "hubRank": 30,
+      "area": "법흥동",
+      "inbound": {
+        "stationId": 354000064,
+        "stationNm": "법흥동",
+        "stationOrd": 3,
+        "gpsX": 128.7386792231,
+        "gpsY": 36.5640711264,
+        "routeId": 354300004,
+        "routeNum": "112",
+        "routeNm": "112(교보생명-월영교-문화관광단지)"
+      },
+      "outbound": {
+        "stationId": null,
+        "realtimeAvailable": false
+      },
+      "timetable": {
+        "note": "안동역에서 도보 14분 거리로 버스 없이도 접근 가능하다. '걷는 길 - 강변 옛길' 코스의 시작점."
+      }
+    }
+  ],
+  "pending": [
+    {
+      "spot": "이육사문학관",
+      "area": "도산면",
+      "action": "512 또는 급행3의 tab=4로 정류장 확인"
+    },
+    {
+      "spot": "고산정",
+      "area": "도산면 가송리",
+      "action": "routeId 354300364(512 청량산행) tab=4 확인"
+    },
+    {
+      "spot": "농암종택",
+      "area": "도산면 가송리",
+      "action": "위와 동일"
+    },
+    {
+      "spot": "선성수상길",
+      "area": "도산면 서부리",
+      "action": "녹전1 노선의 서부리(예끼마을) 354001266 인접 여부 확인"
+    },
+    {
+      "spot": "부용대",
+      "area": "풍천면",
+      "action": "하회 건너편. 도보·나룻배 접근으로 별도 안내 필요"
+    },
+    {
+      "spot": "안동군자마을",
+      "area": "와룡면 오천",
+      "action": "513 노선 tab=4 확인"
+    },
+    {
+      "spot": "안동학가산온천",
+      "area": "서후면",
+      "action": "310 노선 tab=4 확인"
+    }
+  ]
+}

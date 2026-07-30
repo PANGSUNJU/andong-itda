@@ -1,0 +1,1001 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+
+<style>
+:root{
+  --primary:#D9453C; --primary-active:#B8322A;
+  --ink:#222222; --body:#3f3f3f; --muted:#6a6a6a; --muted-soft:#929292;
+  --hairline:#dddddd; --hairline-soft:#ebebeb;
+  --canvas:#ffffff; --surface-soft:#f7f7f7; --surface-strong:#f2f2f2;
+  --on-primary:#ffffff;
+  --r-xs:4px; --r-sm:8px; --r-md:14px; --r-lg:20px; --r-xl:32px; --r-full:9999px;
+  --s-xs:4px; --s-sm:8px; --s-md:12px; --s-base:16px; --s-lg:24px;
+  --s-xl:32px; --s-xxl:48px; --s-section:64px;
+  --float:rgba(0,0,0,.02) 0 0 0 1px, rgba(0,0,0,.04) 0 2px 6px 0, rgba(0,0,0,.1) 0 4px 8px 0;
+  --nav-h:72px; --bottom-h:64px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--canvas);color:var(--ink);
+  font-family:'Pretendard',Inter,-apple-system,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;padding-bottom:calc(var(--bottom-h) + 16px);}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:var(--r-xs);}
+.shell{max-width:1280px;margin:0 auto;padding:0 var(--s-lg);}
+
+/* ══════ TOP NAV ══════ */
+.nav{border-bottom:1px solid var(--hairline-soft);background:var(--canvas);
+  position:sticky;top:0;z-index:60;}
+.nav-in{max-width:1280px;margin:0 auto;padding:0 var(--s-lg);height:var(--nav-h);
+  display:flex;align-items:center;gap:var(--s-base);}
+.logo{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
+.logo svg{width:26px;height:26px;color:var(--primary);}
+.logo b{font-size:20px;font-weight:700;letter-spacing:-.4px;color:var(--primary);}
+.tabs{display:none;gap:var(--s-xs);margin-left:var(--s-xl);}
+.tabs button{padding:10px 16px;border-radius:var(--r-full);font-size:16px;font-weight:600;
+  line-height:1.25;color:var(--muted);}
+.tabs button:hover{background:var(--surface-soft);}
+.tabs button[aria-current=page]{color:var(--ink);background:var(--surface-strong);}
+.here{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:14px;
+  color:var(--body);border:1px solid var(--hairline);border-radius:var(--r-full);
+  padding:8px 14px;flex:0 0 auto;}
+.here:hover{box-shadow:var(--float);}
+.ping{width:7px;height:7px;border-radius:var(--r-full);background:var(--primary);flex:0 0 auto;}
+.here span{display:none;}
+
+/* ══════ PAGE HEAD ══════ */
+.phead{padding:var(--s-lg) 0 var(--s-base);}
+.phead h1{font-size:26px;font-weight:600;line-height:1.2;letter-spacing:-.18px;}
+.phead p{font-size:14px;line-height:1.43;color:var(--muted);margin-top:6px;}
+
+/* ══════ LAYOUT ══════ */
+.cols{display:grid;grid-template-columns:1fr;}
+.col-a{min-width:0;}
+.col-b{min-width:0;}
+.side{min-width:0;margin-top:var(--s-xl);}
+.pane[hidden]{display:none;}
+.pane{padding-bottom:var(--s-xxl);}
+
+/* ══════ BUS CARD — the anchor ══════ */
+.bus{border:1px solid var(--hairline);border-radius:var(--r-md);padding:var(--s-lg);
+  box-shadow:var(--float);}
+.bus-top{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s-md);
+  padding-bottom:var(--s-base);border-bottom:1px solid var(--hairline-soft);}
+.bus-top b{font-size:16px;font-weight:600;line-height:1.25;display:block;}
+.bus-top small{font-size:14px;font-weight:400;color:var(--muted);display:block;margin-top:3px;}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;
+  color:var(--primary);white-space:nowrap;}
+.live s{width:6px;height:6px;border-radius:var(--r-full);background:var(--primary);
+  text-decoration:none;animation:blip 2.2s ease-in-out infinite;}
+@keyframes blip{0%,100%{opacity:1}50%{opacity:.28}}
+
+/* the one loud typographic moment */
+.next{text-align:center;padding:var(--s-lg) 0 var(--s-base);}
+.next-num{display:flex;align-items:baseline;justify-content:center;gap:6px;}
+.next-num b{font-size:64px;font-weight:700;line-height:1.1;letter-spacing:-1px;}
+.next-num em{font-style:normal;font-size:24px;font-weight:600;}
+.next h2{font-size:16px;font-weight:600;line-height:1.25;margin-top:var(--s-sm);}
+.next p{font-size:14px;line-height:1.43;color:var(--muted);margin-top:4px;}
+
+.brow{display:flex;align-items:center;gap:var(--s-md);padding:var(--s-md) 0;
+  border-top:1px solid var(--hairline-soft);width:100%;text-align:left;}
+.bno{background:var(--surface-strong);border-radius:var(--r-sm);padding:7px 10px;
+  font-size:14px;font-weight:600;min-width:60px;text-align:center;flex:0 0 auto;}
+.bdir{flex:1;min-width:0;}
+.bdir b{display:block;font-size:16px;font-weight:500;line-height:1.25;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bdir span{font-size:13px;line-height:1.23;color:var(--muted);}
+.bwhen{flex:0 0 auto;text-align:right;}
+.bwhen b{display:block;font-size:16px;font-weight:600;line-height:1.25;}
+.bwhen span{display:block;font-size:13px;color:var(--muted);margin-top:2px;}
+
+.btn-primary{width:100%;height:48px;border-radius:var(--r-sm);background:var(--primary);
+  color:var(--on-primary);font-size:16px;font-weight:500;line-height:1.25;margin-top:var(--s-base);}
+.btn-primary:active{background:var(--primary-active);}
+.btn-secondary{width:100%;height:48px;border-radius:var(--r-sm);background:var(--canvas);
+  border:1px solid var(--ink);color:var(--ink);font-size:16px;font-weight:500;margin-top:var(--s-sm);}
+.hint{font-size:13px;line-height:1.5;color:var(--muted);text-align:center;margin-top:var(--s-md);}
+
+/* ══════ WAIT BAND — the signature ══════ */
+.band{margin-top:var(--s-xl);}
+.band-head{margin-bottom:var(--s-base);}
+.band-head h2{font-size:22px;font-weight:500;line-height:1.18;letter-spacing:-.44px;}
+.band-head h2 em{font-style:normal;color:var(--primary);}
+.band-head p{font-size:14px;line-height:1.43;color:var(--muted);margin-top:4px;}
+
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--s-lg) var(--s-base);}
+.pcard{display:block;text-align:left;width:100%;}
+.pphoto{display:block;position:relative;aspect-ratio:1/1;border-radius:var(--r-md);overflow:hidden;
+  background:var(--surface-strong);}
+.pphoto svg{position:absolute;inset:0;width:100%;height:100%;}
+.pcard:hover .pphoto{box-shadow:var(--float);}
+.badge{display:block;position:absolute;left:10px;top:10px;width:max-content;background:var(--canvas);color:var(--ink);
+  font-size:11px;font-weight:600;line-height:1.18;border-radius:var(--r-full);
+  padding:4px 10px;box-shadow:var(--float);}
+.badge.hot{background:var(--primary);color:var(--on-primary);}
+.heart{position:absolute;right:8px;top:8px;width:32px;height:32px;border-radius:var(--r-full);
+  display:grid;place-items:center;}
+.heart svg{position:static;width:22px;height:22px;fill:rgba(0,0,0,.32);stroke:#fff;stroke-width:2;}
+.heart[aria-pressed=true] svg{fill:var(--primary);}
+.pmeta{display:block;padding-top:var(--s-md);}
+.pmeta b{display:block;font-size:16px;font-weight:600;line-height:1.25;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pmeta span{display:block;font-size:14px;font-weight:400;line-height:1.43;color:var(--muted);margin-top:2px;}
+.pmeta .go{margin-top:6px;font-size:14px;color:var(--ink);}
+.pmeta .go em{font-style:normal;font-weight:600;}
+
+/* ══════ BAND MAP + HORIZONTAL SCROLLER ══════ */
+.bandmap{border:1px solid var(--hairline);border-radius:var(--r-md);overflow:hidden;
+  margin-bottom:var(--s-base);}
+.bandmap .mapview{height:200px;}
+
+.hscroll{display:flex;gap:var(--s-md);overflow-x:auto;scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;
+  margin:0 calc(var(--s-lg) * -1);padding:2px var(--s-lg) var(--s-xs);}
+.hscroll::-webkit-scrollbar{display:none;}
+.hcard{display:block;flex:0 0 176px;scroll-snap-align:start;text-align:left;}
+.hphoto{display:block;position:relative;aspect-ratio:4/3;border-radius:var(--r-md);
+  overflow:hidden;background:var(--surface-strong);}
+.hphoto svg{position:absolute;inset:0;width:100%;height:100%;}
+.hcard:hover .hphoto{box-shadow:var(--float);}
+.hbadge{display:block;position:absolute;left:8px;top:8px;width:max-content;
+  background:var(--canvas);color:var(--ink);font-size:11px;font-weight:600;line-height:1.18;
+  border-radius:var(--r-full);padding:4px 9px;box-shadow:var(--float);}
+.hmeta{display:block;padding-top:var(--s-sm);}
+.hmeta b{display:block;font-size:14px;font-weight:600;line-height:1.25;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hmeta span{display:block;font-size:13px;line-height:1.23;color:var(--muted);margin-top:3px;}
+
+/* ══════ RANK LIST ══════ */
+.ranks{display:flex;flex-direction:column;}
+.rank{display:flex;align-items:center;gap:var(--s-base);padding:var(--s-md) 0;
+  border-bottom:1px solid var(--hairline-soft);width:100%;text-align:left;}
+.rank:last-child{border-bottom:none;}
+.rthumb{display:block;width:56px;height:56px;border-radius:var(--r-sm);overflow:hidden;position:relative;
+  flex:0 0 auto;background:var(--surface-strong);}
+.rthumb svg{position:absolute;inset:0;width:100%;height:100%;}
+.rinfo{flex:1;min-width:0;}
+.rinfo b{display:block;font-size:16px;font-weight:500;line-height:1.25;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rinfo span{display:block;font-size:14px;color:var(--muted);line-height:1.43;margin-top:2px;}
+.rno{font-size:16px;font-weight:600;color:var(--muted-soft);width:22px;text-align:center;flex:0 0 auto;}
+
+/* ══════ MAP ══════ */
+.mapcard{border:1px solid var(--hairline);border-radius:var(--r-md);overflow:hidden;}
+.mapview{height:220px;position:relative;background:var(--surface-soft);}
+.mapview svg.base{position:absolute;inset:0;width:100%;height:100%;}
+.mk{position:absolute;transform:translate(-50%,-50%);}
+.mk-me{width:14px;height:14px;border-radius:var(--r-full);background:var(--primary);
+  border:3px solid #fff;box-shadow:0 0 0 5px rgba(217,69,60,.18);}
+.mk-p{background:var(--canvas);font-size:13px;font-weight:500;padding:5px 10px;
+  border-radius:var(--r-full);white-space:nowrap;box-shadow:var(--float);}
+.mk-b{background:var(--ink);color:#fff;font-size:12px;font-weight:600;padding:5px 9px;
+  border-radius:var(--r-sm);white-space:nowrap;}
+.maplegend{display:flex;gap:var(--s-base);padding:var(--s-md) var(--s-base);
+  border-top:1px solid var(--hairline-soft);font-size:13px;color:var(--muted);flex-wrap:wrap;}
+.maplegend span{display:flex;align-items:center;gap:6px;}
+.maplegend s{width:8px;height:8px;border-radius:var(--r-full);text-decoration:none;}
+
+/* ══════ SEARCH ══════ */
+.searchbar{display:flex;align-items:center;gap:var(--s-md);width:100%;
+  border:1px solid var(--hairline);border-radius:var(--r-full);box-shadow:var(--float);
+  padding:0 var(--s-sm) 0 var(--s-lg);height:56px;margin-bottom:var(--s-lg);background:var(--canvas);}
+.searchbar:focus-within{border-color:var(--ink);}
+.searchbar>svg{width:18px;height:18px;flex:0 0 auto;color:var(--muted);}
+.searchbar input{flex:1;min-width:0;border:none;outline:none;background:none;
+  font-family:inherit;font-size:16px;line-height:1.5;color:var(--ink);}
+.searchbar input::placeholder{color:var(--muted);}
+.search-go{width:44px;height:44px;border-radius:var(--r-full);background:var(--primary);
+  display:grid;place-items:center;flex:0 0 auto;}
+.search-go:active{background:var(--primary-active);}
+.search-go svg{width:16px;height:16px;color:var(--on-primary);}
+
+/* ══════ PRIMARY TABS (관광지 / 식도락) ══════ */
+.tabs2{display:flex;gap:var(--s-xl);border-bottom:1px solid var(--hairline);
+  margin-bottom:var(--s-base);}
+.tabs2 button{padding:0 2px var(--s-md);font-size:16px;font-weight:600;line-height:1.25;
+  color:var(--muted);position:relative;}
+.tabs2 button[aria-selected=true]{color:var(--ink);}
+.tabs2 button[aria-selected=true]::after{content:'';position:absolute;left:0;right:0;bottom:-1px;
+  height:2px;background:var(--ink);}
+.tabs2 button em{font-style:normal;font-weight:400;font-size:14px;color:var(--muted-soft);margin-left:5px;}
+[hidden]{display:none !important;}
+
+/* ══════ PHOTO FALLBACK ══════ */
+.nophoto{display:grid;place-items:center;background:var(--surface-strong);}
+.nophoto svg{position:static;width:34px;height:34px;color:var(--muted-soft);}
+.nophoto b{position:absolute;bottom:12px;left:0;right:0;text-align:center;
+  font-size:12px;font-weight:400;color:var(--muted);}
+
+/* ══════ BROWSE TOOLS ══════ */
+.segs{display:flex;gap:var(--s-sm);margin-bottom:var(--s-base);flex-wrap:wrap;}
+.seg{padding:10px 18px;border-radius:var(--r-full);border:1px solid var(--hairline);
+  font-size:14px;font-weight:500;line-height:1.29;color:var(--body);background:var(--canvas);}
+.seg[aria-selected=true]{background:var(--ink);color:#fff;border-color:var(--ink);}
+.tools{display:flex;align-items:center;justify-content:space-between;gap:var(--s-md);
+  margin-bottom:var(--s-base);flex-wrap:wrap;}
+.sortbtn{font-size:14px;font-weight:500;border:1px solid var(--hairline);
+  border-radius:var(--r-full);padding:9px 16px;}
+.viewtog{display:flex;border:1px solid var(--hairline);border-radius:var(--r-full);overflow:hidden;}
+.viewtog button{padding:9px 16px;font-size:14px;font-weight:500;color:var(--muted);}
+.viewtog button[aria-pressed=true]{background:var(--ink);color:#fff;}
+
+/* ══════ COURSE ══════ */
+.course{display:block;border:1px solid var(--hairline);border-radius:var(--r-md);overflow:hidden;
+  width:100%;text-align:left;margin-bottom:var(--s-base);}
+.course:hover{box-shadow:var(--float);}
+.course-img{display:block;position:relative;aspect-ratio:16/7;background:var(--surface-strong);}
+.course-img svg{position:absolute;inset:0;width:100%;height:100%;}
+.course-body{display:block;padding:var(--s-lg);}
+.course-body h3{display:block;font-size:20px;font-weight:600;line-height:1.2;letter-spacing:-.18px;}
+.course-body .cmeta{display:block;font-size:14px;color:var(--muted);line-height:1.43;margin-top:4px;}
+.steps{display:block;margin-top:var(--s-base);}
+.step{display:flex;gap:var(--s-md);align-items:flex-start;}
+.rail-line{flex:0 0 auto;width:14px;display:flex;flex-direction:column;align-items:center;align-self:stretch;}
+.rdot{width:8px;height:8px;border-radius:var(--r-full);background:var(--primary);margin-top:7px;}
+.rline{flex:1;width:1.5px;background:var(--hairline);min-height:18px;}
+.step:last-child .rline{display:none;}
+.stxt{display:block;padding-bottom:var(--s-base);}
+.stxt b{display:block;font-size:16px;font-weight:400;line-height:1.5;}
+.stxt span{display:block;font-size:14px;color:var(--muted);line-height:1.43;}
+.cfoot{display:flex;gap:var(--s-lg);padding-top:var(--s-base);border-top:1px solid var(--hairline-soft);
+  font-size:14px;color:var(--muted);flex-wrap:wrap;}
+
+/* ══════ DETAIL ══════ */
+.gallery{display:grid;grid-template-columns:1fr;gap:8px;border-radius:var(--r-md);overflow:hidden;}
+.gcell{position:relative;background:var(--surface-strong);}
+.gcell svg{position:absolute;inset:0;width:100%;height:100%;}
+.gcell.main{aspect-ratio:4/3;}
+.gcell.side-img{display:none;aspect-ratio:1/1;}
+.dsection{border-top:1px solid var(--hairline);padding:var(--s-xl) 0;}
+.dsection h2{font-size:22px;font-weight:500;line-height:1.18;letter-spacing:-.44px;margin-bottom:var(--s-md);}
+.dsection p{font-size:16px;line-height:1.5;color:var(--body);}
+.arow{display:flex;gap:var(--s-base);padding:var(--s-md) 0;align-items:flex-start;}
+.arow svg{width:24px;height:24px;flex:0 0 auto;color:var(--body);margin-top:2px;}
+.arow b{display:block;font-size:16px;font-weight:400;line-height:1.5;}
+.arow span{display:block;font-size:14px;color:var(--muted);line-height:1.43;margin-top:2px;}
+.link-t{font-size:16px;font-weight:500;text-decoration:underline;margin-top:var(--s-base);display:inline-block;}
+
+/* ══════ STICKY BAR (mobile detail) ══════ */
+.stickybar{position:fixed;left:0;right:0;bottom:var(--bottom-h);z-index:55;background:var(--canvas);
+  border-top:1px solid var(--hairline);padding:10px var(--s-lg);
+  display:flex;align-items:center;justify-content:space-between;gap:var(--s-base);}
+.stickybar b{display:block;font-size:16px;font-weight:600;line-height:1.25;}
+.stickybar span{display:block;font-size:13px;color:var(--muted);margin-top:2px;}
+.stickybar .btn-primary{width:auto;padding:0 22px;margin-top:0;flex:0 0 auto;}
+
+/* ══════ BOTTOM NAV ══════ */
+.botnav{position:fixed;left:0;right:0;bottom:0;z-index:60;height:var(--bottom-h);
+  display:flex;background:var(--canvas);border-top:1px solid var(--hairline);}
+.botnav button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;font-size:11px;font-weight:500;color:var(--muted);}
+.botnav button[aria-current=page]{color:var(--primary);}
+.botnav svg{width:22px;height:22px;}
+
+/* ═════════ RESPONSIVE ═════════ */
+/* Tablet 744+ */
+@media (min-width:744px){
+  .grid{grid-template-columns:repeat(3,1fr);}
+  .gallery{grid-template-columns:2fr 1fr 1fr;grid-template-rows:1fr 1fr;}
+  .gcell.main{grid-column:1;grid-row:1 / span 2;aspect-ratio:auto;min-height:320px;}
+  .gcell.side-img{display:block;}
+  .mapview{height:300px;}
+  .bandmap .mapview{height:240px;}
+  .hcard{flex-basis:200px;}
+  .phead h1{font-size:28px;}
+  .here span{display:inline;}
+}
+/* Desktop 1128+ */
+@media (min-width:1128px){
+  body{padding-bottom:0;}
+  .tabs{display:flex;}
+  .botnav,.stickybar{display:none;}
+  .cols{grid-template-columns:minmax(0,1fr) 372px;grid-template-rows:auto auto;
+    column-gap:var(--s-xxl);align-items:start;}
+  .col-a{grid-column:1;grid-row:1;}
+  .col-b{grid-column:1;grid-row:2;}
+  .side{grid-column:2;grid-row:1 / -1;margin-top:0;
+    position:sticky;top:calc(var(--nav-h) + var(--s-lg));}
+  .mapview{height:340px;}
+  .bandmap .mapview{height:260px;}
+  .hscroll{margin:0;padding:2px 0 var(--s-xs);}
+  .grid{grid-template-columns:repeat(3,1fr);}
+}
+/* Wide 1440+ */
+@media (min-width:1440px){
+  .shell{max-width:1440px;}
+  .grid{grid-template-columns:repeat(4,1fr);}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+</style>
+
+<header class="nav">
+  <div class="nav-in">
+    <div class="logo">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <path d="M16 29s10-9.4 10-16.5A10 10 0 0 0 6 12.5C6 19.6 16 29 16 29z"/>
+        <circle cx="16" cy="12.5" r="3.4" fill="currentColor" stroke="none"/>
+      </svg>
+      <b>안동잇다</b>
+    </div>
+    <nav class="tabs">
+      <button data-go="now" aria-current="page">지금 여기</button>
+      <button data-go="browse">둘러보기</button>
+      <button data-go="walk">걷는 길</button>
+    </nav>
+    <button class="here"><span class="ping"></span>안동역 부근<span> · 위치 변경</span></button>
+  </div>
+</header>
+
+<!-- ═══════════ 지금 여기 ═══════════ -->
+<div class="pane" id="now">
+  <div class="shell">
+    <div class="cols">
+
+      <div class="col-a">
+        <div class="phead">
+          <h1>지금 안동역 부근이에요</h1>
+          <p>가까운 정류장의 버스와, 기다리는 동안 다녀올 만한 곳이에요</p>
+        </div>
+
+        <div class="bus">
+          <div class="bus-top">
+            <div><b>안동역앞 정류장</b><small>여기서 걸어서 2분</small></div>
+            <span class="live"><s></s>실시간</span>
+          </div>
+
+          <div class="next">
+            <div class="next-num"><b>3</b><em>분</em></div>
+            <h2>212번이 곧 도착해요</h2>
+            <p>국립경국대 방면 · 4정거장 전</p>
+          </div>
+
+          <button class="brow">
+            <span class="bno">610</span>
+            <span class="bdir"><b>안동터미널 방면</b><span>10정거장 전</span></span>
+            <span class="bwhen"><b>7분</b><span>후</span></span>
+          </button>
+          <button class="brow">
+            <span class="bno">순환2-1</span>
+            <span class="bdir"><b>시내 순환</b><span>17정거장 전</span></span>
+            <span class="bwhen"><b>16분</b><span>후</span></span>
+          </button>
+
+          <button class="btn-primary">정류장 지도 보기</button>
+          <p class="hint">배차 간격이 길어요. 돌아오는 편도 확인해 두세요.</p>
+        </div>
+
+        <section class="band">
+          <div class="band-head">
+            <h2>걸어서 <em>7분</em> 안에</h2>
+            <p>다음 버스가 오기 전에 다녀올 수 있어요</p>
+          </div>
+
+          <div class="bandmap">
+            <div class="mapview">
+              <svg class="base" viewBox="0 0 720 260" preserveAspectRatio="none" aria-hidden="true">
+                <rect width="720" height="260" fill="#F2F2F0"/>
+                <path d="M-10 182 C 140 152, 290 206, 430 166 S 660 126, 740 148" fill="none" stroke="#D5E0E2" stroke-width="20"/>
+                <path d="M-10 70 L266 88 L446 60 L740 78" fill="none" stroke="#E4E4E0" stroke-width="3"/>
+                <path d="M214 -10 L252 270" fill="none" stroke="#E4E4E0" stroke-width="2.5"/>
+                <path d="M-10 124 L740 110" fill="none" stroke="#E4E4E0" stroke-width="2.5"/>
+                <circle cx="330" cy="140" r="86" fill="#D9453C" opacity=".05"/>
+                <circle cx="330" cy="140" r="86" fill="none" stroke="#D9453C" stroke-width="1.5" stroke-dasharray="5 5" opacity=".45"/>
+              </svg>
+              <div class="mk mk-me" style="left:46%;top:54%"></div>
+              <div class="mk mk-b" style="left:57%;top:40%">212 · 3분</div>
+              <div class="mk mk-p" style="left:30%;top:32%">중앙신시장</div>
+              <div class="mk mk-p" style="left:24%;top:72%">안동구시장</div>
+              <div class="mk mk-p" style="left:66%;top:70%">신세동 벽화마을</div>
+            </div>
+            <div class="maplegend">
+              <span><s style="background:#D9453C"></s>내 위치</span>
+              <span><s style="background:#222"></s>정류장</span>
+              <span><s style="background:#c1c1c1"></s>도보 7분 반경</span>
+            </div>
+          </div>
+
+          <div class="hscroll">
+            <button class="hcard">
+              <span class="hphoto">
+                <svg viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                  <rect width="200" height="150" fill="#C9AB7C"/>
+                  <path d="M0 60 L40 46 L80 61 L124 44 L164 60 L200 50 L200 150 L0 150Z" fill="#A0814F"/>
+                  <rect y="94" width="200" height="56" fill="#6F5636"/>
+                  <g fill="#D9453C"><rect x="14" y="88" width="44" height="8" rx="2"/><rect x="78" y="88" width="44" height="8" rx="2"/><rect x="144" y="88" width="44" height="8" rx="2"/></g>
+                  <g fill="#4A3A22" opacity=".72"><rect x="24" y="103" width="22" height="47"/><rect x="89" y="103" width="22" height="47"/><rect x="154" y="103" width="22" height="47"/></g>
+                </svg>
+                <span class="hbadge">걸어서 4분</span>
+              </span>
+              <span class="hmeta"><b>안동구시장 찜닭골목</b><span>350m · 시장</span></span>
+            </button>
+
+            <button class="hcard">
+              <span class="hphoto">
+                <svg viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                  <rect width="200" height="150" fill="#A9C0C5"/>
+                  <path d="M0 54 L42 39 L84 56 L130 38 L174 55 L200 46 L200 150 L0 150Z" fill="#7C9DA4"/>
+                  <path d="M0 81 L46 69 L97 84 L144 70 L200 83 L200 150 L0 150Z" fill="#4F6E76"/>
+                  <rect y="106" width="200" height="44" fill="#2E4A52"/>
+                  <g fill="#C8D5D8" opacity=".78"><rect x="20" y="99" width="34" height="9" rx="2"/><rect x="84" y="98" width="34" height="10" rx="2"/><rect x="148" y="100" width="34" height="8" rx="2"/></g>
+                </svg>
+                <span class="hbadge">걸어서 3분</span>
+              </span>
+              <span class="hmeta"><b>중앙신시장</b><span>240m · 시장</span></span>
+            </button>
+
+            <button class="hcard">
+              <span class="hphoto">
+                <svg viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                  <rect width="200" height="150" fill="#9FB6A8"/>
+                  <path d="M0 56 L38 41 L80 58 L125 40 L168 57 L200 48 L200 150 L0 150Z" fill="#708D7E"/>
+                  <path d="M0 83 L46 71 L96 86 L145 72 L200 85 L200 150 L0 150Z" fill="#476054"/>
+                  <rect y="110" width="200" height="40" fill="#2B3E34"/>
+                  <g fill="#D9453C" opacity=".9"><rect x="28" y="117" width="18" height="20" rx="3"/><rect x="92" y="120" width="18" height="17" rx="3"/><rect x="152" y="116" width="18" height="21" rx="3"/></g>
+                </svg>
+                <span class="hbadge">걸어서 6분</span>
+              </span>
+              <span class="hmeta"><b>신세동 벽화마을</b><span>520m · 골목 산책</span></span>
+            </button>
+
+            <button class="hcard">
+              <span class="hphoto">
+                <svg viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                  <rect width="200" height="150" fill="#B8B092"/>
+                  <path d="M0 58 L44 43 L88 60 L133 42 L177 59 L200 51 L200 150 L0 150Z" fill="#8E8668"/>
+                  <path d="M0 85 L49 73 L100 88 L148 74 L200 87 L200 150 L0 150Z" fill="#615B42"/>
+                  <g fill="#4B3B26"><path d="M41 118 L81 100 L121 118 L121 123 L41 123Z"/><rect x="53" y="123" width="56" height="27"/></g>
+                </svg>
+                <span class="hbadge">걸어서 14분</span>
+              </span>
+              <span class="hmeta"><b>안동임청각</b><span>1.1km · 서원·고택</span></span>
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <aside class="side">
+        <div class="band" style="margin-top:0">
+          <div class="band-head">
+            <h2>안동에서 많이 찾는 곳</h2>
+            <p>한국관광공사 방문 데이터 기준</p>
+          </div>
+          <div class="ranks">
+            <button class="rank" data-go="detail">
+              <span class="rno">1</span>
+              <span class="rthumb"><svg viewBox="0 0 60 60" preserveAspectRatio="none" aria-hidden="true">
+                <rect width="60" height="60" fill="#B5C9C3"/><path d="M0 28 L16 20 L32 30 L48 19 L60 27 L60 60 L0 60Z" fill="#517060"/>
+                <g fill="#5C4832"><path d="M12 46 L24 38 L36 46 L36 60 L12 60Z"/></g></svg></span>
+              <span class="rinfo"><b>안동하회마을</b><span>풍천면 · 46번 · 50분</span></span>
+            </button>
+            <button class="rank">
+              <span class="rno">2</span>
+              <span class="rthumb"><svg viewBox="0 0 60 60" preserveAspectRatio="none" aria-hidden="true">
+                <rect width="60" height="60" fill="#2E4356"/><circle cx="45" cy="14" r="7" fill="#F4EBD4"/>
+                <rect y="38" width="60" height="22" fill="#17242F"/><path d="M4 40 Q30 30 56 40" stroke="#E0CFA4" stroke-width="2" fill="none"/></svg></span>
+              <span class="rinfo"><b>월영교</b><span>상아동 · 3번 · 20분</span></span>
+            </button>
+            <button class="rank">
+              <span class="rno">3</span>
+              <span class="rthumb"><svg viewBox="0 0 60 60" preserveAspectRatio="none" aria-hidden="true">
+                <rect width="60" height="60" fill="#B7C7BC"/><path d="M0 26 L18 17 L36 28 L54 16 L60 22 L60 60 L0 60Z" fill="#4E6E5E"/>
+                <g fill="#6B5539"><path d="M16 46 L30 37 L44 46 L44 60 L16 60Z"/></g></svg></span>
+              <span class="rinfo"><b>병산서원</b><span>풍천면 · 210번 · 55분</span></span>
+            </button>
+            <button class="rank">
+              <span class="rno">4</span>
+              <span class="rthumb"><svg viewBox="0 0 60 60" preserveAspectRatio="none" aria-hidden="true">
+                <rect width="60" height="60" fill="#C9CDB6"/><path d="M0 24 L18 14 L36 26 L54 14 L60 20 L60 60 L0 60Z" fill="#65714F"/>
+                <g fill="#5C4A32"><path d="M18 46 L30 38 L42 46 L42 60 L18 60Z"/></g></svg></span>
+              <span class="rinfo"><b>도산서원</b><span>도산면 · 67번 · 45분</span></span>
+            </button>
+            <button class="rank">
+              <span class="rno">5</span>
+              <span class="rthumb"><svg viewBox="0 0 60 60" preserveAspectRatio="none" aria-hidden="true">
+                <rect width="60" height="60" fill="#A9BFC4"/><path d="M0 26 L16 16 L34 28 L50 15 L60 21 L60 60 L0 60Z" fill="#4E6C73"/>
+                <g fill="#6B5539"><path d="M20 48 L30 40 L40 48 L40 60 L20 60Z"/></g></svg></span>
+              <span class="rinfo"><b>봉정사</b><span>서후면 · 51번 · 35분</span></span>
+            </button>
+          </div>
+          <button class="link-t" data-go="browse">전체 보기</button>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ 둘러보기 ═══════════ -->
+<div class="pane" id="browse" hidden>
+  <div class="shell">
+    <div class="cols">
+      <div class="col-a">
+        <div class="phead">
+          <h1>안동 둘러보기</h1>
+          <p>버스로 갈 수 있는 관광지 65곳과 식당 18곳</p>
+        </div>
+
+        <div class="searchbar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/>
+          </svg>
+          <input type="search" placeholder="관광지·음식점 이름으로 찾기" aria-label="검색">
+          <button class="search-go" aria-label="검색">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+              <path d="M5 12h14M13 6l6 6-6 6"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="tabs2" role="tablist">
+          <button role="tab" data-tab="spots" aria-selected="true">관광지<em>65</em></button>
+          <button role="tab" data-tab="food" aria-selected="false">식도락<em>18</em></button>
+        </div>
+
+        <div class="segs" data-chips="spots">
+          <button class="seg" aria-selected="true">전체</button>
+          <button class="seg" aria-selected="false">서원·고택</button>
+          <button class="seg" aria-selected="false">자연·강변</button>
+          <button class="seg" aria-selected="false">시장·야경</button>
+        </div>
+        <div class="segs" data-chips="food" hidden>
+          <button class="seg" aria-selected="true">전체</button>
+          <button class="seg" aria-selected="false">찜닭</button>
+          <button class="seg" aria-selected="false">헛제삿밥</button>
+          <button class="seg" aria-selected="false">간고등어·한식</button>
+          <button class="seg" aria-selected="false">카페·베이커리</button>
+        </div>
+
+        <div class="tools">
+          <button class="sortbtn">인기순 ▾</button>
+          <div class="viewtog">
+            <button aria-pressed="true">목록</button>
+            <button aria-pressed="false">지도</button>
+          </div>
+        </div>
+
+        <div class="grid" data-grid="spots">
+          <button class="pcard" data-go="detail">
+            <span class="pphoto">
+              <svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs><linearGradient id="b1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#AEC6C8"/><stop offset="100%" stop-color="#DCE4DA"/></linearGradient></defs>
+                <rect width="300" height="300" fill="url(#b1)"/>
+                <path d="M0 128 L64 96 L130 132 L200 92 L264 130 L300 112 L300 300 L0 300Z" fill="#7E9C8C" opacity=".75"/>
+                <path d="M0 170 L76 144 L152 176 L226 146 L300 174 L300 300 L0 300Z" fill="#517060"/>
+                <g fill="#5C4832"><path d="M42 226 L86 202 L130 226 L130 234 L42 234Z"/><rect x="56" y="234" width="60" height="34"/><path d="M146 232 L184 210 L222 232 L222 239 L146 239Z"/><rect x="158" y="239" width="52" height="29"/><path d="M232 228 L266 208 L300 228 L300 235 L232 235Z"/><rect x="244" y="235" width="48" height="33"/></g>
+                <path d="M0 268 C 70 254, 150 288, 230 268 S 290 256, 300 262 L300 300 L0 300Z" fill="#8FA9AE"/>
+              </svg>
+              <span class="badge hot">1위</span>
+              <span class="heart" role="button" aria-pressed="false" aria-label="저장"><svg viewBox="0 0 24 24"><path d="M12 20.5C7 16.8 3.5 13.8 3.5 10.2 3.5 7.6 5.6 5.5 8.2 5.5c1.5 0 2.9.7 3.8 1.9.9-1.2 2.3-1.9 3.8-1.9 2.6 0 4.7 2.1 4.7 4.7 0 3.6-3.5 6.6-8.5 10.3z"/></svg></span>
+            </span>
+            <span class="pmeta"><b>안동하회마을</b><span>풍천면 · 서원·고택</span><span class="go"><em>46번</em> · 시내에서 50분</span></span>
+          </button>
+
+          <button class="pcard">
+            <span class="pphoto">
+              <svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <rect width="300" height="300" fill="#2E4356"/>
+                <circle cx="228" cy="66" r="30" fill="#F4EBD4" opacity=".9"/>
+                <path d="M0 140 L66 112 L134 146 L204 108 L268 144 L300 126 L300 300 L0 300Z" fill="#20303F"/>
+                <rect y="190" width="300" height="110" fill="#17242F"/>
+                <path d="M18 196 Q150 158 282 196" fill="none" stroke="#E0CFA4" stroke-width="5"/>
+                <g fill="#F0E3BC"><circle cx="76" cy="180" r="4.5"/><circle cx="150" cy="168" r="4.5"/><circle cx="224" cy="180" r="4.5"/></g>
+              </svg>
+              <span class="badge hot">2위</span>
+              <span class="heart" role="button" aria-pressed="true" aria-label="저장됨"><svg viewBox="0 0 24 24"><path d="M12 20.5C7 16.8 3.5 13.8 3.5 10.2 3.5 7.6 5.6 5.5 8.2 5.5c1.5 0 2.9.7 3.8 1.9.9-1.2 2.3-1.9 3.8-1.9 2.6 0 4.7 2.1 4.7 4.7 0 3.6-3.5 6.6-8.5 10.3z"/></svg></span>
+            </span>
+            <span class="pmeta"><b>월영교</b><span>상아동 · 야경</span><span class="go"><em>3번</em> · 시내에서 20분</span></span>
+          </button>
+
+          <button class="pcard">
+            <span class="pphoto">
+              <svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <rect width="300" height="300" fill="#B7C7BC"/>
+                <path d="M0 118 L74 88 L148 122 L220 86 L300 120 L300 300 L0 300Z" fill="#7D9A8A"/>
+                <path d="M0 172 L80 148 L160 180 L240 150 L300 176 L300 300 L0 300Z" fill="#4E6E5E"/>
+                <g fill="#6B5539"><path d="M66 238 L134 208 L202 238 L202 246 L66 246Z"/><rect x="84" y="246" width="100" height="54"/></g>
+                <rect y="286" width="300" height="14" fill="#3E5347"/>
+              </svg>
+              <span class="badge hot">3위</span>
+              <span class="heart" role="button" aria-pressed="false" aria-label="저장"><svg viewBox="0 0 24 24"><path d="M12 20.5C7 16.8 3.5 13.8 3.5 10.2 3.5 7.6 5.6 5.5 8.2 5.5c1.5 0 2.9.7 3.8 1.9.9-1.2 2.3-1.9 3.8-1.9 2.6 0 4.7 2.1 4.7 4.7 0 3.6-3.5 6.6-8.5 10.3z"/></svg></span>
+            </span>
+            <span class="pmeta"><b>병산서원</b><span>풍천면 · 서원·고택</span><span class="go"><em>210번</em> · 시내에서 55분</span></span>
+          </button>
+
+          <button class="pcard">
+            <span class="pphoto">
+              <svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <rect width="300" height="300" fill="#C9CDB6"/>
+                <path d="M0 110 L72 78 L146 114 L218 76 L300 112 L300 300 L0 300Z" fill="#94A17C"/>
+                <path d="M0 164 L86 140 L172 172 L246 144 L300 168 L300 300 L0 300Z" fill="#65714F"/>
+                <g fill="#5C4A32"><path d="M92 234 L150 206 L208 234 L208 241 L92 241Z"/><rect x="108" y="241" width="84" height="42"/></g>
+                <rect y="278" width="300" height="22" fill="#414F38"/>
+              </svg>
+              <span class="badge hot">4위</span>
+              <span class="heart" role="button" aria-pressed="false" aria-label="저장"><svg viewBox="0 0 24 24"><path d="M12 20.5C7 16.8 3.5 13.8 3.5 10.2 3.5 7.6 5.6 5.5 8.2 5.5c1.5 0 2.9.7 3.8 1.9.9-1.2 2.3-1.9 3.8-1.9 2.6 0 4.7 2.1 4.7 4.7 0 3.6-3.5 6.6-8.5 10.3z"/></svg></span>
+            </span>
+            <span class="pmeta"><b>도산서원</b><span>도산면 · 서원·고택</span><span class="go"><em>67번</em> · 시내에서 45분</span></span>
+          </button>
+
+          <button class="pcard">
+            <span class="pphoto">
+              <svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <rect width="300" height="300" fill="#B8B092"/>
+                <path d="M0 116 L66 86 L132 120 L200 84 L266 118 L300 102 L300 300 L0 300Z" fill="#8E8668"/>
+                <path d="M0 170 L74 146 L150 176 L222 148 L300 174 L300 300 L0 300Z" fill="#615B42"/>
+                <g fill="#4B3B26"><path d="M62 236 L122 200 L182 236 L182 246 L62 246Z"/><rect x="80" y="246" width="84" height="54"/><path d="M190 246 L228 224 L266 246 L266 253 L190 253Z"/><rect x="202" y="253" width="52" height="47"/></g>
+              </svg>
+              <span class="badge">걸어서 14분</span>
+              <span class="heart" role="button" aria-pressed="false" aria-label="저장"><svg viewBox="0 0 24 24"><path d="M12 20.5C7 16.8 3.5 13.8 3.5 10.2 3.5 7.6 5.6 5.5 8.2 5.5c1.5 0 2.9.7 3.8 1.9.9-1.2 2.3-1.9 3.8-1.9 2.6 0 4.7 2.1 4.7 4.7 0 3.6-3.5 6.6-8.5 10.3z"/></svg></span>
+            </span>
+            <span class="pmeta"><b>안동임청각</b><span>법흥동 · 서원·고택</span><span class="go"><em>도보</em> · 1.1km</span></span>
+          </button>
+
+        </div>
+
+        <div class="grid" data-grid="food" hidden>
+
+          <button class="pcard">
+            <span class="pphoto">
+              <svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <rect width="300" height="300" fill="#D8C9A8"/>
+                <rect y="170" width="300" height="130" fill="#B29A6E"/>
+                <g fill="#8A5A3A"><rect x="36" y="132" width="66" height="24" rx="4"/><rect x="120" y="122" width="60" height="34" rx="4"/><rect x="198" y="136" width="66" height="20" rx="4"/></g>
+                <g fill="#5E4126" opacity=".7"><rect x="56" y="204" width="30" height="96"/><rect x="136" y="204" width="30" height="96"/><rect x="216" y="204" width="30" height="96"/></g>
+              </svg>
+              <span class="badge">헛제삿밥</span>
+              <span class="heart" role="button" aria-pressed="false" aria-label="저장"><svg viewBox="0 0 24 24"><path d="M12 20.5C7 16.8 3.5 13.8 3.5 10.2 3.5 7.6 5.6 5.5 8.2 5.5c1.5 0 2.9.7 3.8 1.9.9-1.2 2.3-1.9 3.8-1.9 2.6 0 4.7 2.1 4.7 4.7 0 3.6-3.5 6.6-8.5 10.3z"/></svg></span>
+            </span>
+            <span class="pmeta"><b>맛50년 헛제사밥</b><span>석주로 · 안동 향토음식</span><span class="go"><em>3번</em> · 시내에서 15분</span></span>
+          </button>
+
+          <button class="pcard">
+            <span class="pphoto">
+              <svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <rect width="300" height="300" fill="#C0574A"/>
+                <circle cx="150" cy="164" r="94" fill="#8E3B32"/>
+                <circle cx="150" cy="164" r="72" fill="#A8483C"/>
+                <g fill="#E8C68A"><circle cx="122" cy="146" r="15"/><circle cx="176" cy="158" r="13"/><circle cx="140" cy="192" r="12"/></g>
+                <g fill="#4E6B3E"><ellipse cx="182" cy="128" rx="16" ry="7" transform="rotate(-18 182 128)"/><ellipse cx="112" cy="196" rx="14" ry="6" transform="rotate(12 112 196)"/></g>
+                <rect y="252" width="300" height="48" fill="#7C3129"/>
+              </svg>
+              <span class="badge">찜닭</span>
+              <span class="heart" role="button" aria-pressed="false" aria-label="저장"><svg viewBox="0 0 24 24"><path d="M12 20.5C7 16.8 3.5 13.8 3.5 10.2 3.5 7.6 5.6 5.5 8.2 5.5c1.5 0 2.9.7 3.8 1.9.9-1.2 2.3-1.9 3.8-1.9 2.6 0 4.7 2.1 4.7 4.7 0 3.6-3.5 6.6-8.5 10.3z"/></svg></span>
+            </span>
+            <span class="pmeta"><b>안동 유진찜닭</b><span>번영1길 · 안동찜닭</span><span class="go"><em>도보</em> · 안동구시장 안</span></span>
+          </button>
+
+          <button class="pcard">
+            <span class="pphoto nophoto">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/>
+                <path d="M3 16l5-4 4 3 3-2 6 4"/>
+              </svg>
+              <b>사진 준비 중</b>
+              <span class="badge">간고등어</span>
+              <span class="heart" role="button" aria-pressed="false" aria-label="저장"><svg viewBox="0 0 24 24"><path d="M12 20.5C7 16.8 3.5 13.8 3.5 10.2 3.5 7.6 5.6 5.5 8.2 5.5c1.5 0 2.9.7 3.8 1.9.9-1.2 2.3-1.9 3.8-1.9 2.6 0 4.7 2.1 4.7 4.7 0 3.6-3.5 6.6-8.5 10.3z"/></svg></span>
+            </span>
+            <span class="pmeta"><b>옥야식당</b><span>중앙시장길 · 간고등어·한식</span><span class="go"><em>도보</em> · 중앙신시장 안</span></span>
+          </button>
+
+          <button class="pcard">
+            <span class="pphoto">
+              <svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <rect width="300" height="300" fill="#B7C3CA"/>
+                <rect y="176" width="300" height="124" fill="#7E8E97"/>
+                <g fill="#5A6A73"><rect x="40" y="196" width="220" height="14" rx="7"/></g>
+                <g fill="#D9CBB0"><ellipse cx="150" cy="150" rx="82" ry="26"/></g>
+                <g fill="#8C9AA3"><ellipse cx="150" cy="150" rx="60" ry="17"/></g>
+                <g fill="#546069"><rect x="118" y="118" width="64" height="10" rx="5"/></g>
+              </svg>
+              <span class="badge">간고등어</span>
+              <span class="heart" role="button" aria-pressed="false" aria-label="저장"><svg viewBox="0 0 24 24"><path d="M12 20.5C7 16.8 3.5 13.8 3.5 10.2 3.5 7.6 5.6 5.5 8.2 5.5c1.5 0 2.9.7 3.8 1.9.9-1.2 2.3-1.9 3.8-1.9 2.6 0 4.7 2.1 4.7 4.7 0 3.6-3.5 6.6-8.5 10.3z"/></svg></span>
+            </span>
+            <span class="pmeta"><b>일직식당</b><span>경동로 · 간고등어·한식</span><span class="go"><em>도보</em> · 안동역에서 6분</span></span>
+          </button>
+
+          <button class="pcard">
+            <span class="pphoto nophoto">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/>
+                <path d="M3 16l5-4 4 3 3-2 6 4"/>
+              </svg>
+              <b>사진 준비 중</b>
+              <span class="badge">헛제삿밥</span>
+              <span class="heart" role="button" aria-pressed="false" aria-label="저장"><svg viewBox="0 0 24 24"><path d="M12 20.5C7 16.8 3.5 13.8 3.5 10.2 3.5 7.6 5.6 5.5 8.2 5.5c1.5 0 2.9.7 3.8 1.9.9-1.2 2.3-1.9 3.8-1.9 2.6 0 4.7 2.1 4.7 4.7 0 3.6-3.5 6.6-8.5 10.3z"/></svg></span>
+            </span>
+            <span class="pmeta"><b>헛제사밥까치구멍집</b><span>석주로 · 안동 향토음식</span><span class="go"><em>3번</em> · 시내에서 15분</span></span>
+          </button>
+
+          <button class="pcard">
+            <span class="pphoto">
+              <svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <rect width="300" height="300" fill="#E0CDA9"/>
+                <rect y="192" width="300" height="108" fill="#B99A6E"/>
+                <g fill="#8C6A45"><rect x="30" y="150" width="70" height="42" rx="10"/><rect x="116" y="140" width="68" height="52" rx="10"/><rect x="200" y="156" width="70" height="36" rx="10"/></g>
+                <g fill="#6E5233" opacity=".55"><rect x="44" y="212" width="34" height="16" rx="4"/><rect x="132" y="212" width="34" height="16" rx="4"/><rect x="220" y="212" width="34" height="16" rx="4"/></g>
+              </svg>
+              <span class="badge">카페·베이커리</span>
+              <span class="heart" role="button" aria-pressed="false" aria-label="저장"><svg viewBox="0 0 24 24"><path d="M12 20.5C7 16.8 3.5 13.8 3.5 10.2 3.5 7.6 5.6 5.5 8.2 5.5c1.5 0 2.9.7 3.8 1.9.9-1.2 2.3-1.9 3.8-1.9 2.6 0 4.7 2.1 4.7 4.7 0 3.6-3.5 6.6-8.5 10.3z"/></svg></span>
+            </span>
+            <span class="pmeta"><b>맘모스베이커리</b><span>문화광장길 · 카페·베이커리</span><span class="go"><em>도보</em> · 안동구시장 근처</span></span>
+          </button>
+
+        </div>
+      </div>
+
+      <aside class="side">
+        <div class="mapcard">
+          <div class="mapview">
+            <svg class="base" viewBox="0 0 372 340" preserveAspectRatio="none" aria-hidden="true">
+              <rect width="372" height="340" fill="#F2F2F0"/>
+              <path d="M-10 238 C 70 200, 150 268, 224 216 S 350 164, 390 192" fill="none" stroke="#D5E0E2" stroke-width="22"/>
+              <path d="M-10 90 L138 114 L232 78 L390 102" fill="none" stroke="#E4E4E0" stroke-width="3"/>
+            </svg>
+            <div class="mk mk-me" style="left:44%;top:52%"></div>
+            <div class="mk mk-p" style="left:14%;top:63%">하회마을</div>
+            <div class="mk mk-p" style="left:32%;top:79%">월영교</div>
+            <div class="mk mk-p" style="left:23%;top:31%">중앙신시장</div>
+            <div class="mk mk-p" style="left:74%;top:68%">임청각</div>
+            <div class="mk mk-p" style="left:79%;top:19%">도산서원</div>
+          </div>
+          <div class="maplegend">
+            <span><s style="background:#D9453C"></s>내 위치</span>
+            <span><s style="background:#c1c1c1"></s>관광지 65곳</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ 걷는 길 ═══════════ -->
+<div class="pane" id="walk" hidden>
+  <div class="shell">
+    <div class="cols">
+      <div class="col-a">
+        <div class="phead">
+          <h1>걷는 길</h1>
+          <p>버스 없이 걸어서 이어지는 길만 골랐어요</p>
+        </div>
+
+        <button class="course">
+          <span class="course-img">
+            <svg viewBox="0 0 640 280" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <rect width="640" height="280" fill="#B9CBC0"/>
+              <path d="M0 118 L110 74 L220 126 L340 66 L460 130 L570 80 L640 118 L640 280 L0 280Z" fill="#7E9C8A"/>
+              <path d="M0 172 L120 138 L244 182 L376 134 L500 186 L640 146 L640 280 L0 280Z" fill="#4F7263"/>
+              <path d="M0 228 C 160 204, 300 254, 460 224 S 590 202, 640 214 L640 280 L0 280Z" fill="#2C4A3E"/>
+            </svg>
+            <span class="badge">낮</span>
+          </span>
+          <span class="course-body">
+            <h3>강변 옛길</h3>
+            <span class="cmeta">4.1km · 약 1시간 10분 · 평지</span>
+            <span class="steps">
+              <span class="step"><span class="rail-line"><span class="rdot"></span><span class="rline"></span></span>
+                <span class="stxt"><b>안동임청각</b><span>안동역에서 걸어서 14분</span></span></span>
+              <span class="step"><span class="rail-line"><span class="rdot"></span><span class="rline"></span></span>
+                <span class="stxt"><b>법흥사지 칠층전탑</b><span>걸어서 2분</span></span></span>
+              <span class="step"><span class="rail-line"><span class="rdot"></span><span class="rline"></span></span>
+                <span class="stxt"><b>신세동 벽화마을</b><span>걸어서 9분</span></span></span>
+              <span class="step"><span class="rail-line"><span class="rdot"></span></span>
+                <span class="stxt"><b>월영교</b><span>걸어서 22분</span></span></span>
+            </span>
+            <span class="cfoot"><span>그늘이 적어요</span><span>물 챙기기</span></span>
+          </span>
+        </button>
+
+        <button class="course">
+          <span class="course-img">
+            <svg viewBox="0 0 640 280" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <rect width="640" height="280" fill="#2A3F52"/>
+              <circle cx="512" cy="66" r="26" fill="#F4EBD4" opacity=".9"/>
+              <path d="M0 130 L128 92 L256 138 L392 86 L520 142 L640 100 L640 280 L0 280Z" fill="#1E2F3E"/>
+              <rect y="186" width="640" height="94" fill="#16232E"/>
+              <path d="M60 192 Q320 152 580 192" fill="none" stroke="#E0CFA4" stroke-width="5"/>
+              <g fill="#F0E3BC"><circle cx="172" cy="176" r="4.5"/><circle cx="320" cy="164" r="4.5"/><circle cx="468" cy="176" r="4.5"/></g>
+            </svg>
+            <span class="badge">밤</span>
+          </span>
+          <span class="course-body">
+            <h3>달빛 물길</h3>
+            <span class="cmeta">1.6km · 약 30분 · 야간 조명</span>
+            <span class="steps">
+              <span class="step"><span class="rail-line"><span class="rdot"></span><span class="rline"></span></span>
+                <span class="stxt"><b>안동민속촌</b><span>3번 버스에서 내리면 시작</span></span></span>
+              <span class="step"><span class="rail-line"><span class="rdot"></span><span class="rline"></span></span>
+                <span class="stxt"><b>월영공원</b><span>걸어서 7분</span></span></span>
+              <span class="step"><span class="rail-line"><span class="rdot"></span></span>
+                <span class="stxt"><b>월영교</b><span>걸어서 5분 · 해 지면 조명이 켜져요</span></span></span>
+            </span>
+            <span class="cfoot"><span>돌아오는 버스 확인 필요</span></span>
+          </span>
+        </button>
+
+        <p class="hint" style="text-align:left">낙강물길공원은 2028년까지 공사 중이라 코스에서 뺐어요.</p>
+      </div>
+
+      <aside class="side">
+        <div class="mapcard">
+          <div class="mapview">
+            <svg class="base" viewBox="0 0 372 340" preserveAspectRatio="none" aria-hidden="true">
+              <rect width="372" height="340" fill="#F2F2F0"/>
+              <path d="M-10 238 C 70 200, 150 268, 224 216 S 350 164, 390 192" fill="none" stroke="#D5E0E2" stroke-width="22"/>
+              <path d="M92 244 L140 200 L196 184 L252 142" fill="none" stroke="#D9453C" stroke-width="3" stroke-dasharray="6 6"/>
+            </svg>
+            <div class="mk mk-p" style="left:25%;top:72%">임청각</div>
+            <div class="mk mk-p" style="left:38%;top:59%">법흥사지</div>
+            <div class="mk mk-p" style="left:53%;top:54%">벽화마을</div>
+            <div class="mk mk-p" style="left:68%;top:42%">월영교</div>
+          </div>
+          <div class="maplegend"><span><s style="background:#D9453C"></s>강변 옛길 4.1km</span></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ 관광지 상세 ═══════════ -->
+<div class="pane" id="detail" hidden>
+  <div class="shell" style="max-width:1080px">
+    <div class="phead">
+      <h1>안동하회마을</h1>
+      <p>가장 많이 찾는 곳 · 경상북도 안동시 풍천면 · 서원·고택</p>
+    </div>
+
+    <div class="gallery">
+      <div class="gcell main">
+        <svg viewBox="0 0 640 480" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs><linearGradient id="d1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#A9C3C6"/><stop offset="100%" stop-color="#DDE5DA"/></linearGradient></defs>
+          <rect width="640" height="480" fill="url(#d1)"/>
+          <path d="M0 200 L100 152 L200 204 L310 146 L420 208 L530 158 L640 206 L640 480 L0 480Z" fill="#7E9C8C" opacity=".7"/>
+          <path d="M0 258 L110 220 L228 266 L344 218 L462 268 L570 224 L640 258 L640 480 L0 480Z" fill="#517060"/>
+          <g fill="#5C4832">
+            <path d="M70 350 L140 312 L210 350 L210 362 L70 362Z"/><rect x="92" y="362" width="96" height="60"/>
+            <path d="M236 358 L300 322 L364 358 L364 369 L236 369Z"/><rect x="256" y="369" width="88" height="53"/>
+            <path d="M392 352 L462 314 L532 352 L532 364 L392 364Z"/><rect x="414" y="364" width="96" height="58"/>
+          </g>
+          <path d="M0 420 C 140 400, 300 448, 440 420 S 580 398, 640 410 L640 480 L0 480Z" fill="#8FA9AE"/>
+        </svg>
+      </div>
+      <div class="gcell side-img"><svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="300" height="300" fill="#B7C7BC"/><path d="M0 130 L80 100 L160 134 L240 98 L300 130 L300 300 L0 300Z" fill="#7D9A8A"/><g fill="#6B5539"><path d="M70 216 L150 180 L230 216 L230 226 L70 226Z"/><rect x="92" y="226" width="116" height="74"/></g></svg></div>
+      <div class="gcell side-img"><svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="300" height="300" fill="#CBB98F"/><path d="M0 150 L300 150 L300 300 L0 300Z" fill="#9C875C"/><g fill="#5C4832"><rect x="40" y="120" width="60" height="180" rx="4"/><rect x="200" y="140" width="60" height="160" rx="4"/></g></svg></div>
+      <div class="gcell side-img"><svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="300" height="300" fill="#A9BFC4"/><path d="M0 170 C 80 140, 180 210, 300 170 L300 300 L0 300Z" fill="#6E8F98"/><path d="M0 220 C 90 196, 190 250, 300 220 L300 300 L0 300Z" fill="#47646D"/></svg></div>
+      <div class="gcell side-img"><svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="300" height="300" fill="#C9CDB6"/><path d="M0 140 L90 106 L180 144 L268 104 L300 126 L300 300 L0 300Z" fill="#94A17C"/><path d="M0 200 L100 176 L200 208 L300 178 L300 300 L0 300Z" fill="#65714F"/></svg></div>
+    </div>
+
+    <div class="cols" style="margin-top:var(--s-xl)">
+      <div class="col-a">
+        <section class="dsection" style="border-top:none;padding-top:0">
+          <h2>이런 곳이에요</h2>
+          <p>낙동강이 마을을 크게 휘돌아 흐르는 자리에 기와집과 초가집이 그대로 남아 있어요. 지금도 사람이 사는 마을이라 계절마다 풍경이 달라요.</p>
+        </section>
+
+        <section class="dsection">
+          <h2>가는 방법</h2>
+          <div class="arow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="14" rx="2"/><path d="M4 12h16M7 21l2-4M17 21l-2-4"/></svg>
+            <div><b>46번 · 안동터미널에서 출발</b><span>약 50분 · 배차 간격 1시간</span></div>
+          </div>
+          <div class="arow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="13" cy="4.5" r="1.8"/><path d="M11 21l1.6-6L9 12l1-5 3.5 2.5L17 10M10 14l-2.5 7"/></svg>
+            <div><b>정류장에서 마을 입구까지 도보 3분</b><span>평지라 걷기 편해요</span></div>
+          </div>
+          <div class="arow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            <div><b>돌아오는 편을 미리 확인하세요</b><span>배차가 길어 놓치면 오래 기다려요</span></div>
+          </div>
+        </section>
+
+        <section class="dsection">
+          <h2>근처에 함께 볼 곳</h2>
+          <div class="ranks">
+            <button class="rank">
+              <span class="rthumb"><svg viewBox="0 0 60 60" preserveAspectRatio="none" aria-hidden="true"><rect width="60" height="60" fill="#A9BFC4"/><path d="M0 30 L18 18 L36 32 L54 18 L60 24 L60 60 L0 60Z" fill="#4E6C73"/></svg></span>
+              <span class="rinfo"><b>부용대</b><span>400m · 걸어서 6분</span></span>
+            </button>
+            <button class="rank">
+              <span class="rthumb"><svg viewBox="0 0 60 60" preserveAspectRatio="none" aria-hidden="true"><rect width="60" height="60" fill="#B7C7BC"/><path d="M0 26 L18 17 L36 28 L54 16 L60 22 L60 60 L0 60Z" fill="#4E6E5E"/><g fill="#6B5539"><path d="M16 46 L30 37 L44 46 L44 60 L16 60Z"/></g></svg></span>
+              <span class="rinfo"><b>병산서원</b><span>2.1km · 210번 같은 노선</span></span>
+            </button>
+            <button class="rank">
+              <span class="rthumb"><svg viewBox="0 0 60 60" preserveAspectRatio="none" aria-hidden="true"><rect width="60" height="60" fill="#C9CDB6"/><path d="M0 28 L20 16 L40 30 L60 18 L60 60 L0 60Z" fill="#65714F"/></svg></span>
+              <span class="rinfo"><b>하회세계탈박물관</b><span>1.3km · 걸어서 18분</span></span>
+            </button>
+          </div>
+          <button class="link-t" data-go="browse">← 목록으로 돌아가기</button>
+        </section>
+      </div>
+
+      <aside class="side">
+        <div class="bus">
+          <div class="bus-top">
+            <div><b>하회마을 정류장</b><small>마을 입구까지 도보 3분</small></div>
+            <span class="live"><s></s>실시간</span>
+          </div>
+          <div class="next">
+            <div class="next-num"><b>12</b><em>분</em></div>
+            <h2>46번이 오고 있어요</h2>
+            <p>안동터미널 방면 · 9정거장 전</p>
+          </div>
+          <button class="brow">
+            <span class="bno">210</span>
+            <span class="bdir"><b>병산서원 방면</b><span>21정거장 전</span></span>
+            <span class="bwhen"><b>34분</b><span>후</span></span>
+          </button>
+          <button class="btn-primary">길찾기</button>
+          <button class="btn-secondary">정류장 지도</button>
+          <p class="hint">돌아오는 편은 배차가 1시간이에요.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="stickybar">
+    <div><b>46번 · 12분 후</b><span>하회마을 정류장 · 9정거장 전</span></div>
+    <button class="btn-primary">길찾기</button>
+  </div>
+</div>
+
+
+
+<nav class="botnav">
+  <button data-go="now" aria-current="page">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="10" r="3"/><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/></svg>
+    지금 여기</button>
+  <button data-go="browse">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="15" width="7" height="5" rx="1.5"/><rect x="14" y="15" width="7" height="5" rx="1.5"/></svg>
+    둘러보기</button>
+  <button data-go="walk">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="13" cy="4.5" r="1.8"/><path d="M11 21l1.6-6L9 12l1-5 3.5 2.5L17 10M10 14l-2.5 7"/></svg>
+    걷는 길</button>
+</nav>
+
+<script>
+  const panes=['now','browse','walk','detail'];
+  function go(id){
+    panes.forEach(p=>document.getElementById(p).hidden=(p!==id));
+    const navId = id==='detail' ? 'browse' : id;
+    document.querySelectorAll('[data-go]').forEach(b=>{
+      if(b.classList.contains('link-t')||b.classList.contains('rank')||b.classList.contains('pcard'))return;
+      b.setAttribute('aria-current', b.dataset.go===navId?'page':'false');
+    });
+    window.scrollTo({top:0});
+  }
+  document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',e=>{
+    e.stopPropagation(); go(b.dataset.go);
+  }));
+  // 카테고리 칩 (같은 줄 안에서만 배타 선택)
+  document.querySelectorAll('.seg').forEach(el=>el.addEventListener('click',()=>{
+    el.parentElement.querySelectorAll('.seg').forEach(x=>x.setAttribute('aria-selected','false'));
+    el.setAttribute('aria-selected','true');
+  }));
+
+  // 관광지 / 식도락 탭
+  document.querySelectorAll('[data-tab]').forEach(t=>t.addEventListener('click',()=>{
+    const key=t.dataset.tab;
+    document.querySelectorAll('[data-tab]').forEach(x=>
+      x.setAttribute('aria-selected', x.dataset.tab===key?'true':'false'));
+    document.querySelectorAll('[data-chips]').forEach(c=> c.hidden = c.dataset.chips!==key);
+    document.querySelectorAll('[data-grid]').forEach(g=> g.hidden = g.dataset.grid!==key);
+  }));
+
+  // 검색 (프로토타입: 카드 이름으로 필터)
+  const si=document.querySelector('.searchbar input');
+  if(si) si.addEventListener('input',()=>{
+    const q=si.value.trim();
+    document.querySelectorAll('[data-grid]:not([hidden]) .pcard').forEach(c=>{
+      const name=c.querySelector('.pmeta b').textContent;
+      c.style.display = (!q || name.includes(q)) ? 'block' : 'none';
+    });
+  });
+  document.querySelectorAll('.viewtog button').forEach(v=>v.addEventListener('click',()=>{
+    v.parentElement.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed','false'));
+    v.setAttribute('aria-pressed','true');
+  }));
+  document.querySelectorAll('.heart').forEach(h=>h.addEventListener('click',e=>{
+    e.stopPropagation();
+    h.setAttribute('aria-pressed',h.getAttribute('aria-pressed')==='true'?'false':'true');
+  }));
+</script>

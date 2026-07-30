@@ -1,0 +1,35 @@
+# Nuxt
+.nuxt
+.output
+.data
+.nitro
+.cache
+dist
+
+# Node
+node_modules
+*.log*
+.pnpm-debug.log*
+
+# 환경변수 — 인증키가 들어간다. 절대 커밋하지 않는다.
+.env
+.env.*
+!.env.example
+
+# 에디터
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vercel
+.vercel
+
+# Python (scripts/)
+__pycache__/
+*.py[cod]
+.venv
+venv/

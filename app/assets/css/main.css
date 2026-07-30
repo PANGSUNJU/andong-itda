@@ -1,0 +1,92 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+@import "tailwindcss";
+
+/*
+  안동잇다 디자인 토큰
+
+  원칙 세 가지.
+  1. 흰 캔버스 위에 고전압 색은 단 하나(primary)만 존재한다.
+  2. 그림자는 한 단계만 있다. 깊이는 사진과 라운드 클리핑에서 나온다.
+  3. 큰 타이포는 한 곳에만 쓴다 — 버스 도착까지 남은 분.
+
+  값을 바꾸려면 이 파일만 고친다.
+  컴포넌트에서 색·라운드·간격 값을 직접 쓰지 않는다.
+*/
+@theme {
+  /* ── 색 ─────────────────────────────────── */
+  --color-primary: #d9453c;          /* 단청 주홍 */
+  --color-primary-active: #b8322a;
+  --color-primary-disabled: #f5cfcc;
+
+  --color-ink: #222222;
+  --color-body: #3f3f3f;
+  --color-muted: #6a6a6a;
+  --color-muted-soft: #929292;
+
+  --color-hairline: #dddddd;
+  --color-hairline-soft: #ebebeb;
+  --color-border-strong: #c1c1c1;
+
+  --color-surface-soft: #f7f7f7;
+  --color-surface-strong: #f2f2f2;
+
+  /* ── 라운드 ─────────────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 32px;
+
+  /* ── 그림자 — 단 하나의 정의 ──────────────── */
+  --shadow-float:
+    rgba(0, 0, 0, 0.02) 0 0 0 1px,
+    rgba(0, 0, 0, 0.04) 0 2px 6px 0,
+    rgba(0, 0, 0, 0.1) 0 4px 8px 0;
+
+  /* ── 타이포 ─────────────────────────────── */
+  --font-sans: 'Pretendard', Inter, -apple-system, system-ui, 'Segoe UI',
+    'Helvetica Neue', sans-serif;
+
+  /* 버스 도착 시간 전용. 다른 곳에 쓰지 않는다. */
+  --text-arrival: 64px;
+  --text-arrival--line-height: 1.1;
+  --text-arrival--letter-spacing: -1px;
+  --text-arrival--font-weight: 700;
+
+  /* ── 브레이크포인트 ──────────────────────── */
+  --breakpoint-tablet: 744px;
+  --breakpoint-desktop: 1128px;
+  --breakpoint-wide: 1440px;
+}
+
+/* ── 전역 기본값 ─────────────────────────── */
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background: #ffffff;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+
+  /* 키보드 사용자에게만 포커스 링을 보인다 */
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  /* 모션 민감 사용자 배려 */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
