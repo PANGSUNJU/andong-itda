@@ -8,8 +8,10 @@ import assert from 'node:assert/strict'
 
 import {
   distanceMeters,
+  keywordVariants,
   matchKorSpot,
   nameSimilarity,
+  noiseReason,
   normalizeSpotName,
 } from '../server/utils/tourApi.ts'
 
@@ -19,6 +21,8 @@ assert.equal(normalizeSpotName('개목사(안동)'), '개목사')
 assert.equal(normalizeSpotName('하회 세계탈박물관'), '하회세계탈박물관')
 // '안동'만으로 된 이름은 비워버리면 안 된다.
 assert.equal(normalizeSpotName('안동'), '안동')
+// KorService2가 붙이는 대괄호. 안 떼면 완전일치가 0.9로 떨어져 겸암정사에 진다.
+assert.equal(normalizeSpotName('도산서원 [유네스코 세계유산]'), '도산서원')
 
 assert.equal(nameSimilarity('안동하회마을', '하회마을'), 1) // 접두어를 떼면 완전일치
 assert.equal(nameSimilarity('개목사(안동)', '개목사'), 1) // 괄호를 떼면 완전일치
@@ -65,4 +69,41 @@ assert.equal(
 // 통과하는 후보가 없으면 병합하지 않는다. LocgoHub 단독 표시가 정상 동작이다.
 assert.equal(matchKorSpot(hub, [kor('하회세계탈박물관', '128.517995', '36.539063', '5')]), null)
 
-console.log('ok — normalizeSpotName · nameSimilarity · distanceMeters · matchKorSpot(좌표 1순위)')
+/* 키워드 보충 — 지역 조회에 안 잡히는 항목을 이름으로 찾을 때 쓰는 검색어 */
+
+// 그대로 검색하면 0건이다. '안동'을 뗀 변형이 있어야 하회마을이 잡힌다.
+assert.deepEqual(keywordVariants('안동하회마을'), ['안동하회마을', '하회마을'])
+// 상태·별칭은 슬래시 뒤에 붙는다. 그대로 검색어에 넣으면 아무것도 안 나온다.
+assert.deepEqual(keywordVariants('낙강물길공원/공사중(2028년12월31일개장예정)'), ['낙강물길공원'])
+// '안동'을 떼면 2글자만 남는 이름은 쪼개지 않는다. 너무 넓어진다.
+assert.deepEqual(keywordVariants('안동역'), ['안동역'])
+assert.deepEqual(keywordVariants('월영교'), ['월영교'])
+
+/* 노이즈 필터 — ADR-022 */
+
+// 걷어낼 것
+assert.equal(noiseReason('남안동CC'), '골프장')
+assert.equal(noiseReason('안동레이크GC'), '골프장')
+assert.equal(noiseReason('CGV/안동'), '영화관')
+assert.equal(noiseReason('롯데시네마/프리미엄안동'), '영화관')
+assert.equal(noiseReason('안동역'), '교통시설')
+assert.equal(noiseReason('옹천역/폐역'), '교통시설')
+assert.equal(noiseReason('안동터미널'), '교통시설')
+assert.equal(noiseReason('용상체육공원/야구장'), '체육시설')
+assert.equal(noiseReason('안동드림베이스볼파크'), '체육시설')
+assert.equal(noiseReason('안동수산물도매시장'), '도매시장')
+
+// 남길 것 — 오탐이 나면 여행자가 갈 곳이 사라진다
+assert.equal(noiseReason('안동하회마을'), null)
+assert.equal(noiseReason('월영교'), null)
+assert.equal(noiseReason('선성수상길'), null) // 레저스포츠지만 골프장이 아니다
+assert.equal(noiseReason('유교랜드'), null)
+assert.equal(noiseReason('중앙신시장'), null) // 전통시장은 남긴다
+assert.equal(noiseReason('안동구시장'), null)
+// 슬래시 뒤까지 보면 'KSI연수원'이 엉뚱한 패턴에 걸린다. 앞부분으로만 판정한다.
+assert.equal(noiseReason('한국국학진흥원/KSI연수원'), null)
+assert.equal(noiseReason('안동퇴계예던길/1코스'), null)
+
+console.log(
+  'ok — normalizeSpotName · nameSimilarity · distanceMeters · matchKorSpot(좌표 1순위) · keywordVariants · noiseReason',
+)

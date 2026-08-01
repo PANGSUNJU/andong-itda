@@ -14,6 +14,7 @@ import type { HubSpot, KorSpot, Spot, TourApiResponse } from '#shared/types/tour
  */
 const LOCGO_HUB = 'http://apis.data.go.kr/B551011/LocgoHubTarService1/areaBasedList1'
 const KOR_SERVICE = 'https://apis.data.go.kr/B551011/KorService2/areaBasedList2'
+const KOR_SEARCH = 'https://apis.data.go.kr/B551011/KorService2/searchKeyword2'
 
 /**
  * 인증키 정규화
@@ -119,8 +120,12 @@ function monthCode(monthsAgo: number): string {
  * 매월 8일 갱신이라는 설명과 달리 7월 말에도 7월분이 없었다.
  * 빈 응답은 오류가 아니라 "아직 안 나옴"이므로 이전 월로 물러난다.
  *
- * 숙박은 제외한다. 100건 중 36건이 호텔·모텔인데,
- * 그게 관광지 순위에 섞이면 순위 자체를 못 믿게 된다. → ADR-009
+ * 두 번 거른다.
+ *   숙박   100건 중 36건이 호텔·모텔이다. 관광지 순위에 섞이면 순위를 못 믿게 된다. → ADR-009
+ *   노이즈 골프장·영화관·역·체육시설·도매시장. 방문 데이터의 부산물이다. → ADR-022
+ *
+ * 거르는 건 "없는 척"이 아니라 "이 서비스의 목록이 아니다"라는 뜻이다.
+ * 빈 응답과 구분되도록 무엇이 왜 빠졌는지는 noiseReason이 이름으로 남긴다.
  */
 export async function fetchHubSpots(): Promise<{ items: HubSpot[]; baseYm: string }> {
   for (let monthsAgo = 0; monthsAgo <= 3; monthsAgo++) {
@@ -133,7 +138,12 @@ export async function fetchHubSpots(): Promise<{ items: HubSpot[]; baseYm: strin
     })
 
     if (items.length > 0) {
-      return { items: items.filter((item) => item.hubCtgryLclsNm !== '숙박'), baseYm }
+      return {
+        items: items.filter(
+          (item) => item.hubCtgryLclsNm !== '숙박' && !noiseReason(item.hubTatsNm),
+        ),
+        baseYm,
+      }
     }
   }
 
@@ -166,6 +176,224 @@ export async function fetchKorSpots(): Promise<KorSpot[]> {
   return lists.flatMap((list) => list.items)
 }
 
+/**
+ * 여행자 목록에서 걷어낼 이름 패턴 — ADR-022
+ *
+ * LocgoHub는 통신사 방문 데이터 기반이라 "사람이 많이 간 곳"을 준다.
+ * 그건 "여행자가 갈 만한 곳"과 다르다. 골프장·영화관·역·체육시설이
+ * 순위 상위권에 섞여 들어온다. 6위 안동역, 17위 남안동CC 같은 식이다.
+ *
+ * 카테고리로 자르지 않는다. 상류 분류가 목적과 어긋나기 때문이다.
+ * CGV와 하회세계탈박물관이 똑같이 '문화관광'이고,
+ * 남안동CC와 선성수상길이 똑같이 '레저스포츠'다. 카테고리를 자르면 둘 다 날아간다.
+ *
+ * 이름 패턴은 무딘 도구지만 여기서는 그게 맞다. 걷어낼 대상이 전부
+ * 이름에 정체를 드러내고 있고, 무엇이 왜 빠졌는지 읽어서 감사할 수 있다.
+ *
+ * ⚠️ 이 목록은 늘어난다. 새 항목을 넣기 전에 실제 응답에서 오탐부터 확인할 것.
+ */
+const NOISE_PATTERNS: ReadonlyArray<{ reason: string; pattern: RegExp }> = [
+  // 남안동CC · 안동레이크GC · 리버힐CC
+  { reason: '골프장', pattern: /(?:CC|GC|컨트리클럽)$/ },
+  // CGV/안동 · 롯데시네마/프리미엄안동
+  { reason: '영화관', pattern: /CGV|시네마|메가박스/ },
+  // 안동역 · 안동터미널 · 옹천역(폐역)
+  // 도착지점이지 방문지가 아니다. 정류장 안내는 버스 API가 따로 한다.
+  { reason: '교통시설', pattern: /역$|터미널/ },
+  // 안동드림베이스볼파크 · 안동강변구장 · 용상체육공원/야구장 · 안동시생활체육공원
+  { reason: '체육시설', pattern: /체육공원|야구장|구장$|베이스볼/ },
+  // 안동시농산물도매시장 · 안동수산물도매시장 · 안동청과합자회사
+  // 전통시장(중앙신시장·안동구시장·구담시장)은 남긴다. 그건 여행자가 간다.
+  { reason: '도매시장', pattern: /도매시장|합자회사/ },
+]
+
+/**
+ * 여행자 목록에 넣지 않을 이름인가
+ *
+ * LocgoHub가 별칭·상태를 슬래시 뒤에 붙이므로("옹천역/폐역") 앞부분으로 판정한다.
+ * 뒤까지 보면 "한국국학진흥원/KSI연수원" 같은 정상 항목이 엉뚱한 패턴에 걸린다.
+ */
+export function noiseReason(name: string): string | null {
+  const base = name.split('/')[0]!.trim()
+  return NOISE_PATTERNS.find(({ pattern }) => pattern.test(base))?.reason ?? null
+}
+
+/**
+ * KorService2 키워드 검색 — 지역 조회에서 누락된 것을 이름으로 찾는다
+ *
+ * ⚠️ 지역 기반 조회(areaBasedList2)만으로는 안동 핵심 관광지가 통째로 빠진다.
+ *    ADR-004는 이걸 "KorService2에 없다"고 적었는데 **틀렸다**.
+ *    이름으로 검색하면 전부 있고 이미지도 전부 있다. → 08-02 실측
+ *
+ *    원인은 상류 데이터 결함이다. 이 항목들은 areacode·sigungucode가 빈 값이라
+ *    지역 기반 조회의 그물에 걸리지 않는다.
+ *      하회마을 894027 / 도산서원 126200 / 월영교 988449
+ *      병산서원 126227 / 봉정사 126158 / 만휴정 126998   — 전부 areacode ''
+ *
+ * 지역 필터를 걸지 않는다. 걸면 애초에 못 찾는 그 항목들이 또 빠진다.
+ * 전국에서 찾아온 뒤 좌표로 거른다.
+ *
+ * 실패해도 던지지 않는다. 이건 보강이지 본체가 아니다.
+ * 키워드 하나가 실패했다고 목록 전체가 502가 되면 안 된다.
+ */
+async function searchKorSpots(keyword: string): Promise<KorSpot[]> {
+  try {
+    const { items } = await fetchTourApi<KorSpot>(KOR_SEARCH, {
+      numOfRows: 20,
+      pageNo: 1,
+      keyword,
+    })
+    return items
+  } catch {
+    return []
+  }
+}
+
+/**
+ * 검색어 후보 — 넓은 것부터
+ *
+ * LocgoHub는 시군명을 앞에 붙이고("안동하회마을") 상태·별칭을 뒤에 붙인다
+ * ("낙강물길공원/공사중(2028년12월31일개장예정)"). 그대로 검색하면 0건이다.
+ *
+ * 최대 2개로 묶는다. 결측이 46건이라 후보를 늘리면 호출 수가 그대로 곱해진다.
+ */
+export function keywordVariants(name: string): string[] {
+  const base = name
+    .replace(/\[.*?\]/g, '')
+    .replace(/\(.*?\)/g, '')
+    .split('/')[0]!
+    .trim()
+
+  if (!base) return []
+  // "안동하회마을" → "하회마을". 2글자만 남는 축약은 만들지 않는다.
+  return base.startsWith('안동') && base.length > 4 ? [base, base.slice(2)] : [base]
+}
+
+/**
+ * 키워드 보충에서 같은 장소로 볼 최대 거리(m)
+ *
+ * 지역 조회 매칭(200m)보다 훨씬 넉넉하다. 이름으로 찾아온 후보이므로
+ * 여기서는 이름이 주 증거고 거리는 위생 검사다.
+ * 실측: CGV/안동의 최근접 후보가 185km 떨어진 "CGV 강남점"이었다. 거리가 걸러냈다.
+ *
+ * 완전일치에 3km를 주는 이유는 두 API의 대표 좌표가 다른 지점을 가리키기 때문이다.
+ * 하회마을은 LocgoHub 좌표와 KorService2 좌표가 1,580m 벌어진다.
+ */
+const BACKFILL_EXACT_RADIUS_M = 3000
+
+/**
+ * 포함관계(0.9)일 때의 최대 거리(m)
+ *
+ * 완전일치보다 훨씬 조인다. 이름이 더 길다는 건 다른 장소일 수 있다는 뜻이다.
+ * "하회마을"을 585m 떨어진 "하회마을 겸암정사"가 삼키는 것을 막는다.
+ */
+const BACKFILL_PARTIAL_RADIUS_M = 500
+
+/**
+ * 키워드 검색 동시 실행 수
+ *
+ * TourAPI 한 번이 2~3초씩 걸린다. 결측 46건 × 최대 2개 검색어라
+ * 순차로 돌리면 2분을 넘는다. 실측: 6 → 31초, 12 → 16초.
+ *
+ * ⚠️ 16초는 여전히 서버리스 함수 제한을 넘길 수 있다. 캐시가 빈 첫 요청만
+ *    해당되지만, 그 요청이 타임아웃되면 캐시가 영영 안 채워진다.
+ *    배포 전에 빌드 타임 생성이나 스케줄 워밍으로 옮겨야 한다.
+ */
+const BACKFILL_CONCURRENCY = 12
+
+/**
+ * 이미지가 없는 관광지를 키워드 검색으로 채운다
+ *
+ * 유사도가 1순위, 거리가 2순위다. 거리만으로 고르면 틀린다.
+ * 하회마을의 최근접 후보는 585m의 "겸암정사"이고 본체는 1,580m로 더 멀다.
+ * ADR-021이 경고한 함정이 그대로 재현된 자리다.
+ *
+ * 실측(2026-08-02): 결측 46건 중 21건 보충. 28% → 61%.
+ * 1·3·4·5·9·11위가 전부 채워진다. 남는 25건의 절반은 역·터미널·골프장·
+ * 영화관·체육시설로 애초에 이미지가 없는 게 정상인 것들이다.
+ */
+export async function backfillImages(spots: Spot[]): Promise<Spot[]> {
+  const targets = spots.filter((spot) => !spot.imageUrl)
+  if (targets.length === 0) return spots
+
+  const found = new Map<string, KorSpot>()
+
+  await mapWithLimit(targets, BACKFILL_CONCURRENCY, async (spot) => {
+    for (const keyword of keywordVariants(spot.name)) {
+      const best = pickByKeyword(spot, await searchKorSpots(keyword))
+      if (!best) continue
+
+      found.set(spot.id, best)
+      // 완전일치면 더 볼 것이 없다. 남은 검색어를 건너뛰어 호출을 아낀다.
+      if (nameSimilarity(spot.name, best.title) === 1) return
+    }
+  })
+
+  return spots.map((spot) => {
+    const kor = found.get(spot.id)
+    if (!kor) return spot
+
+    return {
+      ...spot,
+      imageUrl: kor.firstimage,
+      // 주소도 같이 비어 있었다면 함께 채운다. 같은 항목에서 온 값이다.
+      ...(spot.address ? {} : kor.addr1 ? { address: kor.addr1 } : {}),
+      ...(spot.contentId ? {} : { contentId: kor.contentid }),
+    }
+  })
+}
+
+/** 키워드 검색 결과 중 이 관광지로 볼 만한 항목. 없으면 null. */
+function pickByKeyword(spot: Spot, candidates: KorSpot[]): KorSpot | null {
+  const scored = candidates
+    // 이미지가 목적이다. 없는 후보는 볼 이유가 없다.
+    .filter((kor) => kor.firstimage && kor.mapx && kor.mapy)
+    .map((kor) => ({
+      kor,
+      distance: distanceMeters(spot.lat, spot.lng, Number(kor.mapy), Number(kor.mapx)),
+      similarity: nameSimilarity(spot.name, kor.title),
+    }))
+    .filter(({ distance, similarity }) =>
+      similarity === 1
+        ? distance <= BACKFILL_EXACT_RADIUS_M
+        : similarity >= NAME_SIMILARITY_MIN_KEYWORD && distance <= BACKFILL_PARTIAL_RADIUS_M,
+    )
+    // 유사도 내림차순, 같으면 가까운 것.
+    .sort((a, b) => b.similarity - a.similarity || a.distance - b.distance)
+
+  return scored[0]?.kor ?? null
+}
+
+/**
+ * 키워드 보충의 이름 게이트
+ *
+ * 지역 조회(0.4)보다 높다. 거기서는 좌표 200m가 강한 증거라 이름이 보조였지만,
+ * 여기서는 반경이 3km까지 늘어나 이름이 사실상 유일한 증거다.
+ */
+const NAME_SIMILARITY_MIN_KEYWORD = 0.9
+
+/**
+ * 동시 실행 수를 제한한 map
+ *
+ * 결측 46건 × 최대 2개 검색어다. 전부 한꺼번에 던지면 공공 API 쪽에
+ * 부담이고, 순차로 돌리면 첫 요청이 2분을 넘긴다(실측). 그 사이를 잡는다.
+ */
+async function mapWithLimit<T>(
+  items: T[],
+  limit: number,
+  task: (item: T) => Promise<void>,
+): Promise<void> {
+  let cursor = 0
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      await task(items[cursor++]!)
+    }
+  })
+
+  await Promise.all(workers)
+}
+
 /** 두 좌표 사이 직선거리(m). 하버사인. */
 export function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371e3
@@ -182,13 +410,19 @@ export function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: n
  * 이름 정규화
  *
  * 두 데이터셋이 같은 장소를 다르게 적는다.
- *   "안동하회마을"  ↔ "하회마을"      LocgoHub가 시군명을 앞에 붙인다
- *   "개목사(안동)"  ↔ "개목사"        KorService2가 동명이소 구분을 괄호로 붙인다
- * 접두어 '안동'과 괄호를 떼고 공백을 지운 뒤 비교한다.
+ *   "안동하회마을"              ↔ "하회마을"   LocgoHub가 시군명을 앞에 붙인다
+ *   "개목사(안동)"              ↔ "개목사"     KorService2가 동명이소를 괄호로 구분한다
+ *   "도산서원 [유네스코 세계유산]" ↔ "도산서원"   KorService2가 등재 사실을 대괄호로 붙인다
+ * 접두어 '안동'과 괄호·대괄호를 떼고 공백을 지운 뒤 비교한다.
+ *
+ * ⚠️ 대괄호를 떼지 않으면 완전일치가 포함관계로 떨어진다(1.0 → 0.9).
+ *    그러면 "안동 하회마을 [유네스코 세계유산]"과 "안동 하회마을 겸암정사"가
+ *    똑같이 0.9가 되어 거리로만 갈리고, 더 가까운 겸암정사가 이긴다. → 08-02 실측
  */
 export function normalizeSpotName(name: string): string {
   return name
     .replace(/\(.*?\)/g, '')
+    .replace(/\[.*?\]/g, '')
     .replace(/\s/g, '')
     .replace(/^안동(?=.)/, '')
 }
