@@ -37,6 +37,26 @@ export interface BusStation {
 }
 
 /**
+ * 주변 정류장 — `/api/bus/nearby-stations?lat=&lng=`
+ *
+ * 정류장 전체 목록은 2107건 1.86MB다. 이걸 브라우저로 내려보내고
+ * 거기서 최근접을 고를 수는 없다. 거리 계산은 서버에서 끝낸다.
+ *
+ * BusStation을 통째로 상속하지 않는다. 화면이 쓰는 건 이름·좌표·거리뿐이고,
+ * 다국어명·카드번호·BIT ID까지 실어 보낼 이유가 없다.
+ */
+export interface NearbyStation {
+  stationId: number
+  stationNm: string
+  gpsX: number
+  gpsY: number
+  /** 직선거리(m) */
+  distance: number
+  /** 추정 도보 시간(분). 직선거리 기반이므로 실제보다 짧게 나온다. */
+  walkMinutes: number
+}
+
+/**
  * 정류장별 도착정보 — `?i={stationId}&tab=2`
  *
  * ⚠️ 기점 정류장은 항상 빈 배열을 반환한다.
