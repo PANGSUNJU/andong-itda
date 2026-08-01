@@ -86,12 +86,24 @@ node scripts/check-spot-match.ts
 | `GET /api/bus/routes` | 1분 | ✅ 421건 (`runTotCnt` 포함) |
 | `GET /api/spot-bus/[spot]` | 없음 | ✅ 실시간 + 시간표 + 운행여부 결합 |
 | `GET /api/spots` | 1일 | ✅ 64건 (숙박 제외, 19건 병합) |
+| `GET /api/spots/nearby?lat=&lng=` | 없음 | ✅ 반경·개수 지정, 거리·도보시간 부여 |
+| `GET /api/bus/nearby-stations?lat=&lng=` | 없음 | ✅ 최근접 N개 (중복 stationId 제거) |
 | `GET /api/spots/[id]` | — | 미구현 (`detailCommon2` 미검증) |
-| `GET /api/spots/nearby` | — | 미구현 |
 | `GET /api/food` | — | 미구현 |
 
-화면(`app/`)은 아직 없다. 다음 작업은 [docs/dev-log.md](docs/dev-log.md)의
-"다음에 할 일"에 있다.
+**화면** (`app/`)
+
+| 경로 | 상태 |
+|---|---|
+| `/` 지금 여기 | ✅ 위치 기반 정류장·도착·도보권/버스권 관광지·인기 순위 |
+| `/browse` 둘러보기 | ✅ 관광지 64곳 검색·분류·정렬 / 식도락 탭은 `/api/food` 대기 |
+| `/spots/[id]` 상세 | ✅ 관광 정보 + 버스 안내 한 화면 (등록된 7곳) |
+| `/walk` 걷는 길 | ✅ 자체 큐레이션 코스 2개 (정적) |
+
+지도는 카카오 JavaScript 키가 없어 `MapCard`가 자리만 잡고 있다.
+키가 생기면 그 컴포넌트 안만 바꾸면 된다. → [ADR-013](docs/decisions.md)
+
+다음 작업은 [docs/dev-log.md](docs/dev-log.md)의 "다음에 할 일"에 있다.
 
 ---
 
