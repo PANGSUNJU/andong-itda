@@ -89,7 +89,7 @@ node scripts/check-spot-match.ts
 | `GET /api/spots/nearby?lat=&lng=` | 없음 | ✅ 반경·개수 지정, 거리·도보시간 부여 |
 | `GET /api/bus/nearby-stations?lat=&lng=` | 없음 | ✅ 최근접 N개 (중복 stationId 제거) |
 | `GET /api/spots/[id]` | — | 미구현 (`detailCommon2` 미검증) |
-| `GET /api/food` | — | 미구현 |
+| `GET /api/food` | — | 미구현 (데이터는 검증 완료, 16건) |
 
 **화면** (`app/`)
 
