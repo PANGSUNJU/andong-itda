@@ -85,7 +85,7 @@ node scripts/check-spot-match.ts
 | `GET /api/bus/arrivals?stationId=` | 없음 | ✅ `predictTm` 오름차순, null 후순위 |
 | `GET /api/bus/routes` | 1분 | ✅ 421건 (`runTotCnt` 포함) |
 | `GET /api/spot-bus/[spot]` | 없음 | ✅ 실시간 + 시간표 + 운행여부 결합 |
-| `GET /api/spots` | 1일 | ✅ 64건 (숙박 제외, 19건 병합) |
+| `GET /api/spots` | 1일 | ✅ 49건 (숙박·노이즈 제외, 이미지 76%) |
 | `GET /api/spots/nearby?lat=&lng=` | 없음 | ✅ 반경·개수 지정, 거리·도보시간 부여 |
 | `GET /api/bus/nearby-stations?lat=&lng=` | 없음 | ✅ 최근접 N개 (중복 stationId 제거) |
 | `GET /api/spots/[id]` | — | 미구현 (`detailCommon2` 미검증) |
@@ -96,12 +96,19 @@ node scripts/check-spot-match.ts
 | 경로 | 상태 |
 |---|---|
 | `/` 지금 여기 | ✅ 위치 기반 정류장·도착·도보권/버스권 관광지·인기 순위 |
-| `/browse` 둘러보기 | ✅ 관광지 64곳 검색·분류·정렬 / 식도락 탭은 `/api/food` 대기 |
+| `/browse` 둘러보기 | ✅ 관광지 49곳 검색·분류·정렬 / 식도락 탭은 `/api/food` 대기 |
 | `/spots/[id]` 상세 | ✅ 관광 정보 + 버스 안내 한 화면 (등록된 7곳) |
 | `/walk` 걷는 길 | ✅ 자체 큐레이션 코스 2개 (정적) |
 
 지도는 카카오 JavaScript 키가 없어 `MapCard`가 자리만 잡고 있다.
 키가 생기면 그 컴포넌트 안만 바꾸면 된다. → [ADR-013](docs/decisions.md)
+
+⚠️ `/api/spots`는 캐시가 빈 첫 요청에 **약 11초** 걸린다. 이미지 보충을 위해
+TourAPI를 수십 번 호출하기 때문이다. 서버리스 함수 제한을 넘길 수 있으므로
+배포 전에 빌드 타임 생성이나 스케줄 워밍으로 옮겨야 한다.
+
+캐시는 `.nuxt/cache/nitro/handlers/`에 파일로 남아 **재빌드해도 살아남는다.**
+서버 코드를 고쳤는데 응답이 그대로면 이 파일부터 지울 것.
 
 다음 작업은 [docs/dev-log.md](docs/dev-log.md)의 "다음에 할 일"에 있다.
 
