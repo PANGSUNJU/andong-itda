@@ -1,0 +1,67 @@
+<script setup lang="ts">
+/**
+ * 전역 셸 — 상단 네비(데스크톱) + 하단 탭바(모바일)
+ *
+ * 두 네비게이션은 같은 3개 목적지를 가리킨다. 브레이크포인트로 하나만 보인다.
+ * 관광지 상세는 별도 목적지가 아니라 "둘러보기"의 하위이므로 그쪽을 현재 위치로 표시한다.
+ */
+const NAV = [
+  { to: '/', label: '지금 여기' },
+  { to: '/browse', label: '둘러보기' },
+  { to: '/walk', label: '걷는 길' },
+] as const
+
+const route = useRoute()
+
+/** 상세(/spots/…)에 있을 때 하이라이트할 탭 */
+const activePath = computed(() => (route.path.startsWith('/spots') ? '/browse' : route.path))
+</script>
+
+<template>
+  <div class="min-h-screen pb-20 desktop:pb-0">
+    <header class="sticky top-0 z-50 border-b border-hairline-soft bg-white">
+      <div class="mx-auto flex h-[72px] max-w-[1280px] items-center gap-4 px-6">
+        <NuxtLink to="/" class="flex flex-none items-center gap-2">
+          <AppLogo class="h-[26px] w-[26px] text-primary" />
+          <b class="text-xl font-bold tracking-[-0.4px] text-primary">안동잇다</b>
+        </NuxtLink>
+
+        <nav class="ml-8 hidden gap-1 desktop:flex">
+          <NuxtLink
+            v-for="item in NAV"
+            :key="item.to"
+            :to="item.to"
+            class="rounded-full px-4 py-2.5 text-base font-semibold leading-tight transition-colors"
+            :class="
+              activePath === item.to
+                ? 'bg-surface-strong text-ink'
+                : 'text-muted hover:bg-surface-soft'
+            "
+          >
+            {{ item.label }}
+          </NuxtLink>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <!-- 모바일 하단 탭바. 데스크톱에서는 상단 네비가 대신한다. -->
+    <nav
+      class="fixed inset-x-0 bottom-0 z-50 flex h-16 border-t border-hairline bg-white desktop:hidden"
+    >
+      <NuxtLink
+        v-for="item in NAV"
+        :key="item.to"
+        :to="item.to"
+        class="flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium"
+        :class="activePath === item.to ? 'text-primary' : 'text-muted'"
+      >
+        <AppNavIcon :name="item.to" class="h-[22px] w-[22px]" />
+        {{ item.label }}
+      </NuxtLink>
+    </nav>
+  </div>
+</template>
