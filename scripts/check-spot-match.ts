@@ -8,6 +8,7 @@ import assert from 'node:assert/strict'
 
 import {
   distanceMeters,
+  foodCategoryOf,
   keywordVariants,
   matchKorSpot,
   nameSimilarity,
@@ -104,6 +105,28 @@ assert.equal(noiseReason('안동구시장'), null)
 assert.equal(noiseReason('한국국학진흥원/KSI연수원'), null)
 assert.equal(noiseReason('안동퇴계예던길/1코스'), null)
 
+/* 음식점 분류 — ADR-023. 아래 이름은 전부 2026-08-02 실제 응답의 title이다. */
+
+const food = (title: string, cat3: string) => ({ title, cat3 }) as never
+
+// 이름이 스스로 밝히는 것만 태깅한다.
+assert.equal(foodCategoryOf(food('안동 유진찜닭', 'A05020100')), '찜닭')
+// 상호 표기는 '헛제사밥'이고 분류명은 '헛제삿밥'이다. 둘을 잇지 못하면 0건짜리 칩이 남는다.
+assert.equal(foodCategoryOf(food('맛50년 헛제사밥', 'A05020100')), '헛제삿밥')
+assert.equal(foodCategoryOf(food('헛제사밥까치구멍집', 'A05020100')), '헛제삿밥')
+
+// 간고등어집이지만 이름에 없다. '한식'으로 남는 게 맞다.
+// 여기를 '간고등어'로 바꾸고 싶어지면 그 근거가 응답 밖에 있다는 뜻이다. → ADR-023
+assert.equal(foodCategoryOf(food('옥야식당', 'A05020100')), '한식')
+assert.equal(foodCategoryOf(food('일직식당', 'A05020100')), '한식')
+assert.equal(foodCategoryOf(food('안동한우갈비', 'A05020100')), '한식')
+
+// 카페는 API가 직접 답한 것이라 이름 추측보다 앞선다.
+assert.equal(foodCategoryOf(food('맘모스베이커리', 'A05020900')), '카페')
+assert.equal(foodCategoryOf(food('396커피컴퍼니', 'A05020900')), '카페')
+// 상류가 새 cat3를 보내와도 목록에서 사라지지 않는다. 모르는 값은 한식으로 둔다.
+assert.equal(foodCategoryOf(food('언젠가 생길 국숫집', 'A05029999')), '한식')
+
 console.log(
-  'ok — normalizeSpotName · nameSimilarity · distanceMeters · matchKorSpot(좌표 1순위) · keywordVariants · noiseReason',
+  'ok — normalizeSpotName · nameSimilarity · distanceMeters · matchKorSpot(좌표 1순위) · keywordVariants · noiseReason · foodCategoryOf',
 )

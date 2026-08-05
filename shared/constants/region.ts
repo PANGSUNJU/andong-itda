@@ -1,3 +1,5 @@
+import type { FoodCategory } from '../types/tour.ts'
+
 /**
  * 안동시 지역 코드
  *
@@ -54,38 +56,26 @@ export const CONTENT_TYPE = {
 export type ContentTypeId = (typeof CONTENT_TYPE)[keyof typeof CONTENT_TYPE]
 
 /**
- * 음식점 세부 분류
+ * 음식점 cat3 코드 — API가 주는 유일한 구분
  *
- * 기획서에 명시한 안동 향토음식 카테고리에 대응한다.
- * cat3 코드는 KorService2 응답 기준.
+ * 안동 음식점 16건의 cat3는 이 두 값뿐이고 lclsSystm2(FD01/FD05)와 1:1이다.
+ * 둘 중 아무거나 써도 되지만 cat3가 두 API에 공통으로 있으므로 이쪽을 쓴다.
+ *
+ * ⚠️ 향토음식(찜닭·헛제삿밥·간고등어) 구분은 **여기에 없다.** API는 한식/카페만 준다.
+ *    ADR-011의 향토음식 분류표는 사람이 아는 사실로 만든 것이다. → ADR-023
  */
-export const FOOD_CATEGORY = {
-  /** 한식 — 헛제삿밥, 찜닭, 간고등어 */
+export const FOOD_CAT3 = {
+  /** 한식 — 11건 */
   KOREAN: 'A05020100',
-  /** 카페·디저트 */
+  /** 카페·디저트 — 5건 */
   CAFE: 'A05020900',
 } as const
 
-/** 위치 정보를 얻지 못했을 때의 기준점 — 안동역 */
-export const FALLBACK_LOCATION = {
-  name: '안동역',
-  lat: 36.5606,
-  lng: 128.7274,
-} as const
-
 /**
- * 도보 속도
+ * 식도락 분류의 표시 순서 — 그리고 그게 곧 기본 정렬이다
  *
- * 직선거리에 보정계수를 곱해 실제 도보 시간을 추정한다.
- * 실제 도보 경로 API를 쓰지 않는 이유는, 이 서비스에서 도보 시간의 역할이
- * "정확한 안내"가 아니라 "버스 대기 시간 안에 갈 수 있는지" 판단이기 때문이다.
- * ±2분 오차는 그 판단을 바꾸지 않는다.
- *
- * 화면에는 "약 4분"처럼 추정치임을 드러내 표기한다.
+ * 관광지 탭은 칩 목록을 응답에서 만든다. 분류를 상류가 정하기 때문이다(→ browse.vue).
+ * 음식점은 반대다. 분류가 우리가 만드는 닫힌 집합이라 순서도 우리가 정해야 한다.
+ * 향토음식을 앞에 둔다. 음식점에는 hubRank가 없어서 "인기순"이라는 축이 아예 없다.
  */
-export const WALK = {
-  /** 분당 이동 거리(m) — 성인 평균 보행 속도 4km/h */
-  METERS_PER_MINUTE: 67,
-  /** 직선거리 → 실제 도보거리 보정계수 */
-  DETOUR_FACTOR: 1.3,
-} as const
+export const FOOD_CATEGORY_ORDER: readonly FoodCategory[] = ['찜닭', '헛제삿밥', '한식', '카페']

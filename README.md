@@ -88,15 +88,15 @@ node scripts/check-spot-match.ts
 | `GET /api/spots` | 1일 | ✅ 49건 (숙박·노이즈 제외, 이미지 76%) |
 | `GET /api/spots/nearby?lat=&lng=` | 없음 | ✅ 반경·개수 지정, 거리·도보시간 부여 |
 | `GET /api/bus/nearby-stations?lat=&lng=` | 없음 | ✅ 최근접 N개 (중복 stationId 제거) |
+| `GET /api/food` | 1일 | ✅ 16건 (찜닭1·헛제삿밥2·한식8·카페5) |
 | `GET /api/spots/[id]` | — | 미구현 (`detailCommon2` 미검증) |
-| `GET /api/food` | — | 미구현 (데이터는 검증 완료, 16건) |
 
 **화면** (`app/`)
 
 | 경로 | 상태 |
 |---|---|
 | `/` 지금 여기 | ✅ 위치 기반 정류장·도착·도보권/버스권 관광지·인기 순위 |
-| `/browse` 둘러보기 | ✅ 관광지 49곳 검색·분류·정렬 / 식도락 탭은 `/api/food` 대기 |
+| `/browse` 둘러보기 | ✅ 관광지 49곳 검색·분류·정렬 / 식도락 16곳 (분류 → [ADR-023](docs/decisions.md)) |
 | `/spots/[id]` 상세 | ✅ 관광 정보 + 버스 안내 한 화면 (등록된 7곳) |
 | `/walk` 걷는 길 | ✅ 자체 큐레이션 코스 2개 (정적) |
 

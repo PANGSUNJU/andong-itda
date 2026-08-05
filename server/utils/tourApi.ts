@@ -1,8 +1,13 @@
 // #shared 별칭이 아니라 상대경로를 쓴다. 별칭은 Nuxt만 알기 때문에
 // scripts/check-spot-match.ts를 node로 직접 돌릴 때 해석되지 않는다.
 // import type은 어차피 컴파일에서 지워지므로 별칭을 그대로 둔다.
-import { CONTENT_TYPE, KOR_SERVICE_REGION, LOCGO_HUB_REGION } from '../../shared/constants/region.ts'
-import type { HubSpot, KorSpot, Spot, TourApiResponse } from '#shared/types/tour'
+import {
+  CONTENT_TYPE,
+  FOOD_CAT3,
+  KOR_SERVICE_REGION,
+  LOCGO_HUB_REGION,
+} from '../../shared/constants/region.ts'
+import type { FoodCategory, FoodPlace, HubSpot, KorSpot, Spot, TourApiResponse } from '#shared/types/tour'
 
 /**
  * 한국관광공사 TourAPI 호출과 두 데이터셋의 병합
@@ -174,6 +179,81 @@ export async function fetchKorSpots(): Promise<KorSpot[]> {
   )
 
   return lists.flatMap((list) => list.items)
+}
+
+/**
+ * 안동 음식점 — KorService2 단독이다
+ *
+ * 관광지와 달리 병합할 상대가 없다. LocgoHub는 음식점을 주지 않으므로
+ * 순위도 없고 뼈대를 바꿔 낄 이유도 없다. 한 번 호출하고 끝난다.
+ *
+ * ⚠️ 이미지 보충(backfillImages)을 붙이지 않는다. 관광지에서 21건을 채운
+ *    그 로직이 음식점에는 **0/7이다.** 원인이 다르기 때문이다.
+ *      관광지  areacode가 빈 값이라 지역 조회에 안 잡힐 뿐, 이름으로 찾으면 이미지가 있다
+ *      음식점  지역 조회에 정상적으로 잡히고 그 레코드에 이미지가 없다
+ *    후자는 조회를 몇 번 하든 없다. 44% 결측은 SpotPhoto 폴백이 받는다. → ADR-023
+ *
+ * 검증(2026-08-02): 16건, 이미지 9/결측 7, tel 16건 전부 빈 값.
+ */
+export async function fetchFoodPlaces(): Promise<FoodPlace[]> {
+  const { items } = await fetchTourApi<KorSpot>(KOR_SERVICE, {
+    numOfRows: 100,
+    pageNo: 1,
+    contentTypeId: CONTENT_TYPE.RESTAURANT,
+    ...KOR_SERVICE_REGION,
+  })
+
+  return items.map(toFoodPlace)
+}
+
+/**
+ * 이름에서 읽어낼 수 있는 향토음식 — ADR-023
+ *
+ * API는 한식/카페만 준다. 그런데 "안동 식도락"에서 찜닭과 헛제삿밥이
+ * 한식에 묻히면 이 탭이 존재할 이유가 없어진다. 그래서 **이름이 스스로
+ * 밝히는 것만** 태깅한다. 근거가 응답 안에 있으므로 누구든 다시 만들 수 있다.
+ *
+ * 간고등어(옥야식당·일직식당)는 넣지 않는다. 이름에 안 드러나고, 그걸 아는 건
+ * 사람이지 API가 아니다. 손으로 채우면 출처가 사라진다. → ADR-023
+ *
+ * ⚠️ 이 목록을 늘릴 때는 실제 16건의 title부터 확인할 것. 상호에 없는 단어를
+ *    패턴으로 넣으면 영원히 0건인 칩이 생긴다.
+ */
+const FOOD_NAME_PATTERNS: ReadonlyArray<{ category: FoodCategory; pattern: RegExp }> = [
+  // 안동 유진찜닭
+  { category: '찜닭', pattern: /찜닭/ },
+  // 맛50년 헛제사밥 · 헛제사밥까치구멍집 — 상호 표기는 '헛제사밥'이다.
+  // 화면 분류명은 표준어 '헛제삿밥'을 쓰므로 둘 다 받는다.
+  { category: '헛제삿밥', pattern: /헛제사밥|헛제삿밥/ },
+]
+
+/**
+ * 음식점 한 건의 분류
+ *
+ * 카페 판정을 먼저 한다. 한식/카페 구분은 API가 직접 준 답이라
+ * 이름 추측보다 강하다. 향토음식 태깅은 그 한식 안에서만 한다.
+ */
+export function foodCategoryOf(kor: KorSpot): FoodCategory {
+  if (kor.cat3 === FOOD_CAT3.CAFE) return '카페'
+
+  return FOOD_NAME_PATTERNS.find(({ pattern }) => pattern.test(kor.title))?.category ?? '한식'
+}
+
+/** KorService2 한 건 → 화면용 음식점. 병합 상대가 없으므로 mergeSpot과 달리 단독 변환이다. */
+function toFoodPlace(kor: KorSpot): FoodPlace {
+  return {
+    id: kor.contentid,
+    name: kor.title,
+    // LocgoHub에 음식점이 없다. 순위가 "아직 없다"가 아니라 "존재하지 않는다".
+    rank: null,
+    category: foodCategoryOf(kor),
+    lat: Number(kor.mapy),
+    lng: Number(kor.mapx),
+    // 관광지와 같은 규칙 — 없는 값은 빈 문자열이 아니라 부재로 남긴다.
+    ...(kor.addr1 ? { address: kor.addr1 } : {}),
+    ...(kor.firstimage ? { imageUrl: kor.firstimage } : {}),
+    contentId: kor.contentid,
+  }
 }
 
 /**

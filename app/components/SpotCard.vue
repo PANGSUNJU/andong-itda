@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { NuxtLink } from '#components'
 import type { Spot } from '#shared/types/tour'
 
 /**
@@ -11,7 +12,17 @@ const props = defineProps<{
   spot: Spot
   /** 상위 몇 위까지 강조 배지를 붙일지 */
   highlightTop?: number
+  /**
+   * 카드가 여는 상세 페이지. null이면 링크를 만들지 않는다.
+   *
+   * 음식점이 그 경우다. /spots/[id]는 /api/spots에서 id를 찾는데 음식점은
+   * 거기 없어서 404가 된다. 갈 곳이 없는 링크를 만드느니 링크를 안 만든다. → ADR-023
+   */
+  to?: string | null
 }>()
+
+// undefined는 "안 넘겼다"(=기본 상세 링크), null은 "링크 없음"이다. 둘을 구분한다.
+const link = computed(() => (props.to === undefined ? `/spots/${props.spot.id}` : props.to))
 
 const isTop = computed(
   () => props.spot.rank !== null && props.spot.rank <= (props.highlightTop ?? 3),
@@ -28,7 +39,7 @@ const showWalk = computed(
 </script>
 
 <template>
-  <NuxtLink :to="`/spots/${spot.id}`" class="group block text-left">
+  <component :is="link ? NuxtLink : 'div'" :to="link ?? undefined" class="group block text-left">
     <span class="relative block aspect-square overflow-hidden rounded-md">
       <SpotPhoto :src="spot.imageUrl" :alt="spot.name" />
 
@@ -52,5 +63,5 @@ const showWalk = computed(
         <template v-else> · 버스로 가는 거리</template>
       </span>
     </span>
-  </NuxtLink>
+  </component>
 </template>

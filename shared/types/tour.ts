@@ -112,9 +112,29 @@ export interface Spot {
   walkMinutes?: number
 }
 
-/** 음식점 */
+/**
+ * 음식점 분류 — 닫힌 집합이다
+ *
+ * 앞의 둘은 이름에서 읽어낸 것이고, 뒤의 둘은 API의 cat3를 옮긴 것이다.
+ * 간고등어(옥야식당·일직식당)가 없는 이유는 그 사실이 응답 어디에도 없기 때문이다.
+ * 여기 있는 값은 전부 응답만 보고 다시 만들 수 있다. → ADR-023
+ */
+export type FoodCategory = '찜닭' | '헛제삿밥' | '한식' | '카페'
+
+/**
+ * 음식점
+ *
+ * 필드는 Spot과 같다. 다른 것은 category를 만드는 방법과 rank의 유무다.
+ *   Spot      category는 상류(LocgoHub hubCtgryMclsNm)가 주는 자유 문자열이고
+ *             rank는 방문 기반 순위다
+ *   FoodPlace category는 우리가 만드는 닫힌 집합이고 rank는 항상 null이다
+ *             (음식점은 LocgoHub에 없어서 순위 자체가 없다)
+ *
+ * ⚠️ tel 필드를 두지 않는다. areaBasedList2는 전화번호를 주지 않아서
+ *    16건 전부 빈 값이다. 채우려면 detailCommon2가 필요한데 아직 미검증이다.
+ *    필드를 만들어 두면 화면이 전화 버튼을 붙이고 16곳 전부 빈 버튼이 된다. → ADR-011
+ */
 export interface FoodPlace extends Spot {
-  /** '찜닭' | '헛제삿밥' | '간고등어·한식' | '카페·베이커리' */
-  foodCategory: string
-  tel?: string
+  category: FoodCategory
+  rank: null
 }
