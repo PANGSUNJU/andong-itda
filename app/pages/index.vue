@@ -149,9 +149,16 @@ onMounted(() => {
             <p class="mt-1 text-sm text-muted">버스를 기다리는 동안 다녀올 수 있어요</p>
           </div>
 
+          <!--
+            반경 원의 중심은 사용자 위치다. 목록의 "걸어서 갈 수 있는 곳"과 같은
+            기준(WALKABLE_M)을 넘겨 지도와 카드가 같은 말을 하게 한다.
+          -->
           <MapCard
             class="mb-4"
             height="200px"
+            :center="coords"
+            :radius-m="WALKABLE_M"
+            :markers="walkable.map((spot) => ({ lat: spot.lat, lng: spot.lng, name: spot.name }))"
             :caption="`${location.label} 반경 2km · 관광지 ${walkable.length}곳`"
           />
 

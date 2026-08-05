@@ -43,6 +43,18 @@ const { data: nearby } = await useFetch<Spot[]>('/api/spots/nearby', {
 
 /** 자기 자신은 "근처에 함께 볼 곳"이 아니다 */
 const around = computed(() => nearby.value.filter((candidate) => candidate.id !== id.value))
+
+/**
+ * 지도에는 이 관광지와 함께 볼 곳들을 같이 찍는다.
+ * 한 점만 찍으면 "주변"이라는 캡션이 거짓말이 된다.
+ */
+const mapMarkers = computed(() =>
+  [spot.value!, ...around.value].map((place) => ({
+    lat: place.lat,
+    lng: place.lng,
+    name: place.name,
+  })),
+)
 </script>
 
 <template>
@@ -139,7 +151,13 @@ const around = computed(() => nearby.value.filter((candidate) => candidate.id !=
           </p>
         </div>
 
-        <MapCard class="mt-4" height="240px" :caption="`${spot.name} 주변`" />
+        <MapCard
+          class="mt-4"
+          height="240px"
+          :center="{ lat: spot.lat, lng: spot.lng }"
+          :markers="mapMarkers"
+          :caption="`${spot.name} 주변`"
+        />
       </aside>
     </div>
   </div>
