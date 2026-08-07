@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Spot } from '#shared/types/tour'
 import type { SpotBusInfo } from '#shared/types/static-data'
+import { nearest } from '#shared/constants/location'
 
 /**
  * 관광지 상세 — 관광 정보와 버스 안내를 한 화면에 둔다
@@ -36,13 +37,21 @@ const { data: bus, error: busError } = await useFetch<SpotBusInfo>(
 /** 상류가 아직 확인하지 못한 관광지인지, 정말 없는 이름인지 */
 const busPending = computed(() => (busError.value?.data as { data?: { pending?: boolean } })?.data?.pending ?? false)
 
-const { data: nearby } = await useFetch<Spot[]>('/api/spots/nearby', {
-  query: computed(() => ({ lat: spot.value!.lat, lng: spot.value!.lng, radius: 5000, limit: 4 })),
-  default: () => [],
-})
-
-/** 자기 자신은 "근처에 함께 볼 곳"이 아니다 */
-const around = computed(() => nearby.value.filter((candidate) => candidate.id !== id.value))
+/**
+ * 근처에 함께 볼 곳 — 이미 받아 둔 목록에서 고른다.
+ *
+ * 관광지 좌표는 공개 정보라 서버로 보내도 무방하지만, 계산 경로를 하나로 둔다.
+ * 좌표를 받는 라우트가 남아 있으면 언젠가 사용자 좌표가 그 길로 간다. → ADR-024
+ *
+ * 자기 자신을 먼저 뺀다. 나중에 빼면 4곳을 고른 뒤 3곳만 남는다.
+ */
+const around = computed(() =>
+  nearest(
+    spots.value.filter((candidate) => candidate.id !== id.value),
+    spot.value!,
+    { radius: 5000, limit: 4 },
+  ),
+)
 
 /**
  * 지도에는 이 관광지와 함께 볼 곳들을 같이 찍는다.

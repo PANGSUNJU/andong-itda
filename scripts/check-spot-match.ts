@@ -6,8 +6,8 @@
  */
 import assert from 'node:assert/strict'
 
+import { distanceMeters, nearest } from '../shared/constants/location.ts'
 import {
-  distanceMeters,
   foodCategoryOf,
   keywordVariants,
   matchKorSpot,
@@ -35,6 +35,38 @@ assert.equal(nameSimilarity('', '월영교'), 0)
 assert.ok(distanceMeters(36.539062, 128.517994, 36.539062, 128.517994) < 1)
 const hahoeToWolyeong = distanceMeters(36.539062, 128.517994, 36.576597, 128.760922)
 assert.ok(hahoeToWolyeong > 20_000 && hahoeToWolyeong < 25_000, `${hahoeToWolyeong}m`)
+
+/**
+ * nearest — 거리순 · 반경 컷 · 개수 제한
+ *
+ * 홈의 주변 정류장과 주변 관광지가 전부 이 함수 하나로 돈다. 서버가 아니라
+ * 브라우저에서 도는 계산이라(→ ADR-024) 여기가 깨지면 화면이 통째로 틀린다.
+ */
+const ANDONG_STATION = { lat: 36.57349, lng: 128.67566 }
+const places = [
+  { id: 'wolyeong', lat: 36.576597, lng: 128.760922 }, // 안동역에서 약 7.6km
+  { id: 'hahoe', lat: 36.539062, lng: 128.517994 }, // 약 14.6km
+  { id: 'here', lat: 36.57349, lng: 128.67566 }, // 0m
+]
+
+assert.deepEqual(
+  nearest(places, ANDONG_STATION).map((place) => place.id),
+  ['here', 'wolyeong', 'hahoe'],
+)
+assert.equal(nearest(places, ANDONG_STATION)[0]!.distance, 0)
+// 0m라도 walkMinutes는 최소 1분이다. "걸어서 0분"은 문장이 되지 않는다.
+assert.equal(nearest(places, ANDONG_STATION)[0]!.walkMinutes, 1)
+
+// 반경 밖은 자른다. 하회마을(14.6km)만 빠져야 한다.
+assert.deepEqual(
+  nearest(places, ANDONG_STATION, { radius: 10_000 }).map((place) => place.id),
+  ['here', 'wolyeong'],
+)
+assert.equal(nearest(places, ANDONG_STATION, { limit: 1 }).length, 1)
+assert.equal(nearest([], ANDONG_STATION).length, 0)
+
+// 원본을 정렬하지 않는다. 홈은 같은 관광지 배열을 순위순과 거리순으로 동시에 쓴다.
+assert.equal(places[0]!.id, 'wolyeong')
 
 const hub = {
   hubTatsCd: 'x'.repeat(32),
@@ -128,5 +160,5 @@ assert.equal(foodCategoryOf(food('396커피컴퍼니', 'A05020900')), '카페')
 assert.equal(foodCategoryOf(food('언젠가 생길 국숫집', 'A05029999')), '한식')
 
 console.log(
-  'ok — normalizeSpotName · nameSimilarity · distanceMeters · matchKorSpot(좌표 1순위) · keywordVariants · noiseReason · foodCategoryOf',
+  'ok — normalizeSpotName · nameSimilarity · distanceMeters · nearest(거리순·반경·개수) · matchKorSpot(좌표 1순위) · keywordVariants · noiseReason · foodCategoryOf',
 )

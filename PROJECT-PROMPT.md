@@ -254,7 +254,6 @@ https://apis.data.go.kr/B551011/KorService2/{operation}
 ```
 GET /api/spots                      중심관광지 순위 (숙박 제외, 상세 병합)  캐시 1d
 GET /api/spots/[id]                 관광지 상세                          캐시 1d
-GET /api/spots/nearby?lat=&lng=     현 위치 주변                         캐시 짧게
 GET /api/food                       음식점 목록                          캐시 6h
 GET /api/bus/arrivals?stationId=    실시간 도착 (via 방향 포함)            캐시 없음
 GET /api/bus/routes                 노선 목록 (runTotCnt 포함)            캐시 1m

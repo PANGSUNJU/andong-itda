@@ -81,15 +81,17 @@ node scripts/check-spot-match.ts
 
 | 라우트 | 캐시 | 상태 |
 |---|---|---|
-| `GET /api/bus/stations` | 1일 | ✅ 2107건 (`useYn='Y'` 필터) |
+| `GET /api/bus/stations` | 1일 | ✅ 2107건 → 4필드 153KB (`useYn='Y'`·중복 `stationId` 제거, 좌표 5자리) |
 | `GET /api/bus/arrivals?stationId=` | 없음 | ✅ `predictTm` 오름차순, null 후순위 |
 | `GET /api/bus/routes` | 1분 | ✅ 421건 (`runTotCnt` 포함) |
 | `GET /api/spot-bus/[spot]` | 없음 | ✅ 실시간 + 시간표 + 운행여부 결합 |
 | `GET /api/spots` | 1일 | ✅ 49건 (숙박·노이즈 제외, 이미지 76%) |
-| `GET /api/spots/nearby?lat=&lng=` | 없음 | ✅ 반경·개수 지정, 거리·도보시간 부여 |
-| `GET /api/bus/nearby-stations?lat=&lng=` | 없음 | ✅ 최근접 N개 (중복 stationId 제거) |
 | `GET /api/food` | 1일 | ✅ 16건 (찜닭1·헛제삿밥2·한식8·카페5) |
 | `GET /api/spots/[id]` | — | 미구현 (`detailCommon2` 미검증) |
+
+**좌표를 받는 라우트는 없다.** 주변 정류장·주변 관광지는 목록을 통째로 받아
+브라우저에서 `nearest()`로 고른다. 사용자 좌표를 서버로 보내지 않기 위해서다.
+→ [ADR-024](docs/decisions.md)
 
 **화면** (`app/`)
 

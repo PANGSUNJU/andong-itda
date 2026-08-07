@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { BusArrival, NearbyStation } from '#shared/types/bus'
+import type { BusArrival, NearbyStation, StationPin } from '#shared/types/bus'
 import type { Spot } from '#shared/types/tour'
+import { nearest } from '#shared/constants/location'
 
 /**
  * 지금 여기 — 홈
@@ -19,10 +20,22 @@ const { location, locate } = useLocation()
 
 const coords = computed(() => ({ lat: location.value.lat, lng: location.value.lng }))
 
-const { data: stations } = await useFetch<NearbyStation[]>('/api/bus/nearby-stations', {
-  query: computed(() => ({ ...coords.value, limit: 5 })),
+/**
+ * 목록을 통째로 받고 거리 계산은 브라우저에서 한다.
+ * 좌표를 서버로 보내지 않기 위해서다. → ADR-024
+ *
+ * 정류장 2107건 153KB(gzip 31KB), 관광지 64건. 둘 다 라우트에서 1일 캐시된다.
+ * SSR에서는 안동역 폴백 기준으로 계산되고, 브라우저에서 좌표가 잡히면
+ * 같은 computed가 다시 돈다. 그때 네트워크 요청은 더 나가지 않는다.
+ */
+const { data: allStations } = await useFetch<StationPin[]>('/api/bus/stations', {
   default: () => [],
 })
+const { data: spots } = await useFetch<Spot[]>('/api/spots', { default: () => [] })
+
+const stations = computed<NearbyStation[]>(() =>
+  nearest(allStations.value, coords.value, { limit: 5 }),
+)
 
 /**
  * 같은 이름의 정류장이 방향별로 여러 개 있다.
@@ -53,22 +66,21 @@ const {
 })
 
 /**
- * 반경을 넓게 잡아 한 번만 부르고 화면에서 나눈다.
+ * 반경을 넓게 잡아 한 번만 고르고 화면에서 나눈다.
  * 안동역 반경 2km 안에는 관광지가 2곳뿐이라, 도보권만 보여주면 띠가 비어 버린다.
  */
-const { data: nearbySpots } = await useFetch<Spot[]>('/api/spots/nearby', {
-  query: computed(() => ({ ...coords.value, radius: 30_000, limit: 12 })),
-  default: () => [],
-})
-
-const WALKABLE_M = 2000
-const walkable = computed(() => nearbySpots.value.filter((s) => (s.distance ?? 0) <= WALKABLE_M))
-const rideable = computed(() =>
-  nearbySpots.value.filter((s) => (s.distance ?? 0) > WALKABLE_M).slice(0, 6),
+const nearbySpots = computed(() =>
+  nearest(spots.value, coords.value, { radius: 30_000, limit: 12 }),
 )
 
-const { data: popular } = await useFetch<Spot[]>('/api/spots', { default: () => [] })
-const top = computed(() => popular.value.slice(0, 5))
+const WALKABLE_M = 2000
+const walkable = computed(() => nearbySpots.value.filter((s) => s.distance <= WALKABLE_M))
+const rideable = computed(() =>
+  nearbySpots.value.filter((s) => s.distance > WALKABLE_M).slice(0, 6),
+)
+
+/** 인기 목록은 상류가 준 순위순 그대로다. nearest()는 사본을 정렬하므로 이 순서를 건드리지 않는다. */
+const top = computed(() => spots.value.slice(0, 5))
 
 /**
  * 도착 정보는 30초마다 다시 부른다. 이 화면에서 유일하게 초 단위로 늙는 값이다.

@@ -1,6 +1,7 @@
 // #shared 별칭이 아니라 상대경로를 쓴다. 별칭은 Nuxt만 알기 때문에
 // scripts/check-spot-match.ts를 node로 직접 돌릴 때 해석되지 않는다.
 // import type은 어차피 컴파일에서 지워지므로 별칭을 그대로 둔다.
+import { distanceMeters } from '../../shared/constants/location.ts'
 import {
   CONTENT_TYPE,
   FOOD_CAT3,
@@ -472,18 +473,6 @@ async function mapWithLimit<T>(
   })
 
   await Promise.all(workers)
-}
-
-/** 두 좌표 사이 직선거리(m). 하버사인. */
-export function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371e3
-  const toRad = (deg: number) => (deg * Math.PI) / 180
-  const dLat = toRad(lat2 - lat1)
-  const dLng = toRad(lng2 - lng1)
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
-  return 2 * R * Math.asin(Math.sqrt(a))
 }
 
 /**

@@ -37,19 +37,27 @@ export interface BusStation {
 }
 
 /**
- * 주변 정류장 — `/api/bus/nearby-stations?lat=&lng=`
+ * 정류장 목록 응답 — `/api/bus/stations`
  *
- * 정류장 전체 목록은 2107건 1.86MB다. 이걸 브라우저로 내려보내고
- * 거기서 최근접을 고를 수는 없다. 거리 계산은 서버에서 끝낸다.
+ * 상류 BusStation 14필드 중 화면과 거리 계산이 쓰는 것만 남긴 모양이다.
+ * 실측(2026-08-06): 전체를 그대로 내려보내면 1,479KB, 이 모양이면 153KB(gzip 31KB)다.
+ * 1.86MB라서 브라우저로 못 내려보낸다고 적어 뒀던 것은 안 쓰는 필드 10개였다.
  *
- * BusStation을 통째로 상속하지 않는다. 화면이 쓰는 건 이름·좌표·거리뿐이고,
- * 다국어명·카드번호·BIT ID까지 실어 보낼 이유가 없다.
+ * 브라우저가 이 목록을 통째로 받아 최근접 정류장을 직접 고른다.
+ * 사용자 좌표를 서버로 보내지 않기 위해서다. → ADR-024
+ *
+ * 상류의 gpsX/gpsY 대신 lat/lng으로 바꿔 내보낸다. X가 경도, Y가 위도라 매번
+ * 뒤집히고, 이름을 맞춰 두면 `nearest()`가 관광지와 정류장에 같은 함수로 돈다.
  */
-export interface NearbyStation {
+export interface StationPin {
   stationId: number
   stationNm: string
-  gpsX: number
-  gpsY: number
+  lat: number
+  lng: number
+}
+
+/** 거리가 채워진 정류장. `nearest()`의 반환값이다. */
+export interface NearbyStation extends StationPin {
   /** 직선거리(m) */
   distance: number
   /** 추정 도보 시간(분). 직선거리 기반이므로 실제보다 짧게 나온다. */
