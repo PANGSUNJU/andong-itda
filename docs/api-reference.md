@@ -265,10 +265,13 @@ ADR-011의 분류표는 API가 아니라 사람이 아는 사실로 만든 것�
 ```
 GET /api/spots                    중심관광지 순위 목록 (숙박 제외, 상세 병합)
 GET /api/spots/[id]               관광지 상세
-GET /api/spots/nearby?lat=&lng=   현 위치 주변 탐색
 GET /api/food                     음식점 목록
 GET /api/festivals?date=          축제·행사
 GET /api/courses                  도보 코스
 GET /api/bus/arrivals?stationId=  버스 실시간 도착 (캐시 없음)
-GET /api/bus/stations             정류장 목록
+GET /api/bus/stations             정류장 목록 (4필드 153KB)
 ```
+
+> `?lat=&lng=`을 받는 주변 탐색 라우트를 두려 했으나 폐기했다.
+> 사용자 좌표가 쿼리스트링으로 서버에 닿으면 위치정보법상 '수집'이 되고
+> 배포 로그에도 남는다. 목록을 내려보내고 브라우저가 고른다. → ADR-024

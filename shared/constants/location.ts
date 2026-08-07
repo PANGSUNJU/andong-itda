@@ -51,3 +51,44 @@ export const WALK_METERS_PER_MINUTE = 67
 export function walkMinutes(meters: number): number {
   return Math.max(1, Math.round(meters / WALK_METERS_PER_MINUTE))
 }
+
+/** 두 좌표 사이 직선거리(m). 하버사인. */
+export function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371e3
+  const toRad = (deg: number) => (deg * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(a))
+}
+
+/** 거리와 도보 시간이 채워진 항목 */
+export type WithDistance<T> = T & { distance: number; walkMinutes: number }
+
+/**
+ * 가까운 순으로 고르기 — 브라우저에서 돈다
+ *
+ * 이 함수가 서버가 아니라 shared에 있는 이유는 위치정보법이다.
+ * 사용자 좌표를 서버로 보내면 사업자가 위치정보를 '수집'한 것이 되고
+ * (쿼리스트링은 배포 로그에도 남는다) 위치기반서비스사업 신고 쟁점이 생긴다.
+ * 좌표를 브라우저 밖으로 내보내지 않으려면 계산도 브라우저에 있어야 한다. → ADR-024
+ *
+ * 원본 배열을 건드리지 않는다. 홈은 같은 관광지 목록을
+ * 순위순(인기 목록)과 거리순(주변 목록)으로 동시에 쓴다.
+ */
+export function nearest<T extends { lat: number; lng: number }>(
+  items: T[],
+  from: { lat: number; lng: number },
+  { radius = Infinity, limit = Infinity }: { radius?: number; limit?: number } = {},
+): WithDistance<T>[] {
+  return items
+    .map((item) => {
+      const distance = Math.round(distanceMeters(from.lat, from.lng, item.lat, item.lng))
+      return { ...item, distance, walkMinutes: walkMinutes(distance) }
+    })
+    .filter((item) => item.distance <= radius)
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, limit)
+}
