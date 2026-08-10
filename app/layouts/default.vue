@@ -48,6 +48,21 @@ const activePath = computed(() => (route.path.startsWith('/spots') ? '/browse' :
       <slot />
     </main>
 
+    <!--
+      안내는 NAV에 넣지 않는다. 목적지가 아니라 참고 자료이고,
+      넣으면 모바일 탭바가 4칸이 되어 주 동선 셋이 좁아진다.
+    -->
+    <footer class="border-t border-hairline-soft">
+      <div
+        class="mx-auto flex max-w-[1280px] flex-wrap items-center gap-x-3 gap-y-1 px-6 py-6 text-[13px] text-muted-soft"
+      >
+        <NuxtLink to="/about" class="font-medium text-muted underline">
+          안내 · 데이터 출처
+        </NuxtLink>
+        <span>한국관광공사 · 안동시 공공데이터</span>
+      </div>
+    </footer>
+
     <!-- 모바일 하단 탭바. 데스크톱에서는 상단 네비가 대신한다. -->
     <nav
       class="fixed inset-x-0 bottom-0 z-50 flex h-16 border-t border-hairline bg-white desktop:hidden"

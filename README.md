@@ -125,7 +125,7 @@ TourAPI를 수십 번 호출하기 때문이다. 서버리스 함수 제한을 �
 
 | 문서 | 내용 |
 |---|---|
-| [docs/decisions.md](docs/decisions.md) | 설계 결정 기록 (ADR 21건) |
+| [docs/decisions.md](docs/decisions.md) | 설계 결정 기록 (ADR 25건) |
 | [docs/dev-log.md](docs/dev-log.md) | 날짜별 개발 로그 · 다음에 할 일 |
 | [docs/api-reference.md](docs/api-reference.md) | 검증된 API 명세 |
 | [PROJECT-PROMPT.md](PROJECT-PROMPT.md) | 프로젝트 구축 지시서 (초기 기준, 일부는 실측으로 갱신됨) |
