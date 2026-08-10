@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BusArrival } from '#shared/types/bus'
+import type { ArrivalWithSpots } from '#shared/types/bus'
 
 /**
  * 정류장 도착 카드 — 홈의 앵커
@@ -15,7 +15,7 @@ import type { BusArrival } from '#shared/types/bus'
 const props = defineProps<{
   stationNm: string
   subtitle?: string
-  arrivals: BusArrival[]
+  arrivals: ArrivalWithSpots[]
   pending?: boolean
 }>()
 
@@ -55,6 +55,16 @@ const rest = computed(() => props.arrivals.slice(1, 4))
           {{ formatDirection(next.via) }}
           <template v-if="next.remainStation !== null"> · {{ next.remainStation }}정거장 전</template>
         </p>
+
+        <!--
+          이 버스를 타면 닿는 관광지. 홈에서 "지금 오는 버스가 어디로 가나"에
+          답하는 유일한 자리다. 판정하지 못한 관광지는 담기지 않으므로
+          이 줄이 없다고 "가는 곳이 없다"는 뜻은 아니다. → ADR-025
+        -->
+        <p v-if="next.spots.length" class="mt-2 text-sm font-medium text-primary">
+          타면 {{ next.spots.map((spot) => spot.name).join(' · ') }}에 가요
+          <span class="font-normal text-muted">· {{ next.spots[0]!.stopsAway }}정거장 뒤</span>
+        </p>
       </div>
 
       <ArrivalRow
@@ -64,6 +74,7 @@ const rest = computed(() => props.arrivals.slice(1, 4))
         :via="arrival.via"
         :predict-tm="arrival.predictTm"
         :remain-station="arrival.remainStation"
+        :spots="arrival.spots"
       />
     </template>
 

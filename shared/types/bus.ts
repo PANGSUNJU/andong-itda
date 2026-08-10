@@ -103,6 +103,25 @@ export interface BusArrival {
 }
 
 /**
+ * 이 버스가 앞으로 닿는 관광지
+ *
+ * `via`(기점 → 종점)만으로는 알 수 없다. 종점이 우연히 관광지일 때만 읽히고,
+ * 종점이 안동터미널이면 그 버스가 도산서원을 지나는지 알 방법이 없다.
+ * 노선상 순번을 비교해 "내 정류장보다 뒤"인 관광지만 담는다. → ADR-025
+ */
+export interface ArrivalSpot {
+  name: string
+  /** 내 정류장에서 몇 정거장 뒤인지 */
+  stopsAway: number
+}
+
+/** 도착정보 + 이 버스가 닿는 관광지 — `/api/bus/arrivals` 응답 */
+export interface ArrivalWithSpots extends BusArrival {
+  /** 닿는 곳이 없거나 순번을 확인하지 못했으면 빈 배열이다. */
+  spots: ArrivalSpot[]
+}
+
+/**
  * 노선 목록 — `?tab=3`
  *
  * 방향별로 별도 routeId가 존재한다. 시간표 문서에 귀로 시각이 생략되어

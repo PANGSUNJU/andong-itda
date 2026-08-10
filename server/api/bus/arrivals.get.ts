@@ -1,4 +1,4 @@
-import type { BusArrival } from '#shared/types/bus'
+import type { ArrivalWithSpots, BusArrival } from '#shared/types/bus'
 
 /**
  * 정류장별 실시간 도착정보 — 원격 `?i={stationId}&tab=2`
@@ -17,7 +17,7 @@ import type { BusArrival } from '#shared/types/bus'
  *
  * predictTm은 이미 분 단위로 계산되어 온다. 자체 계산 로직을 만들지 말 것.
  */
-export default defineEventHandler(async (event): Promise<BusArrival[]> => {
+export default defineEventHandler(async (event): Promise<ArrivalWithSpots[]> => {
   const { stationId } = getQuery(event)
 
   /**
@@ -36,6 +36,12 @@ export default defineEventHandler(async (event): Promise<BusArrival[]> => {
 
   const arrivals = await fetchBusApi<BusArrival>('2', String(stationId))
 
-  // 도착 임박 순. predictTm이 null인 차량(위치 미확보)은 뒤로 밀린다.
-  return arrivals.sort(byPredictTm)
+  /**
+   * 도착 임박 순. predictTm이 null인 차량(위치 미확보)은 뒤로 밀린다.
+   *
+   * 정렬 뒤에 관광지를 붙인다. withSpots는 순서를 건드리지 않지만,
+   * 도착 순서가 관광지 판정에 의존하지 않는다는 걸 코드 모양으로 남겨 둔다.
+   * 관광지 순번은 1일 캐시되므로 이 실시간 경로에 상류 호출이 늘지 않는다.
+   */
+  return withSpots(arrivals.sort(byPredictTm))
 })

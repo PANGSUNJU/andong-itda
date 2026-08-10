@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BusArrival, NearbyStation, StationPin } from '#shared/types/bus'
+import type { ArrivalWithSpots, NearbyStation, StationPin } from '#shared/types/bus'
 import type { Spot } from '#shared/types/tour'
 import { nearest } from '#shared/constants/location'
 
@@ -60,7 +60,7 @@ const {
   pending: arrivalsPending,
   error: arrivalsError,
   refresh: refreshArrivals,
-} = await useFetch<BusArrival[]>('/api/bus/arrivals', {
+} = await useFetch<ArrivalWithSpots[]>('/api/bus/arrivals', {
   query: computed(() => ({ stationId: activeStation.value?.stationId })),
   default: () => [],
 })

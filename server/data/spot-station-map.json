@@ -76,8 +76,9 @@
       "hubRank": 3,
       "area": "풍천면",
       "inbound": {
-        "stationId": 354002027,
+        "stationId": 354000711,
         "stationNm": "병산서원",
+        "stationOrd": 57,
         "routeId": 354300007,
         "routeNum": "210",
         "routeNm": "210(교보생명-병산서원)"
@@ -104,8 +105,9 @@
       "hubRank": 5,
       "area": "서후면",
       "inbound": {
-        "stationId": 354002024,
+        "stationId": 354000522,
         "stationNm": "봉정사",
+        "stationOrd": 32,
         "routeId": 354300060,
         "routeNum": "310",
         "routeNm": "310(교보생명-봉정사)"
@@ -147,8 +149,9 @@
       "hubRank": 4,
       "area": "도산면",
       "inbound": {
-        "stationId": 354001832,
-        "stationNm": "도산서원(서원)",
+        "stationId": 354001831,
+        "stationNm": "도산서원",
+        "stationOrd": 64,
         "routeId": 354300386,
         "routeNum": "급행3",
         "routeNm": "급행3(안동터미널-도산서원)"

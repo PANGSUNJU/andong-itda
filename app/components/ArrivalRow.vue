@@ -10,6 +10,12 @@ defineProps<{
   via: string
   predictTm: number | null
   remainStation: number | null
+  /**
+   * 이 버스가 닿는 관광지. 홈에서만 온다.
+   * 관광지 상세는 이미 목적지를 알고 들어온 화면이라 다시 말할 이유가 없다.
+   * → ADR-025
+   */
+  spots?: import('#shared/types/bus').ArrivalSpot[]
 }>()
 </script>
 
@@ -23,7 +29,17 @@ defineProps<{
 
     <span class="min-w-0 flex-1">
       <b class="block truncate text-base font-medium leading-tight">{{ formatDirection(via) }}</b>
-      <span v-if="remainStation !== null" class="text-[13px] leading-tight text-muted">
+
+      <!-- 종점이 아니라 이 버스가 실제로 지나는 관광지다. 없으면 줄 자체가 없다. -->
+      <span
+        v-if="spots?.length"
+        class="block truncate text-[13px] font-medium leading-tight text-primary"
+      >
+        {{ spots[0]!.name }}<template v-if="spots.length > 1"> 외 {{ spots.length - 1 }}곳</template>
+        방면
+      </span>
+
+      <span v-if="remainStation !== null" class="block text-[13px] leading-tight text-muted">
         {{ remainStation }}정거장 전
       </span>
     </span>
