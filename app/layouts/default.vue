@@ -26,8 +26,14 @@ const activePath = computed(() => (route.path.startsWith('/spots') ? '/browse' :
     <header class="sticky top-0 z-50 border-b border-hairline-soft bg-white">
       <div class="mx-auto flex h-[72px] max-w-[1280px] items-center gap-4 px-6">
         <NuxtLink to="/" class="flex flex-none items-center gap-2">
-          <AppLogo class="h-[26px] w-[26px] text-primary" />
-          <b class="text-xl font-bold tracking-[-0.4px] text-primary">안동잇다</b>
+          <!-- 색은 AppLogo가 토큰으로 직접 칠한다. text-* 를 얹어도 먹지 않는다. -->
+          <AppLogo class="h-[30px] w-[30px]" />
+          <!--
+            먹이다. 공식 락업(public/logo/lockup-light.svg)이 워드마크를
+            #222222로 쓴다. 주홍으로 두면 심볼의 붉은 발자국과 글자가 함께
+            붉어져 강조가 두 번 걸리고, 락업과도 어긋난다.
+          -->
+          <b class="text-xl font-bold tracking-[-0.4px] text-ink">안동잇다</b>
         </NuxtLink>
 
         <nav class="ml-8 hidden gap-1 tablet:flex">

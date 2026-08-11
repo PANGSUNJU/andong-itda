@@ -40,6 +40,24 @@ export default defineNuxtConfig({
         },
         { name: 'theme-color', content: '#ffffff' },
       ],
+
+      /**
+       * 파비콘 — public/logo/ 의 파생물을 명시적으로 가리킨다
+       *
+       * 이 link가 없으면 브라우저는 관례대로 /favicon.ico만 찾는다.
+       * 그 파일은 옛 핀 로고이고 새 심볼로 다시 만들어지지 않았으므로,
+       * 명시하지 않으면 새 로고가 탭에 영원히 안 나온다.
+       *
+       * svg를 먼저 둔다. 지원하는 브라우저는 이걸 쓰고 해상도에 상관없이 선명하다.
+       * png 두 벌은 svg를 안 받는 브라우저용이고, apple-touch-icon은
+       * iOS 홈 화면 추가용이라 크기가 따로 정해져 있다.
+       */
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/logo/favicon-src.svg' },
+        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/logo/png/favicon-32.png' },
+        { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/logo/png/favicon-16.png' },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '/logo/png/apple-touch-icon-180.png' },
+      ],
     },
   },
 })

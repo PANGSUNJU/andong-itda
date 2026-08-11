@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512">
+  <g transform="translate(21,41) rotate(18)" fill="#222222">
+    <ellipse cx="0" cy="-6.4" rx="6.2" ry="8.8"></ellipse>
+    <ellipse cx="-0.5" cy="8.2" rx="4.7" ry="5.2"></ellipse>
+  </g>
+  <g transform="translate(43,23) rotate(18)" fill="#222222">
+    <ellipse cx="0" cy="-6.4" rx="6.2" ry="8.8"></ellipse>
+    <ellipse cx="-0.5" cy="8.2" rx="4.7" ry="5.2"></ellipse>
+  </g>
+</svg>
