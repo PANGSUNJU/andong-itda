@@ -135,12 +135,19 @@ onMounted(() => {
           :pending="arrivalsPending"
         />
 
-        <!-- 정류장 전환. 방향이 다른 승강장을 고르는 유일한 수단이다. -->
-        <div v-if="stations.length > 1" class="mt-3 flex flex-wrap gap-2">
+        <!--
+          정류장 전환. 방향이 다른 승강장을 고르는 유일한 수단이다.
+
+          줄바꿈이 아니라 가로 스크롤이다. 최대 5개인데 이름이 길어
+          ("안동역(안동터미널) 120m") 폰에서 접히면 세 줄까지 늘어나고,
+          그만큼 본체인 도착 카드가 화면 밖으로 밀린다. 세로는 아껴야 하는
+          자원이고 가로는 남는다. 넓은 화면에서는 대개 다 들어가 스크롤이 안 생긴다.
+        -->
+        <div v-if="stations.length > 1" class="mt-3 flex gap-2 overflow-x-auto">
           <button
             v-for="station in stations"
             :key="station.stationId"
-            class="rounded-full border px-4 py-2 text-sm font-medium transition-colors"
+            class="flex-none rounded-full border px-4 py-2 text-sm font-medium transition-colors"
             :class="
               station.stationId === activeStation?.stationId
                 ? 'border-ink bg-ink text-white'
