@@ -28,16 +28,15 @@ defineProps<{
     </span>
 
     <span class="min-w-0 flex-1">
-      <b class="block truncate text-base font-medium leading-tight">{{ formatDirection(via) }}</b>
-
-      <!-- 종점이 아니라 이 버스가 실제로 지나는 관광지다. 없으면 줄 자체가 없다. -->
-      <span
-        v-if="spots?.length"
-        class="block truncate text-[13px] font-medium leading-tight text-primary"
-      >
-        {{ spots[0]!.name }}<template v-if="spots.length > 1"> 외 {{ spots.length - 1 }}곳</template>
-        방면
-      </span>
+      <!--
+        관광지를 앞세우고 방향은 폴백으로 쓴다.
+        둘을 나란히 두면 같은 이름이 두 줄 반복된다. 매핑된 관광지가 대부분
+        노선의 종점이라 formatDirection(via)이 만드는 "○○ 방면"과 겹치기
+        때문이다(2026-08-10 실측: 병산·봉정·도산 전부 종점). → ADR-025
+      -->
+      <b class="block truncate text-base font-medium leading-tight">
+        {{ spots?.length ? spots.map((spot) => spot.name).join(' · ') : formatDirection(via) }}
+      </b>
 
       <span v-if="remainStation !== null" class="block text-[13px] leading-tight text-muted">
         {{ remainStation }}정거장 전

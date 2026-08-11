@@ -51,19 +51,26 @@ const rest = computed(() => props.arrivals.slice(1, 4))
         <h2 class="mt-2 text-base font-semibold leading-tight">
           {{ next.routeNum }}번이 {{ next.predictTm !== null ? '곧 도착해요' : '오고 있어요' }}
         </h2>
-        <p class="mt-1 text-sm text-muted">
-          {{ formatDirection(next.via) }}
-          <template v-if="next.remainStation !== null"> · {{ next.remainStation }}정거장 전</template>
-        </p>
-
         <!--
-          이 버스를 타면 닿는 관광지. 홈에서 "지금 오는 버스가 어디로 가나"에
-          답하는 유일한 자리다. 판정하지 못한 관광지는 담기지 않으므로
-          이 줄이 없다고 "가는 곳이 없다"는 뜻은 아니다. → ADR-025
+          닿는 관광지가 방향을 대신한다. 홈에서 "지금 오는 버스가 어디로 가나"에
+          답하는 자리다. 방향(via의 종점)을 함께 쓰면 같은 이름이 두 번 나온다 —
+          매핑된 관광지가 대부분 그 노선의 종점이기 때문이다. → ADR-025
+
+          관광지를 판정하지 못하면 방향으로 되돌아간다. 줄이 통째로 사라지면
+          이 버스가 무엇인지 말해주는 정보가 노선번호밖에 남지 않는다.
         -->
-        <p v-if="next.spots.length" class="mt-2 text-sm font-medium text-primary">
-          타면 {{ next.spots.map((spot) => spot.name).join(' · ') }}에 가요
-          <span class="font-normal text-muted">· {{ next.spots[0]!.stopsAway }}정거장 뒤</span>
+        <p
+          class="mt-1 text-sm"
+          :class="next.spots.length ? 'font-medium text-primary' : 'text-muted'"
+        >
+          {{
+            next.spots.length
+              ? `타면 ${next.spots.map((spot) => spot.name).join(' · ')}에 가요`
+              : formatDirection(next.via)
+          }}
+          <span v-if="next.remainStation !== null" class="font-normal text-muted">
+            · {{ next.remainStation }}정거장 전
+          </span>
         </p>
       </div>
 
