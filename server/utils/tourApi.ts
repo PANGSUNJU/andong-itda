@@ -9,6 +9,7 @@ import {
   LOCGO_HUB_REGION,
 } from '../../shared/constants/region.ts'
 import type {
+  EngSpot,
   FoodCategory,
   FoodPlace,
   GalleryPhoto,
@@ -30,6 +31,7 @@ const LOCGO_HUB = 'http://apis.data.go.kr/B551011/LocgoHubTarService1/areaBasedL
 const KOR_SERVICE = 'https://apis.data.go.kr/B551011/KorService2/areaBasedList2'
 const KOR_SEARCH = 'https://apis.data.go.kr/B551011/KorService2/searchKeyword2'
 const PHOTO_GALLERY = 'https://apis.data.go.kr/B551011/PhotoGalleryService1/gallerySearchList1'
+const ENG_SERVICE = 'https://apis.data.go.kr/B551011/EngService2/areaBasedList2'
 
 /**
  * 인증키 정규화
@@ -515,6 +517,58 @@ export async function backfillFromGallery(spots: Spot[]): Promise<Spot[]> {
 
 /** 갤러리 검색어이자 촬영장소 필터. 이 서비스는 지역 코드를 받지 않는다. */
 const GALLERY_KEYWORD = '안동'
+
+/**
+ * 영문 이름을 붙인다 — EngService2
+ *
+ * 언어 전환을 만들지 않는다. 안동 영문 데이터가 32건뿐이라 관광지 54곳 중 14곳,
+ * 음식점 15곳 중 2곳에만 붙는다. 화면 문구까지 전부 번역해 놓고 정작 관광지
+ * 이름의 74%가 국문으로 남으면, 반만 바뀐 화면이 안 바꾼 것보다 나쁘다.
+ * 국문 옆에 나란히 두면 있는 만큼만 도움이 되고 없어도 깨지지 않는다.
+ *
+ * ⚠️ 좌표로 잇지 않는다. 두 데이터셋의 대표 좌표가 다른 지점을 가리켜
+ *    하회마을은 1,580m가 벌어진다(ADR-021). 제목 괄호 안의 국문명이 정확하다.
+ *
+ * ⚠️ `contentTypeId`를 넘기지 않는다. 국문의 12(관광지)/39(음식점)와 코드 체계가
+ *    달라서(안동 32건은 75·76·78·80·82·85) 지정하면 0건이 된다.
+ *
+ * 실패해도 던지지 않는다. 이름 한 줄이 본체를 죽이면 안 된다.
+ */
+export async function attachEnglishNames<T extends Spot>(spots: T[]): Promise<T[]> {
+  let english: EngSpot[]
+
+  try {
+    const { items } = await fetchTourApi<EngSpot>(ENG_SERVICE, {
+      numOfRows: 100,
+      pageNo: 1,
+      ...KOR_SERVICE_REGION,
+    })
+    english = items
+  } catch {
+    console.warn('[eng] 영문 관광정보 조회에 실패했다. 국문만 보여준다')
+    return spots
+  }
+
+  /** 국문명(정규화) → 영문 제목. 괄호 안이 국문명이고 그 앞이 영문이다. */
+  const byKorean = new Map<string, string>()
+
+  for (const item of english) {
+    const korean = item.title.match(/\(([^)]*[가-힣][^)]*)\)/)?.[1]
+    const englishName = item.title.replace(/\s*\(.*$/, '').trim()
+    if (korean && englishName) byKorean.set(normalizeSpotName(korean), englishName)
+  }
+
+  return spots.map((spot) => {
+    const key = normalizeSpotName(spot.name)
+    // 완전일치가 없으면 포함관계까지 본다. "안동임청각" ↔ "임청각"은 정규화가 잡지만
+    // "낙강물길공원/공사중(…)" 같은 별칭 꼬리는 못 잡는다.
+    const nameEn =
+      byKorean.get(key) ??
+      [...byKorean].find(([korean]) => korean.includes(key) || key.includes(korean))?.[1]
+
+    return nameEn ? { ...spot, nameEn } : spot
+  })
+}
 
 /**
  * 이름에서 뽑아낸 조각들 — 갤러리 매칭 전용

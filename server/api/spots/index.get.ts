@@ -39,10 +39,13 @@ export default defineCachedEventHandler(
      */
     const withPhotos = await backfillFromGallery(await backfillImages(merged))
 
+    // 영문 이름은 있는 곳에만 붙는다(54곳 중 14곳). 없다고 목록이 달라지지 않는다.
+    const withEnglish = await attachEnglishNames(withPhotos)
+
     // 정렬을 보충 뒤에 둔다. 보충은 순위를 건드리지 않지만, 순서가 결과에
     // 의존하지 않는다는 걸 코드 모양으로 남겨 둔다.
     // hubRank 오름차순. 문자열로 오는 값이라 mergeSpot에서 숫자로 바꿔 둔다.
-    return withPhotos.sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity))
+    return withEnglish.sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity))
   },
   {
     maxAge: 60 * 60 * 24, // 1일

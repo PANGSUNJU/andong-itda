@@ -89,6 +89,8 @@ const mapMarkers = computed(() =>
       <h1 class="mt-2 text-[26px] font-semibold leading-tight tracking-[-0.18px] tablet:text-[28px]">
         {{ spot.name }}
       </h1>
+      <!-- 영문명은 있는 곳에만 붙는다(54곳 중 14곳). 없으면 이 줄이 사라질 뿐이다. -->
+      <p v-if="spot.nameEn" class="mt-1 text-sm text-muted-soft">{{ spot.nameEn }}</p>
       <p class="mt-1.5 text-sm leading-relaxed text-muted">
         <template v-if="spot.rank">{{ spot.rank }}번째로 많이 찾는 곳 · </template>
         {{ spot.category }}

@@ -53,6 +53,8 @@ export default defineCachedEventHandler(
       .map((station) => ({
         stationId: station.stationId,
         stationNm: station.stationNm,
+        // 상류가 2107곳 전부 채워 준다. 버리지 않고 그대로 내보낸다.
+        ...(station.stationEngNm?.trim() ? { nameEn: station.stationEngNm.trim() } : {}),
         lat: round5(station.gpsY),
         lng: round5(station.gpsX),
         // 없으면 없는 대로 둔다. 방면을 모르는 정류장에 이름을 지어내지 않는다.

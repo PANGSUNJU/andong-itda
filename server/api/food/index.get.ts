@@ -16,7 +16,8 @@ import type { FoodPlace } from '#shared/types/tour'
  */
 export default defineCachedEventHandler(
   async (): Promise<FoodPlace[]> => {
-    const places = await fetchFoodPlaces()
+    // 영문 이름은 15곳 중 2곳에만 붙는다. 그래도 붙는 곳은 붙인다.
+    const places = await attachEnglishNames(await fetchFoodPlaces())
 
     return places.sort(
       (a, b) =>

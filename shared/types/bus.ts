@@ -52,6 +52,14 @@ export interface BusStation {
 export interface StationPin {
   stationId: number
   stationNm: string
+  /**
+   * 영문 정류장명.
+   *
+   * 상류가 2107곳 **전부** 채워서 준다(실측 2026-08-16). 관광지 영문이 26%뿐인 것과
+   * 대조적이다. 외국인 여행자가 가장 먼저 막히는 게 "내가 선 정류장이 어디인가"인데
+   * 이 필드는 커버리지가 완전해서 값이 크다.
+   */
+  nameEn?: string
   lat: number
   lng: number
   /**

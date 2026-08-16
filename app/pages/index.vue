@@ -216,6 +216,7 @@ onMounted(() => {
         <BusPanel
           v-else-if="activeStation"
           :station-nm="activeStation.stationNm"
+          :station-nm-en="activeStation.nameEn"
           :subtitle="stationSubtitle"
           :arrivals="arrivals"
           :pending="arrivalsPending"

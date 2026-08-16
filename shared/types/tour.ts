@@ -96,6 +96,14 @@ export interface Spot {
   /** hubTatsCd 또는 contentid */
   id: string
   name: string
+  /**
+   * 영문 이름 — EngService2에서 붙인다. **대부분 없다.**
+   *
+   * 실측(2026-08-16): 안동 영문 데이터가 32건뿐이라 관광지 14/54, 음식점 2/15만 붙는다.
+   * 그래서 언어 전환이 아니라 국문 옆에 나란히 두는 방식으로 쓴다.
+   * 없으면 그 줄만 안 나오면 되고, 있으면 외국인이 읽을 수 있는 이름이 하나 는다.
+   */
+  nameEn?: string
   /** 방문 기반 인기 순위. 병합 실패 시 null */
   rank: number | null
   category: string
@@ -137,6 +145,27 @@ export type FoodCategory = '찜닭' | '헛제삿밥' | '한식' | '카페'
 export interface FoodPlace extends Spot {
   category: FoodCategory
   rank: null
+}
+
+/**
+ * 영문 관광정보 한 건 — `EngService2/areaBasedList2`
+ *
+ * ⚠️ **국문과 분류 코드가 다르다.** `contentTypeId=12`(관광지)로 조회하면 0건이고,
+ *    안동 32건의 코드는 75·76·78·80·82·85 대역이다. 그래서 타입을 지정하지 않고
+ *    시군구로만 조회한다.
+ *
+ * ⚠️ 연결 고리는 좌표가 아니라 **제목 괄호 안의 국문명**이다.
+ *    `"Andong Folk Village (안동민속촌)"` → `안동민속촌`
+ *    32건 전부 이 꼴로 오는 것을 확인했다. 좌표(mapx/mapy)는 국문 데이터와
+ *    대표 지점이 달라 하회마을처럼 1.5km씩 벌어지는 경우가 있다(ADR-021).
+ */
+export interface EngSpot {
+  contentid: string
+  /** "Andong Folk Village (안동민속촌)" */
+  title: string
+  mapx: string
+  mapy: string
+  firstimage?: string
 }
 
 /**

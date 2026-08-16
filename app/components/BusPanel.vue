@@ -14,6 +14,8 @@ import type { ArrivalWithSpots } from '#shared/types/bus'
  */
 const props = defineProps<{
   stationNm: string
+  /** 영문 정류장명. 상류가 전 정류장을 채워 주므로 거의 항상 있다. */
+  stationNmEn?: string
   subtitle?: string
   arrivals: ArrivalWithSpots[]
   pending?: boolean
@@ -72,6 +74,13 @@ const nextSameRoute = computed(() =>
     >
       <div class="min-w-0">
         <b class="block truncate text-base font-semibold leading-tight">{{ stationNm }}</b>
+        <!--
+          영문명을 국문 바로 아래 둔다. 언어를 바꾸는 게 아니라 나란히 두는 것이라
+          한국인에게는 방해가 되지 않고, 외국인에게는 여기가 어디인지 알려준다.
+        -->
+        <small v-if="stationNmEn" class="mt-0.5 block truncate text-[13px] text-muted-soft">
+          {{ stationNmEn }}
+        </small>
         <small v-if="subtitle" class="mt-0.5 block text-sm text-muted">{{ subtitle }}</small>
 
         <!--
