@@ -1,7 +1,22 @@
 import type { BusStation, StationPin } from '#shared/types/bus'
 
+import stationDirections from '../../data/station-directions.json'
+
 /** 상류는 소수점 10자리를 준다. 5자리면 약 1m로 정류장 고르기에 충분하다. */
 const round5 = (n: number) => Math.round(n * 1e5) / 1e5
+
+/**
+ * 방면과 기·종점 여부 — 미리 구워 둔 정적 데이터
+ *
+ * 상류에 없다. 노선 421개의 정류장 목록을 훑어야 나오므로 요청 시점에 만들지 않는다.
+ * → `scripts/build-station-directions.ts`
+ *
+ * 실측(2026-08-13): 이걸 붙이면 응답이 164KB → 201KB(gzip 38KB → 47KB)다.
+ * 이름이 겹치는 정류장이 1644곳이라 "겹치는 것만 붙이기"로 아껴 봐야 gzip 2KB다.
+ * 나눠 붙일 이유가 없어 전부 붙인다.
+ */
+const directions: Record<string, string> = stationDirections.directions
+const terminusOnly = new Set<number>(stationDirections.terminusOnly)
 
 /**
  * 정류장 목록 — 원격 `?tab=1`
@@ -40,6 +55,9 @@ export default defineCachedEventHandler(
         stationNm: station.stationNm,
         lat: round5(station.gpsY),
         lng: round5(station.gpsX),
+        // 없으면 없는 대로 둔다. 방면을 모르는 정류장에 이름을 지어내지 않는다.
+        ...(directions[station.stationId] ? { direction: directions[station.stationId] } : {}),
+        ...(terminusOnly.has(station.stationId) ? { terminusOnly: true } : {}),
       }))
   },
   {

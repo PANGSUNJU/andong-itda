@@ -138,3 +138,23 @@ export interface FoodPlace extends Spot {
   category: FoodCategory
   rank: null
 }
+
+/**
+ * 관광사진 갤러리 한 건 — `PhotoGalleryService1/gallerySearchList1`
+ *
+ * 한국관광공사가 직접 수집한 사진이다. KorService2의 `firstimage`가 없을 때
+ * 마지막으로 기대는 곳이다. **좌표가 없어서 이름으로만 맞출 수 있다.**
+ *
+ * ⚠️ `galWebImageUrl`이 **http로 온다.** 실측(2026-08-14): 1000건 중 883건.
+ *    https 페이지에서 그대로 쓰면 Mixed Content로 차단된다. 같은 경로를 https로
+ *    요청하면 동일한 이미지가 200(image/jpg, 223KB)으로 열리는 것을 확인했다.
+ */
+export interface GalleryPhoto {
+  galContentId: string
+  galTitle: string
+  galWebImageUrl: string
+  /** "경상북도 안동시 풍천면" 꼴. 동명이소를 거르는 유일한 단서다. */
+  galPhotographyLocation: string
+  /** 촬영자가 붙인 태그. 제목에 없는 이름이 여기 있다(하회마을 사진의 '부용대'). */
+  galSearchKeyword: string
+}

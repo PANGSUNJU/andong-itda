@@ -17,10 +17,52 @@ const props = defineProps<{
   subtitle?: string
   arrivals: ArrivalWithSpots[]
   pending?: boolean
+  /**
+   * 노선의 기점·종점으로만 쓰이는 승강장. 도착정보가 원리적으로 오지 않는다. → ADR-015
+   * 빈 목록의 이유를 "배차가 길어서일 수도"로 덮으면 오지 않을 버스를 기다리게 된다.
+   */
+  terminusOnly?: boolean
+  /** 도착 정보를 마지막으로 받은 시각(ms). SSR에서는 null이다. */
+  updatedAt?: number | null
+  /** 이 정류장까지 걸어가는 길. 카카오맵으로 넘긴다. */
+  directionsUrl?: string
 }>()
+
+defineEmits<{ refresh: [] }>()
 
 const next = computed(() => props.arrivals[0])
 const rest = computed(() => props.arrivals.slice(1, 4))
+
+/**
+ * 이 버스가 무엇인지 알려주는 한 줄 — 관광지가 먼저, 없으면 방면
+ *
+ * 둘 다 없으면 빈 문자열이고, 그때는 줄을 통째로 지운다.
+ * 예전에는 방면을 모를 때 `via`를 그대로 뱉어 "청호한우촌앞 -> · 11정거장 전"이 됐다.
+ * 화살표 뒤가 비어 있는 건 상류가 종점을 안 주기 때문이다. → `formatDirection`
+ */
+const nextHeadline = computed(() => {
+  const arrival = next.value
+  if (!arrival) return ''
+  return arrival.spots.length
+    ? `타면 ${arrival.spots.map((spot) => spot.name).join(' · ')}에 가요`
+    : formatDirection(arrival.via, arrival.routeNm)
+})
+
+/**
+ * 놓쳤을 때를 위한 같은 노선의 다음 차
+ *
+ * 정류장에는 여러 노선이 서므로 아래 목록의 다음 줄은 대개 **다른 노선**이다.
+ * "이 버스를 놓치면 얼마나 기다리나"에 답하려면 같은 번호를 찾아야 한다.
+ * 목록은 이미 도착 임박순이라 앞에서부터 첫 번째로 만나는 같은 번호가 그 차다.
+ * 없으면(대부분) 아무것도 말하지 않는다. 배차 간격을 추측해 채우지 않는다.
+ */
+const nextSameRoute = computed(() =>
+  next.value
+    ? props.arrivals
+        .slice(1)
+        .find((arrival) => arrival.routeNum === next.value!.routeNum && arrival.predictTm !== null)
+    : undefined,
+)
 </script>
 
 <template>
@@ -31,11 +73,29 @@ const rest = computed(() => props.arrivals.slice(1, 4))
       <div class="min-w-0">
         <b class="block truncate text-base font-semibold leading-tight">{{ stationNm }}</b>
         <small v-if="subtitle" class="mt-0.5 block text-sm text-muted">{{ subtitle }}</small>
+
+        <!--
+          여기까지 걸어가는 길. 이름이 같은 승강장이 셋이라 글로는 끝까지 못 데려다준다.
+          목적지 좌표를 그대로 넘기므로 어느 승강장인지가 정확히 전달된다.
+        -->
+        <a
+          v-if="directionsUrl"
+          :href="directionsUrl"
+          target="_blank"
+          rel="noopener"
+          class="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-primary underline"
+        >
+          이 정류장까지 길찾기
+        </a>
       </div>
-      <span class="flex flex-none items-center gap-1.5 text-[13px] font-medium text-primary">
-        <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
-        실시간
-      </span>
+
+      <!-- 기·종점 승강장에는 실시간이랄 게 없다. 뛰는 점을 보여주면 기다리게 된다. -->
+      <RealtimeBadge
+        v-if="!terminusOnly"
+        :updated-at="updatedAt ?? null"
+        :pending="pending"
+        @refresh="$emit('refresh')"
+      />
     </div>
 
     <div v-if="pending" class="py-10 text-center text-sm text-muted">도착 정보를 불러오는 중…</div>
@@ -60,17 +120,20 @@ const rest = computed(() => props.arrivals.slice(1, 4))
           이 버스가 무엇인지 말해주는 정보가 노선번호밖에 남지 않는다.
         -->
         <p
+          v-if="nextHeadline || next.remainStation !== null"
           class="mt-1 text-sm"
           :class="next.spots.length ? 'font-medium text-primary' : 'text-muted'"
         >
-          {{
-            next.spots.length
-              ? `타면 ${next.spots.map((spot) => spot.name).join(' · ')}에 가요`
-              : formatDirection(next.via)
-          }}
+          {{ nextHeadline }}
           <span v-if="next.remainStation !== null" class="font-normal text-muted">
-            · {{ next.remainStation }}정거장 전
+            <!-- 앞 문구가 없으면 구분점도 없다. 점만 남으면 그게 오류로 보인다. -->
+            <template v-if="nextHeadline">· </template>{{ next.remainStation }}정거장 전
           </span>
+        </p>
+
+        <!-- 놓쳐도 되는지 아닌지가 여기서 갈린다. 같은 번호의 다음 차만 말한다. -->
+        <p v-if="nextSameRoute" class="mt-2 text-[13px] text-muted-soft">
+          다음 {{ nextSameRoute.routeNum }}번은 {{ nextSameRoute.predictTm }}분 후예요
         </p>
       </div>
 
@@ -79,19 +142,33 @@ const rest = computed(() => props.arrivals.slice(1, 4))
         :key="`${arrival.routeId}-${arrival.stationOrd}`"
         :route-num="arrival.routeNum"
         :via="arrival.via"
+        :route-nm="arrival.routeNm"
         :predict-tm="arrival.predictTm"
         :remain-station="arrival.remainStation"
         :spots="arrival.spots"
       />
     </template>
 
-    <!-- 도착이 없는 이유를 이 화면은 알 수 없다. 단정하지 않고 사실만 적는다. -->
+    <!--
+      도착이 없는 이유를 이 화면은 알 수 없다. 단정하지 않고 사실만 적는다.
+      단 하나, 기·종점 전용 승강장은 원리적으로 안 오는 것이라 그건 말할 수 있다.
+    -->
     <div v-else class="py-10 text-center">
-      <p class="text-base font-medium">지금 이 정류장으로 접근 중인 버스가 없어요</p>
-      <p class="mt-1.5 text-sm leading-relaxed text-muted">
-        배차 간격이 길어서일 수도, 오늘 운행이 끝나서일 수도 있어요.<br />
-        다른 정류장을 확인해 보세요.
-      </p>
+      <template v-if="terminusOnly">
+        <p class="text-base font-medium">이 승강장은 도착 정보가 뜨지 않아요</p>
+        <p class="mt-1.5 text-sm leading-relaxed text-muted">
+          버스가 출발하거나 운행을 마치는 자리라 '접근 중인 버스'가 없어요.<br />
+          아래에서 다른 승강장을 골라 주세요.
+        </p>
+      </template>
+
+      <template v-else>
+        <p class="text-base font-medium">지금 이 정류장으로 접근 중인 버스가 없어요</p>
+        <p class="mt-1.5 text-sm leading-relaxed text-muted">
+          배차 간격이 길어서일 수도, 오늘 운행이 끝나서일 수도 있어요.<br />
+          다른 정류장을 확인해 보세요.
+        </p>
+      </template>
     </div>
   </section>
 </template>

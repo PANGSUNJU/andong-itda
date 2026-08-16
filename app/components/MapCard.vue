@@ -6,13 +6,11 @@ import type { KakaoMaps } from '~/composables/useKakaoMap'
  * 지도 — 카카오맵. 없으면 없다고 말한다
  *
  * ADR-013에서 지도를 **부분 배치**하되 전면 지도 UI는 쓰지 않기로 했다.
- * 이 서비스의 주장은 "몇 분 후 버스"지 지도가 아니다. 그래서 이 카드는
- * **조작하지 않는 그림**이다. 드래그와 줌을 끈다.
+ * 카드 크기는 그대로 두고 조작만 연다. 이동·확대·축소가 되어야
+ * "이게 걸어갈 거리인가"를 카드 안에서 확인할 수 있다.
  *
- * 조작을 끄는 건 기능을 아끼는 게 아니라 스크롤을 지키는 것이다. 카드 안 지도가
- * 페이지 스크롤을 먹으면 모바일에서 아래 목록으로 내려갈 수가 없다.
- * 여기서 지도가 하는 일은 "어디쯤에 몇 개가 흩어져 있나"를 한눈에 주는 것뿐이고,
- * 그건 조작 없이도 된다.
+ * 다만 **휠 줌은 끈다**(`scrollwheel: false`). 카드 위에서 스크롤이 확대로 바뀌면
+ * 페이지가 그 자리에 붙잡힌다. 확대·축소는 컨트롤 버튼·더블클릭·핀치로 한다.
  *
  * 상태가 셋이다. 화면에서 구분되어야 한다.
  *   키 없음    → "지도 준비 중". 아직 안 붙인 것이지 고장이 아니다
@@ -25,7 +23,22 @@ const props = defineProps<{
   height?: string
   /** 지도 중심. 반경 원을 그릴 때는 그 원의 중심이기도 하다. */
   center?: { lat: number; lng: number }
-  markers?: Array<{ lat: number; lng: number; name: string }>
+  /**
+   * 찍을 지점들.
+   *
+   * `kind: 'stop'`은 정류장이다. 관광지와 같은 핀으로 그리면 "여기가 볼거리"로 읽힌다.
+   * 홈에서는 이름이 같은 승강장 셋을 눈으로 갈라야 해서, 고른 하나(`active`)만
+   * 채운 점과 이름표로 도드라지게 한다.
+   */
+  markers?: Array<{
+    lat: number
+    lng: number
+    name: string
+    /** 이름만으로 부족할 때 덧붙이는 한 줄. 정류장의 "○○ 방면"이 여기다. */
+    note?: string
+    kind?: 'spot' | 'stop'
+    active?: boolean
+  }>
   /** 중심에서 그릴 반경(m). 도보권을 눈으로 보여줄 때만 쓴다. */
   radiusM?: number
 }>()
@@ -34,17 +47,132 @@ const { kakaoMapKey } = useRuntimeConfig().public
 
 /** 단청 주홍. 디자인 토큰 --primary와 같은 값이다. SDK에는 CSS 변수를 넘길 수 없다. */
 const PRIMARY = '#D9453C'
+/** --color-ink · --color-muted-soft와 같은 값. 위와 같은 이유로 값을 적는다. */
+const INK = '#222222'
+const MUTED_SOFT = '#929292'
 
 const container = ref<HTMLElement | null>(null)
 const failed = ref(false)
 
 let map: KakaoMaps = null
+/** SDK 네임스페이스. 되돌리기 버튼이 마운트 이후에도 화면을 다시 맞추려면 필요하다. */
+let sdk: KakaoMaps = null
+/** 반경 원. 있으면 화면 맞추기의 기준이 된다. */
+let circle: KakaoMaps = null
 /** 우리가 만든 것만 들고 있는다. 다시 그릴 때 이것만 지운다. */
 let overlays: KakaoMaps[] = []
+
+/** 눌러서 뜬 이름표. 한 번에 하나만 띄운다. */
+let label: KakaoMaps = null
 
 function clearOverlays() {
   for (const overlay of overlays) overlay.setMap(null)
   overlays = []
+  circle = null
+  hideLabel()
+}
+
+function hideLabel() {
+  label?.setMap(null)
+  label = null
+}
+
+/**
+ * 마커를 누르면 이름을 띄운다
+ *
+ * 기본 마커의 `title`은 데스크톱 호버 툴팁이라 폰에서는 아무 일도 일어나지 않는다.
+ * 지도에 점만 찍히고 그게 뭔지 알 방법이 없으면 지도가 아니라 무늬다.
+ *
+ * ⚠️ 이름은 상류(관광공사·안동시)가 준 문자열이다. innerHTML로 넣지 않고
+ *    textContent로 붙인다. 지도 하나 때문에 남의 데이터를 실행시킬 이유가 없다.
+ */
+function showLabel(position: KakaoMaps, text: string, above: number) {
+  if (!map || !sdk) return
+  hideLabel()
+
+  const bubble = document.createElement('span')
+  bubble.textContent = text
+  bubble.style.cssText = `display:block;white-space:nowrap;background:${INK};color:#fff;border-radius:9999px;padding:5px 10px;font-size:12px;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.25)`
+
+  label = new sdk.CustomOverlay({
+    position,
+    content: bubble,
+    // yAnchor는 이름표 높이의 배수다. 마커(42px)와 점(22px)의 키가 달라 값이 다르다.
+    yAnchor: above,
+    zIndex: 9,
+  })
+  label.setMap(map)
+}
+
+/**
+ * 이름을 지도에 인쇄해 두는 한계 개수
+ *
+ * 카카오맵처럼 마커 옆에 이름이 늘 보여야 그게 어디인지 알 수 있다. 다만 둘러보기는
+ * 마커가 49개까지 가므로 전부 인쇄하면 글자가 서로를 덮어 아무것도 안 읽힌다.
+ * 상용 지도는 겹침을 계산해 솎아내지만 그건 이 카드가 할 일이 아니다.
+ * 여기서는 개수로 끊고, 많을 때는 눌러서 보게 한다.
+ */
+const LABEL_LIMIT = 9
+
+/** 눌렀을 때 뜨는 문구. 이름이 같은 승강장 셋은 방면까지 있어야 구분된다. */
+const describe = (point: { name: string; note?: string }) =>
+  point.note ? `${point.name} · ${point.note}` : point.name
+
+/** 좌표가 없는 항목이 섞여 들어올 수 있다. LatLng에 NaN을 넘기면 지도가 통째로 깨진다. */
+const validMarkers = computed(() =>
+  (props.markers ?? []).filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng)),
+)
+
+/**
+ * 화면 맞추기 — 원이 있으면 원 전체가, 없으면 마커 전부가 들어오게
+ *
+ * `draw()`에서 떼어냈다. 지도를 움직일 수 있게 된 이상 되돌아올 방법이 있어야 하고,
+ * 되돌아온다는 건 처음 그 화면으로 다시 맞춘다는 뜻이다.
+ */
+function fit() {
+  if (!map || !sdk) return
+
+  if (circle) {
+    map.setBounds(circle.getBounds())
+    return
+  }
+
+  const points = validMarkers.value
+
+  if (points.length > 1) {
+    const bounds = new sdk.LatLngBounds()
+    for (const point of points) bounds.extend(new sdk.LatLng(point.lat, point.lng))
+    map.setBounds(bounds, 24, 24, 24, 24)
+    return
+  }
+
+  const only = points[0] ?? props.center ?? ANDONG_ORIGIN
+  map.setCenter(new sdk.LatLng(only.lat, only.lng))
+  // 한 곳만 있으면 그 주변이 보이게, 아무것도 없으면 안동 전체가 보이게.
+  map.setLevel(points.length === 1 ? 5 : 8)
+}
+
+/**
+ * 지도에 인쇄되는 이름 — 상용 지도의 지명 라벨과 같은 모양
+ *
+ * 말풍선을 쓰지 않는다. 마커마다 흰 상자가 뜨면 지도가 상자로 덮인다.
+ * 흰 테두리를 두른 글자는 배경이 어떤 색이어도 읽히면서 지도를 가리지 않는다.
+ */
+function nameLabel(maps: KakaoMaps, position: KakaoMaps, text: string, below: number) {
+  const el = document.createElement('span')
+  el.textContent = text
+  el.style.cssText = `display:block;padding-top:${below}px;white-space:nowrap;font-size:11px;font-weight:600;color:${INK};text-shadow:-1.5px -1.5px 0 #fff,1.5px -1.5px 0 #fff,-1.5px 1.5px 0 #fff,1.5px 1.5px 0 #fff,0 0 3px #fff`
+
+  // yAnchor 0 — 상자 윗변이 좌표에 붙는다. 마커는 좌표 위쪽에 서므로 글자는 그 아래로 간다.
+  const overlay = new maps.CustomOverlay({ position, content: el, yAnchor: 0, zIndex: 2 })
+  overlay.setMap(map)
+  overlays.push(overlay)
+}
+
+/** "처음 화면으로" — 열어 둔 이름표까지 함께 걷는다. */
+function reset() {
+  hideLabel()
+  fit()
 }
 
 /**
@@ -57,18 +185,64 @@ function draw(maps: KakaoMaps) {
   if (!map) return
   clearOverlays()
 
-  // 좌표가 없는 항목이 섞여 들어올 수 있다. LatLng에 NaN을 넘기면 지도가 통째로 깨진다.
-  const points = (props.markers ?? []).filter(
-    (point) => Number.isFinite(point.lat) && Number.isFinite(point.lng),
-  )
+  const points = validMarkers.value
+  const printNames = points.length <= LABEL_LIMIT
 
   for (const point of points) {
-    const marker = new maps.Marker({
-      position: new maps.LatLng(point.lat, point.lng),
-      title: point.name,
-    })
+    const position = new maps.LatLng(point.lat, point.lng)
+
+    /**
+     * 정류장은 핀이 아니라 점이다.
+     *
+     * 기본 핀으로 그리면 관광지 마커와 같은 모양이 되어, 홈에서 "볼거리 여섯 곳" 옆에
+     * "정류장 셋"이 구분 없이 섞인다. 고른 승강장만 채워 도드라지게 하고
+     * 나머지는 테두리만 남긴다 — 이름이 같은 셋을 지도에서 가르는 유일한 표시다.
+     */
+    if (point.kind === 'stop') {
+      /**
+       * ⚠️ CustomOverlay는 content를 좌표에 **가운데 정렬**해서 붙인다(기본 앵커 0.5).
+       *    직접 transform으로 당기면 두 번 밀린다. 아래 "나" 점에 transform이 없는 것도
+       *    같은 이유다. 이름표는 absolute로 띄운다 — 그래야 상자 크기가 점 그대로라
+       *    중심이 이름표 길이만큼 밀리지 않는다.
+       */
+      const dot = document.createElement('span')
+      dot.style.cursor = 'pointer'
+
+      if (point.active) {
+        dot.style.cssText += `position:relative;display:block;width:22px;height:22px;border-radius:9999px;background:${INK};border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)`
+
+        const ribbon = document.createElement('span')
+        // ?? 가 아니라 || 다. 방면을 모르는 정류장은 note가 빈 문자열로 온다.
+        ribbon.textContent = point.note || point.name
+        ribbon.style.cssText = `position:absolute;left:28px;top:50%;transform:translateY(-50%);white-space:nowrap;background:${INK};color:#fff;border-radius:9999px;padding:3px 8px;font-size:11px;font-weight:600`
+        dot.append(ribbon)
+      } else {
+        dot.style.cssText += `display:block;width:14px;height:14px;border-radius:9999px;background:#fff;border:2px solid ${MUTED_SOFT};box-shadow:0 1px 3px rgba(0,0,0,.2)`
+      }
+
+      // CustomOverlay에는 지도 이벤트가 안 붙는다. DOM에 직접 건다.
+      dot.addEventListener('click', () => showLabel(position, describe(point), 1.9))
+
+      const overlay = new maps.CustomOverlay({
+        position,
+        content: dot,
+        zIndex: point.active ? 5 : 4,
+      })
+      overlay.setMap(map)
+      overlays.push(overlay)
+
+      // 고른 승강장은 리본이 이미 이름을 달고 있다. 두 번 쓰지 않는다.
+      if (printNames && !point.active) nameLabel(maps, position, point.name, 12)
+      continue
+    }
+
+    const marker = new maps.Marker({ position, title: point.name })
     marker.setMap(map)
     overlays.push(marker)
+    // 마커는 키가 42px이라 이름표를 점보다 더 위로 띄운다.
+    maps.event.addListener(marker, 'click', () => showLabel(position, describe(point), 3))
+
+    if (printNames) nameLabel(maps, position, point.name, 2)
   }
 
   /**
@@ -77,8 +251,6 @@ function draw(maps: KakaoMaps) {
    * 중심은 "나"라는 뜻이므로 마커가 아니라 점으로 그린다. 마커를 쓰면
    * 관광지 마커들과 같은 모양이 되어 어느 것이 나인지 알 수 없다.
    */
-  let circle: KakaoMaps = null
-
   if (props.radiusM && props.center) {
     const origin = new maps.LatLng(props.center.lat, props.center.lng)
 
@@ -103,19 +275,8 @@ function draw(maps: KakaoMaps) {
     overlays.push(dot)
   }
 
-  // 화면 맞추기. 원이 있으면 원 전체가, 없으면 마커 전부가 들어오게 한다.
-  if (circle) {
-    map.setBounds(circle.getBounds())
-  } else if (points.length > 1) {
-    const bounds = new maps.LatLngBounds()
-    for (const point of points) bounds.extend(new maps.LatLng(point.lat, point.lng))
-    map.setBounds(bounds, 24, 24, 24, 24)
-  } else {
-    const only = points[0] ?? props.center ?? ANDONG_ORIGIN
-    map.setCenter(new maps.LatLng(only.lat, only.lng))
-    // 한 곳만 있으면 그 주변이 보이게, 아무것도 없으면 안동 전체가 보이게.
-    map.setLevel(points.length === 1 ? 5 : 8)
-  }
+  // 데이터가 바뀌었으면 그 데이터가 다 보이는 화면으로 맞춘다.
+  fit()
 }
 
 onMounted(async () => {
@@ -123,13 +284,20 @@ onMounted(async () => {
 
   try {
     const maps = await loadKakaoMaps(String(kakaoMapKey))
+    sdk = maps
 
     map = new maps.Map(container.value, {
       center: new maps.LatLng(ANDONG_ORIGIN.lat, ANDONG_ORIGIN.lng),
       level: 6,
-      draggable: false,
+      // 휠은 페이지 스크롤에 남긴다. 지도 위라고 스크롤이 확대로 바뀌면 안 된다.
+      scrollwheel: false,
     })
-    map.setZoomable(false)
+
+    // 휠을 껐으니 버튼이 필요하다. 없으면 데스크톱의 줌 수단이 더블클릭뿐이다.
+    map.addControl(new maps.ZoomControl(), maps.ControlPosition.RIGHT)
+
+    // 빈 곳을 누르면 이름표를 닫는다. 닫는 방법이 없으면 이름표가 지도를 덮는다.
+    maps.event.addListener(map, 'click', hideLabel)
 
     draw(maps)
 
@@ -144,13 +312,28 @@ onMounted(async () => {
 onUnmounted(() => {
   clearOverlays()
   map = null
+  sdk = null
 })
 </script>
 
 <template>
   <div class="overflow-hidden rounded-md border border-hairline">
-    <div class="bg-surface-soft" :style="{ height: height ?? '220px' }">
+    <div class="relative bg-surface-soft" :style="{ height: height ?? '220px' }">
       <div v-if="kakaoMapKey && !failed" ref="container" class="h-full w-full" />
+
+      <!--
+        되돌리기. 움직일 수 있는 지도에는 반드시 있어야 하는 짝이다.
+        길을 잃은 사람에게 새로고침 말고 다른 길을 준다.
+        z-2 — 카카오 컨트롤이 z-index 1~2를 쓴다. 그 위에 얹는다.
+      -->
+      <button
+        v-if="kakaoMapKey && !failed"
+        type="button"
+        class="absolute bottom-3 left-3 z-[3] rounded-full border border-hairline bg-white/95 px-3 py-1.5 text-xs font-medium shadow-float"
+        @click="reset()"
+      >
+        처음 화면으로
+      </button>
 
       <div v-else class="flex h-full w-full items-center justify-center px-6 text-center">
         <div>

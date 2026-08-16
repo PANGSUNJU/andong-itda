@@ -8,7 +8,15 @@ import {
   KOR_SERVICE_REGION,
   LOCGO_HUB_REGION,
 } from '../../shared/constants/region.ts'
-import type { FoodCategory, FoodPlace, HubSpot, KorSpot, Spot, TourApiResponse } from '#shared/types/tour'
+import type {
+  FoodCategory,
+  FoodPlace,
+  GalleryPhoto,
+  HubSpot,
+  KorSpot,
+  Spot,
+  TourApiResponse,
+} from '#shared/types/tour'
 
 /**
  * 한국관광공사 TourAPI 호출과 두 데이터셋의 병합
@@ -21,6 +29,7 @@ import type { FoodCategory, FoodPlace, HubSpot, KorSpot, Spot, TourApiResponse }
 const LOCGO_HUB = 'http://apis.data.go.kr/B551011/LocgoHubTarService1/areaBasedList1'
 const KOR_SERVICE = 'https://apis.data.go.kr/B551011/KorService2/areaBasedList2'
 const KOR_SEARCH = 'https://apis.data.go.kr/B551011/KorService2/searchKeyword2'
+const PHOTO_GALLERY = 'https://apis.data.go.kr/B551011/PhotoGalleryService1/gallerySearchList1'
 
 /**
  * 인증키 정규화
@@ -108,6 +117,23 @@ async function fetchTourApi<T>(
 
   const { items, totalCount } = body.body
   return { items: items === '' ? [] : items.item, totalCount }
+}
+
+/**
+ * 이미지 URL을 https로 올린다
+ *
+ * ⚠️ 상류가 http와 https를 섞어 준다. 실측(2026-08-16): 관광지 사진 41장 중 **23장이 http**,
+ *    갤러리는 1000건 중 883건이 http다. 배포는 https이므로 그대로 두면 그 절반이
+ *    Mixed Content로 **차단된다.** 개발(http://localhost)에서는 멀쩡히 보여서 안 드러난다.
+ *
+ * 같은 경로를 https로 요청하면 동일한 이미지가 200으로 열리는 것을 확인했다
+ * (`tong.visitkorea.or.kr` 한 호스트뿐이다).
+ *
+ * 이미지가 들어오는 자리가 넷(지역 병합·키워드 보충·갤러리·음식점)이므로
+ * 대입하는 쪽마다 고치지 않고 여기 한 곳을 지나가게 한다.
+ */
+function httpsImage(url: string): string {
+  return url.replace(/^http:\/\//, 'https://')
 }
 
 /** YYYYMM. n개월 전. */
@@ -252,7 +278,7 @@ function toFoodPlace(kor: KorSpot): FoodPlace {
     lng: Number(kor.mapx),
     // 관광지와 같은 규칙 — 없는 값은 빈 문자열이 아니라 부재로 남긴다.
     ...(kor.addr1 ? { address: kor.addr1 } : {}),
-    ...(kor.firstimage ? { imageUrl: kor.firstimage } : {}),
+    ...(kor.firstimage ? { imageUrl: httpsImage(kor.firstimage) } : {}),
     contentId: kor.contentid,
   }
 }
@@ -416,12 +442,98 @@ export async function backfillImages(spots: Spot[]): Promise<Spot[]> {
 
     return {
       ...spot,
-      imageUrl: kor.firstimage,
+      imageUrl: httpsImage(kor.firstimage),
       // 주소도 같이 비어 있었다면 함께 채운다. 같은 항목에서 온 값이다.
       ...(spot.address ? {} : kor.addr1 ? { address: kor.addr1 } : {}),
       ...(spot.contentId ? {} : { contentId: kor.contentid }),
     }
   })
+}
+
+/**
+ * 관광사진 갤러리로 마지막 보충 — 한국관광공사 PhotoGalleryService1
+ *
+ * KorService2가 사진을 주지 못한 것들이 남는다. 그때 다른 웹사이트를 뒤지지 않는다.
+ * **공공데이터 API 안에서만 해결한다.** 같은 공사가 따로 운영하는 사진 데이터셋이
+ * 마지막 보루다.
+ *
+ * ⚠️ 관광지마다 부르지 않는다. `keyword=안동`으로 한 번에 받아 이름을 맞춘다.
+ *    결측이 14곳이라 개별 호출하면 14번인데, 어차피 안동 사진 전체가 1500건이라
+ *    한 번에 받는 편이 싸고 정확하다(제목에 없는 이름이 태그에 있는 경우를 잡는다).
+ *
+ * ⚠️ **좌표가 없다.** 지역 조회(200m)나 키워드 보충(3km)과 달리 거리로 검증할 수
+ *    없다. 그래서 촬영장소가 안동인 것만 남기고, 이름은 조각 단위로 맞춘다.
+ *    동명이소를 거를 수단이 촬영장소뿐이므로 이 조건을 빼면 안 된다.
+ *
+ * 실측(2026-08-14): 안동 사진 1504건 중 1000건 수신, 촬영장소가 안동인 것 994건.
+ * 관광지 54곳 중 17곳이 걸리고, 그중 **사진이 없던 것은 1곳**(부용대)이다.
+ * 나머지 13곳은 행사·신규시설·상호여서 공공데이터 어디에도 사진이 없다.
+ * 보충량은 작지만, KorService2가 흔들릴 때 남는 유일한 사진 소스이기도 하다.
+ *
+ * 실패해도 던지지 않는다. 보강이지 본체가 아니다.
+ */
+export async function backfillFromGallery(spots: Spot[]): Promise<Spot[]> {
+  const targets = spots.filter((spot) => !spot.imageUrl)
+  if (targets.length === 0) return spots
+
+  let photos: GalleryPhoto[]
+
+  try {
+    const { items } = await fetchTourApi<GalleryPhoto>(PHOTO_GALLERY, {
+      numOfRows: 1000,
+      pageNo: 1,
+      arrange: 'A',
+      keyword: GALLERY_KEYWORD,
+    })
+    // 촬영장소가 안동인 것만. 좌표가 없으니 이게 유일한 지역 검증이다.
+    photos = items.filter((photo) => photo.galPhotographyLocation?.includes(GALLERY_KEYWORD))
+  } catch {
+    console.warn('[gallery] 관광사진 조회에 실패했다. 사진 없이 진행한다')
+    return spots
+  }
+
+  const found = new Map<string, GalleryPhoto>()
+
+  for (const spot of targets) {
+    const photo = photos.find((candidate) =>
+      nameFragments(spot.name).some(
+        (fragment) =>
+          normalizeSpotName(candidate.galTitle).includes(fragment) ||
+          normalizeSpotName(candidate.galSearchKeyword ?? '').includes(fragment),
+      ),
+    )
+    if (photo) found.set(spot.id, photo)
+  }
+
+  return spots.map((spot) => {
+    const photo = found.get(spot.id)
+    if (!photo) return spot
+
+    return { ...spot, imageUrl: httpsImage(photo.galWebImageUrl) }
+  })
+}
+
+/** 갤러리 검색어이자 촬영장소 필터. 이 서비스는 지역 코드를 받지 않는다. */
+const GALLERY_KEYWORD = '안동'
+
+/**
+ * 이름에서 뽑아낸 조각들 — 갤러리 매칭 전용
+ *
+ * LocgoHub 이름은 별칭이 슬래시로 붙는다. "낙동강12경(부용경)/부용대"에서
+ * 사람이 아는 이름은 **뒤쪽**인데, 기존 `keywordVariants`는 앞부분만 쓴다.
+ * 그래서 슬래시 양쪽을 모두 후보로 둔다. 실측에서 부용대가 이렇게 걸렸다.
+ *
+ * 두 글자 미만은 버린다. "역"·"길" 같은 조각이 아무 사진에나 걸린다.
+ */
+function nameFragments(name: string): string[] {
+  const parts = name
+    .replace(/\[.*?\]/g, '')
+    .split('/')
+    .flatMap((part) => [part, part.replace(/\(.*?\)/g, '')])
+    .map(normalizeSpotName)
+    .filter((part) => part.length >= 2)
+
+  return [...new Set(parts)]
 }
 
 /** 키워드 검색 결과 중 이 관광지로 볼 만한 항목. 없으면 null. */
@@ -571,7 +683,7 @@ export function mergeSpot(hub: HubSpot, kor: KorSpot | null): Spot {
     // "주소 없음"과 "주소가 빈 값"을 구분할 수 없다.
     ...(kor?.addr1 ? { address: kor.addr1 } : {}),
     // firstimage는 64건 중 4건이 빈 문자열이다. 폴백 UI가 판단하도록 비워 둔다.
-    ...(kor?.firstimage ? { imageUrl: kor.firstimage } : {}),
+    ...(kor?.firstimage ? { imageUrl: httpsImage(kor.firstimage) } : {}),
     ...(kor ? { contentId: kor.contentid } : {}),
   }
 }

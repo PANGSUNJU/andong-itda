@@ -80,10 +80,14 @@ export default defineEventHandler(async (event): Promise<SpotBusInfo> => {
         ? null
         : {
             stationNm: entry.inbound.stationNm ?? '정류장명 미확인',
-            // SpotBusInfo가 요구하는 네 필드만 남긴다. rstop·provideType 같은
+            // SpotBusInfo가 요구하는 필드만 남긴다. rstop·provideType 같은
             // 상류의 빈 필드를 화면까지 흘려보낼 이유가 없다.
+            //
+            // routeNm은 화면에 그대로 뜨지 않는다. via의 종점이 비어서 올 때
+            // 방면을 여기서만 건질 수 있어 함께 내려보낸다. → formatDirection
             arrivals: arrivals.map((arrival) => ({
               routeNum: arrival.routeNum,
+              routeNm: arrival.routeNm,
               via: arrival.via,
               predictTm: arrival.predictTm,
               remainStation: arrival.remainStation,

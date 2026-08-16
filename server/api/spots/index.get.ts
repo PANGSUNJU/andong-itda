@@ -30,13 +30,19 @@ export default defineCachedEventHandler(
 
     const merged = hub.items.map((hubSpot) => mergeSpot(hubSpot, matchKorSpot(hubSpot, korSpots)))
 
+    /**
+     * 사진을 세 단계로 채운다. 전부 공공데이터 API 안에서 끝낸다.
+     *   1. 지역 조회 병합    KorService2 areaBasedList2 — 좌표 200m
+     *   2. 이름 재검색       KorService2 searchKeyword2 — areacode가 빈 항목 구제
+     *   3. 관광사진 갤러리   PhotoGalleryService1      — 위 둘이 못 준 것
+     * 뒤로 갈수록 증거가 약해진다(3단계는 좌표가 아예 없다). 순서를 바꾸지 않는다.
+     */
+    const withPhotos = await backfillFromGallery(await backfillImages(merged))
+
     // 정렬을 보충 뒤에 둔다. 보충은 순위를 건드리지 않지만, 순서가 결과에
     // 의존하지 않는다는 걸 코드 모양으로 남겨 둔다.
-    return (
-      (await backfillImages(merged))
-        // hubRank 오름차순. 문자열로 오는 값이라 mergeSpot에서 숫자로 바꿔 둔다.
-        .sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity))
-    )
+    // hubRank 오름차순. 문자열로 오는 값이라 mergeSpot에서 숫자로 바꿔 둔다.
+    return withPhotos.sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity))
   },
   {
     maxAge: 60 * 60 * 24, // 1일

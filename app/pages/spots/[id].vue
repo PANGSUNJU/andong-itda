@@ -30,9 +30,25 @@ useHead({ title: `${spot.value.name} · 안동잇다` })
  * 나머지는 404이고, 그건 오류가 아니라 "아직 확인하지 못한 관광지"라는 뜻이다.
  * error를 그대로 두고 화면에서 구분해 안내한다. → ADR-016
  */
-const { data: bus, error: busError } = await useFetch<SpotBusInfo>(
-  () => `/api/spot-bus/${encodeURIComponent(spot.value!.name)}`,
-)
+const {
+  data: bus,
+  error: busError,
+  pending: busRequestPending,
+  refresh: refreshBus,
+} = await useFetch<SpotBusInfo>(() => `/api/spot-bus/${encodeURIComponent(spot.value!.name)}`)
+
+/**
+ * 이 화면에는 홈 같은 30초 타이머가 없다. 열어 둔 채로 두면 도착 정보가 그대로 늙으므로
+ * 갱신 시각을 적고 새로고침을 붙인다.
+ * SSR에서는 시각을 만들지 않는다 — 서버 시각으로 "방금"을 찍으면 하이드레이션이 어긋난다.
+ */
+const updatedAt = ref<number | null>(null)
+onMounted(() => (updatedAt.value = Date.now()))
+
+async function refreshNow() {
+  await refreshBus()
+  updatedAt.value = Date.now()
+}
 
 /** 상류가 아직 확인하지 못한 관광지인지, 정말 없는 이름인지 */
 const busPending = computed(() => (busError.value?.data as { data?: { pending?: boolean } })?.data?.pending ?? false)
@@ -117,6 +133,19 @@ const mapMarkers = computed(() =>
               버스 정보가 등록되지 않은 곳이에요. 현재는 인기 관광지 7곳만 안내하고 있어요.
             </template>
           </p>
+
+          <!--
+            버스 정보가 있든 없든 붙인다. 정류장을 아직 확인하지 못한 관광지일수록
+            "그럼 어떻게 가나"가 남는데, 그 답을 이 화면에서 끊지 않는다.
+          -->
+          <a
+            :href="kakaoDirectionsUrl(spot.name, spot.lat, spot.lng)"
+            target="_blank"
+            rel="noopener"
+            class="mt-4 inline-flex items-center gap-1.5 rounded-full border border-ink px-4 py-2.5 text-sm font-medium"
+          >
+            카카오맵으로 길찾기
+          </a>
         </section>
 
         <section v-if="around.length" class="border-t border-hairline py-8">
@@ -148,7 +177,13 @@ const mapMarkers = computed(() =>
       </div>
 
       <aside class="min-w-0 pb-12 desktop:sticky desktop:top-[96px]">
-        <SpotBusPanel v-if="bus" :info="bus" />
+        <SpotBusPanel
+          v-if="bus"
+          :info="bus"
+          :updated-at="updatedAt"
+          :pending="busRequestPending"
+          @refresh="refreshNow()"
+        />
 
         <div v-else class="rounded-md border border-hairline bg-surface-soft p-6">
           <p class="text-base font-medium">버스 안내 준비 중</p>

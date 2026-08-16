@@ -39,6 +39,10 @@ useHead({ title: '안내 · 안동잇다' })
           <dd class="text-muted">한국관광공사 TourAPI (공공누리)</dd>
         </div>
         <div>
+          <dt class="font-medium">걷는 길 코스</dt>
+          <dd class="text-muted">저희가 직접 짰어요 (공공데이터에 안동 걷기길이 없어요)</dd>
+        </div>
+        <div>
           <dt class="font-medium">정류장 · 노선 · 실시간 도착</dt>
           <dd class="text-muted">안동시 버스정보시스템</dd>
         </div>

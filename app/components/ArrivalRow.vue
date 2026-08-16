@@ -5,9 +5,11 @@
  * BusArrival 전체가 아니라 화면이 쓰는 네 필드만 받는다.
  * /api/spot-bus는 애초에 이 네 개만 내려주므로 두 화면이 같은 컴포넌트를 쓴다.
  */
-defineProps<{
+const props = defineProps<{
   routeNum: string
   via: string
+  /** via의 종점이 비어 올 때 방면을 여기서 건진다. → `formatDirection` */
+  routeNm?: string
   predictTm: number | null
   remainStation: number | null
   /**
@@ -17,6 +19,16 @@ defineProps<{
    */
   spots?: import('#shared/types/bus').ArrivalSpot[]
 }>()
+
+/**
+ * 이 줄의 제목. 관광지 > 방면 순이고, 둘 다 없으면 빈 문자열이다.
+ * 빈 문자열이면 줄을 그리지 않는다 — 방면을 모를 때 화살표 조각만 남던 자리다.
+ */
+const headline = computed(() =>
+  props.spots?.length
+    ? props.spots.map((spot) => spot.name).join(' · ')
+    : formatDirection(props.via, props.routeNm),
+)
 </script>
 
 <template>
@@ -34,8 +46,8 @@ defineProps<{
         노선의 종점이라 formatDirection(via)이 만드는 "○○ 방면"과 겹치기
         때문이다(2026-08-10 실측: 병산·봉정·도산 전부 종점). → ADR-025
       -->
-      <b class="block truncate text-base font-medium leading-tight">
-        {{ spots?.length ? spots.map((spot) => spot.name).join(' · ') : formatDirection(via) }}
+      <b v-if="headline" class="block truncate text-base font-medium leading-tight">
+        {{ headline }}
       </b>
 
       <span v-if="remainStation !== null" class="block text-[13px] leading-tight text-muted">

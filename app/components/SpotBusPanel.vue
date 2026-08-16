@@ -12,10 +12,31 @@ import type { SpotBusInfo } from '#shared/types/static-data'
  *    "다른 노선 버스가 접근 중(status='arriving')"인 상태가 동시에 성립한다.
  *    그때 '운행 종료'를 띄우면, 눈앞에 오고 있는 버스를 두고 없다고 말하게 된다.
  */
-const props = defineProps<{ info: SpotBusInfo }>()
+const props = defineProps<{
+  info: SpotBusInfo
+  /** 도착 정보를 마지막으로 받은 시각(ms). SSR에서는 null이다. */
+  updatedAt?: number | null
+  pending?: boolean
+}>()
+
+defineEmits<{ refresh: [] }>()
 
 const next = computed(() => props.info.inbound?.arrivals[0])
 const rest = computed(() => props.info.inbound?.arrivals.slice(1, 4) ?? [])
+
+/** 방면. 상류 via의 종점이 비어 오면 routeNm에서 건진다. 둘 다 없으면 줄을 지운다. */
+const direction = computed(() =>
+  next.value ? formatDirection(next.value.via, next.value.routeNm) : '',
+)
+
+/** 놓쳤을 때를 위한 같은 노선의 다음 차. 목록이 도착 임박순이라 첫 일치가 그 차다. */
+const nextSameRoute = computed(() =>
+  next.value
+    ? props.info.inbound?.arrivals
+        .slice(1)
+        .find((arrival) => arrival.routeNum === next.value!.routeNum && arrival.predictTm !== null)
+    : undefined,
+)
 
 /** 화면 문구는 status에서만 갈린다. */
 const statusText = computed(() => {
@@ -47,13 +68,16 @@ const statusText = computed(() => {
         </b>
         <small class="mt-0.5 block text-sm text-muted">시내에서 들어오는 편</small>
       </div>
-      <span
-        v-if="info.status === 'arriving'"
-        class="flex flex-none items-center gap-1.5 text-[13px] font-medium text-primary"
-      >
-        <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
-        실시간
-      </span>
+      <!--
+        도착이 없을 때도 배지를 남긴다. 예전에는 `status === 'arriving'`일 때만 띄웠는데,
+        정작 다시 확인하고 싶은 순간은 "접근 중인 버스가 없어요"를 봤을 때다.
+        새로고침이 그 배지에 붙어 있으므로 그때 사라지면 안 된다.
+      -->
+      <RealtimeBadge
+        :updated-at="updatedAt ?? null"
+        :pending="pending"
+        @refresh="$emit('refresh')"
+      />
     </div>
 
     <!-- 도착이 있을 때만 큰 숫자를 쓴다 -->
@@ -68,11 +92,17 @@ const statusText = computed(() => {
         <h2 class="mt-2 text-base font-semibold leading-tight">
           {{ next.routeNum }}번이 오고 있어요
         </h2>
-        <p class="mt-1 text-sm text-muted">
-          {{ formatDirection(next.via) }}
+        <p v-if="direction || next.remainStation !== null" class="mt-1 text-sm text-muted">
+          {{ direction }}
           <template v-if="next.remainStation !== null">
-            · {{ next.remainStation }}정거장 전
+            <!-- 앞 문구가 없으면 구분점도 없다. 점만 남으면 그게 오류로 보인다. -->
+            <template v-if="direction">· </template>{{ next.remainStation }}정거장 전
           </template>
+        </p>
+
+        <!-- 놓쳐도 되는지가 여기서 갈린다. 같은 번호의 다음 차만 말한다. -->
+        <p v-if="nextSameRoute" class="mt-2 text-[13px] text-muted-soft">
+          다음 {{ nextSameRoute.routeNum }}번은 {{ nextSameRoute.predictTm }}분 후예요
         </p>
       </div>
 
@@ -81,6 +111,7 @@ const statusText = computed(() => {
         :key="`${arrival.routeNum}-${index}`"
         :route-num="arrival.routeNum"
         :via="arrival.via"
+        :route-nm="arrival.routeNm"
         :predict-tm="arrival.predictTm"
         :remain-station="arrival.remainStation"
       />

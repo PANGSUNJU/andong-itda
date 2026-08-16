@@ -105,6 +105,12 @@ export interface SpotBusInfo {
     stationNm: string
     arrivals: {
       routeNum: string
+      /**
+       * 노선 전체명. 화면에 그대로 뜨지 않는다.
+       * via의 종점이 비어서 올 때 방면을 여기서 건진다. → `formatDirection`
+       * "610(만휴정-길안-국립경국대-교보건너-안동터미널)" → 안동터미널
+       */
+      routeNm: string
       via: string
       predictTm: number | null
       remainStation: number | null

@@ -16,7 +16,7 @@ import { nearest } from '#shared/constants/location'
  */
 useHead({ title: '지금 여기 · 안동잇다' })
 
-const { location, locate } = useLocation()
+const { location, locating, locate } = useLocation()
 
 const coords = computed(() => ({ lat: location.value.lat, lng: location.value.lng }))
 
@@ -33,9 +33,18 @@ const { data: allStations } = await useFetch<StationPin[]>('/api/bus/stations', 
 })
 const { data: spots } = await useFetch<Spot[]>('/api/spots', { default: () => [] })
 
-const stations = computed<NearbyStation[]>(() =>
-  nearest(allStations.value, coords.value, { limit: 5 }),
-)
+/**
+ * 도착정보가 오지 않는 승강장은 뒤로 보낸다
+ *
+ * 안동터미널처럼 노선의 기점·종점으로만 쓰이는 승강장에는 "접근 중인 차량"이
+ * 성립하지 않아 도착정보가 항상 빈 배열이다(→ ADR-015). 그런 칩이 맨 앞에 오면
+ * 첫 화면이 "버스가 없어요"로 열린다. 지우지는 않는다 — 실재하는 승강장이고,
+ * 거기 서 있는 사람에게는 "여기는 안 뜬다"는 사실 자체가 답이다.
+ */
+const stations = computed<NearbyStation[]>(() => {
+  const near = nearest(allStations.value, coords.value, { limit: 5 })
+  return [...near.filter((s) => !s.terminusOnly), ...near.filter((s) => s.terminusOnly)]
+})
 
 /**
  * 같은 이름의 정류장이 방향별로 여러 개 있다.
@@ -47,12 +56,29 @@ const activeStation = computed(
   () => stations.value.find((s) => s.stationId === selectedId.value) ?? stations.value[0],
 )
 
+/**
+ * 승강장을 가르는 한 줄 — 이름이 같은 셋을 여기서 구분한다
+ *
+ * 카카오·네이버가 "노하동입구 방면"으로 가르는 그 정보다.
+ * 같은 이름 셋을 그냥 늘어놓으면 여행자는 어느 것도 고를 수 없다.
+ */
+function stationTag(station: NearbyStation): string {
+  if (station.terminusOnly) return '종점 승강장 · 도착 정보 없음'
+  return station.direction ? `${station.direction} 방면` : ''
+}
+
 /** 30m 안쪽이면 "바로 앞"으로 끝낸다. "바로 앞 · 걸어서 약 1분"은 같은 말을 두 번 한다. */
 const stationSubtitle = computed(() => {
   const station = activeStation.value
   if (!station) return undefined
-  if (station.distance < 30) return '바로 앞이에요'
-  return `${formatDistance(station.distance)} · 걸어서 약 ${station.walkMinutes}분`
+
+  const near =
+    station.distance < 30
+      ? '바로 앞이에요'
+      : `${formatDistance(station.distance)} · 걸어서 약 ${station.walkMinutes}분`
+
+  const tag = stationTag(station)
+  return tag ? `${tag} · ${near}` : near
 })
 
 const {
@@ -64,6 +90,32 @@ const {
   query: computed(() => ({ stationId: activeStation.value?.stationId })),
   default: () => [],
 })
+
+/**
+ * 도착 정보를 마지막으로 받은 시각
+ *
+ * SSR에서는 만들지 않는다. 서버 시각으로 "방금"을 찍으면 하이드레이션이 어긋난다.
+ * 정류장을 바꿔도 다시 받으므로 `arrivals`를 지켜본다.
+ */
+const updatedAt = ref<number | null>(null)
+onMounted(() => (updatedAt.value = Date.now()))
+watch(arrivals, () => (updatedAt.value = Date.now()))
+
+async function refreshNow() {
+  await refreshArrivals()
+  updatedAt.value = Date.now()
+}
+
+/** 여기서 끊지 않고 카카오맵까지 잇는다. 승강장이 셋이라 좌표로 넘겨야 정확하다. */
+const stationDirectionsUrl = computed(() =>
+  activeStation.value
+    ? kakaoDirectionsUrl(
+        activeStation.value.stationNm,
+        activeStation.value.lat,
+        activeStation.value.lng,
+      )
+    : undefined,
+)
 
 /**
  * 반경을 넓게 잡아 한 번만 고르고 화면에서 나눈다.
@@ -79,6 +131,26 @@ const rideable = computed(() =>
   nearbySpots.value.filter((s) => s.distance > WALKABLE_M).slice(0, 6),
 )
 
+/**
+ * 홈 지도는 두 가지를 함께 찍는다 — 걸어갈 곳과 서야 할 승강장
+ *
+ * 승강장을 빼놓으면 이름이 같은 셋을 글자로만 갈라야 한다. "83m 떨어진 다른 승강장"이
+ * 길 건너인지 같은 쪽인지는 점 세 개를 보면 한 번에 끝난다.
+ */
+const mapMarkers = computed(() => [
+  ...walkable.value.map((spot) => ({ lat: spot.lat, lng: spot.lng, name: spot.name })),
+  ...stations.value.map((station) => ({
+    lat: station.lat,
+    lng: station.lng,
+    name: station.stationNm,
+    // 상시 이름표(고른 승강장)와 눌렀을 때 뜨는 문구가 이걸 함께 쓴다.
+    // 이름은 셋이 같으므로 방면이 있어야 어느 승강장인지 갈린다.
+    note: stationTag(station),
+    kind: 'stop' as const,
+    active: station.stationId === activeStation.value?.stationId,
+  })),
+])
+
 /** 인기 목록은 상류가 준 순위순 그대로다. nearest()는 사본을 정렬하므로 이 순서를 건드리지 않는다. */
 const top = computed(() => spots.value.slice(0, 5))
 
@@ -90,7 +162,7 @@ onMounted(() => {
   locate()
 
   const timer = setInterval(() => {
-    if (document.visibilityState === 'visible') refreshArrivals()
+    if (document.visibilityState === 'visible') refreshNow()
   }, 30_000)
 
   onUnmounted(() => clearInterval(timer))
@@ -108,8 +180,22 @@ onMounted(() => {
           <p class="mt-1.5 text-sm leading-relaxed text-muted">
             가까운 정류장의 버스와, 기다리는 동안 다녀올 만한 곳이에요
           </p>
-          <p v-if="location.reason" class="mt-2 text-[13px] text-muted-soft">
-            {{ location.reason }}
+          <!--
+            위치를 못 잡았을 때 이유만 적어 두면 막다른 길이다. 권한을 나중에 허용해도
+            새로고침 말고는 되돌릴 방법이 없었다. 다시 시도를 같은 자리에 둔다.
+          -->
+          <p v-if="location.reason || locating" class="mt-2 text-[13px] text-muted-soft">
+            <template v-if="locating">위치를 확인하는 중이에요…</template>
+            <template v-else>
+              {{ location.reason }}
+              <button
+                type="button"
+                class="ml-1 font-medium text-muted underline"
+                @click="locate()"
+              >
+                내 위치로 다시
+              </button>
+            </template>
           </p>
         </div>
 
@@ -133,6 +219,10 @@ onMounted(() => {
           :subtitle="stationSubtitle"
           :arrivals="arrivals"
           :pending="arrivalsPending"
+          :terminus-only="activeStation.terminusOnly"
+          :updated-at="updatedAt"
+          :directions-url="stationDirectionsUrl"
+          @refresh="refreshNow()"
         />
 
         <!--
@@ -147,18 +237,45 @@ onMounted(() => {
           <button
             v-for="station in stations"
             :key="station.stationId"
-            class="flex-none rounded-full border px-4 py-2 text-sm font-medium transition-colors"
-            :class="
+            class="flex-none rounded-full border px-4 py-2 text-left text-sm font-medium transition-colors"
+            :class="[
               station.stationId === activeStation?.stationId
                 ? 'border-ink bg-ink text-white'
-                : 'border-hairline text-body hover:bg-surface-soft'
-            "
+                : 'border-hairline text-body hover:bg-surface-soft',
+              // 도착이 안 뜨는 승강장은 뒤로 밀어 놨다. 눌러볼 수는 있게 두되 앞선 것과 무게를 다르게 준다.
+              station.terminusOnly && station.stationId !== activeStation?.stationId
+                ? 'opacity-60'
+                : '',
+            ]"
             @click="selectedId = station.stationId"
           >
-            {{ station.stationNm }}
-            <span class="ml-1 text-xs opacity-70">{{ formatDistance(station.distance) }}</span>
+            <span class="block whitespace-nowrap">{{ station.stationNm }}</span>
+            <!--
+              방면이 이름을 가른다. 같은 이름 셋을 구분하는 유일한 정보이므로
+              칩이 두 줄이 되는 것을 감수한다.
+            -->
+            <span class="mt-0.5 block whitespace-nowrap text-xs font-normal opacity-70">
+              {{ [stationTag(station), formatDistance(station.distance)].filter(Boolean).join(' · ') }}
+            </span>
           </button>
         </div>
+
+        <!--
+          지도는 정류장 칩 바로 아래다. 고르는 것(칩)과 보는 것(점)이 붙어 있어야
+          "83m 떨어진 다른 승강장"이 길 건너인지 같은 쪽인지가 한눈에 온다.
+
+          도보권 관광지 섹션 안에 두었더니 그 목록이 비는 위치에서는 지도까지 통째로
+          사라졌다. 정류장은 어디서든 있어야 하므로 밖으로 꺼냈다.
+          반경 원의 중심은 사용자 위치이고, 반경은 목록과 같은 기준(WALKABLE_M)이다.
+        -->
+        <MapCard
+          class="mt-4"
+          height="220px"
+          :center="coords"
+          :radius-m="WALKABLE_M"
+          :markers="mapMarkers"
+          :caption="`${location.label} 반경 2km · 정류장 ${stations.length}곳 · 걸어갈 수 있는 관광지 ${walkable.length}곳`"
+        />
 
         <section v-if="walkable.length" class="mt-8">
           <div class="mb-4">
@@ -167,19 +284,6 @@ onMounted(() => {
             </h2>
             <p class="mt-1 text-sm text-muted">버스를 기다리는 동안 다녀올 수 있어요</p>
           </div>
-
-          <!--
-            반경 원의 중심은 사용자 위치다. 목록의 "걸어서 갈 수 있는 곳"과 같은
-            기준(WALKABLE_M)을 넘겨 지도와 카드가 같은 말을 하게 한다.
-          -->
-          <MapCard
-            class="mb-4"
-            height="200px"
-            :center="coords"
-            :radius-m="WALKABLE_M"
-            :markers="walkable.map((spot) => ({ lat: spot.lat, lng: spot.lng, name: spot.name }))"
-            :caption="`${location.label} 반경 2km · 관광지 ${walkable.length}곳`"
-          />
 
           <div class="grid grid-cols-2 gap-x-4 gap-y-6 tablet:grid-cols-3">
             <SpotCard v-for="spot in walkable" :key="spot.id" :spot="spot" />
