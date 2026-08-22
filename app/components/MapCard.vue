@@ -45,6 +45,14 @@ const props = defineProps<{
 
 const { kakaoMapKey } = useRuntimeConfig().public
 
+const t = useT()
+
+/**
+ * ⚠️ 지도 위의 이름표는 **국문 그대로**다. 카카오맵 자체가 국문 지도라
+ *    핀 옆에만 영문을 인쇄하면 지도 배경의 지명과 어긋나 오히려 못 찾는다.
+ *    문구(캡션·버튼·안내)만 언어를 따른다.
+ */
+
 /** 단청 주홍. 디자인 토큰 --primary와 같은 값이다. SDK에는 CSS 변수를 넘길 수 없다. */
 const PRIMARY = '#D9453C'
 /** --color-ink · --color-muted-soft와 같은 값. 위와 같은 이유로 값을 적는다. */
@@ -332,7 +340,7 @@ onUnmounted(() => {
         class="absolute bottom-3 left-3 z-[3] rounded-full border border-hairline bg-white/95 px-3 py-1.5 text-xs font-medium shadow-float"
         @click="reset()"
       >
-        처음 화면으로
+        {{ t.map.reset }}
       </button>
 
       <div v-else class="flex h-full w-full items-center justify-center px-6 text-center">
@@ -348,7 +356,7 @@ onUnmounted(() => {
             <path d="M9 4L3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4zM9 4v13M15 6.5v13" />
           </svg>
           <p class="mt-2 text-sm text-muted">
-            {{ failed ? '지도를 불러오지 못했어요' : '지도 준비 중' }}
+            {{ failed ? t.map.failed : t.map.pending }}
           </p>
         </div>
       </div>

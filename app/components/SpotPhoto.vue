@@ -13,6 +13,8 @@ const props = defineProps<{
   alt: string
 }>()
 
+const t = useT()
+
 const failed = ref(false)
 
 // 카드가 재사용되며 src가 바뀌면 실패 상태를 리셋한다.
@@ -49,7 +51,7 @@ const showImage = computed(() => Boolean(props.src) && !failed.value)
         <circle cx="9" cy="10" r="1.6" />
         <path d="M3 16l5-4 4 3 3-2 6 4" />
       </svg>
-      <span class="text-xs text-muted">사진 준비 중</span>
+      <span class="text-xs text-muted">{{ t.card.noPhoto }}</span>
     </span>
   </span>
 </template>

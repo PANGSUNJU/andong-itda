@@ -20,14 +20,21 @@ const props = defineProps<{
   spots?: import('#shared/types/bus').ArrivalSpot[]
 }>()
 
+const t = useT()
+const locale = useLocale()
+
 /**
  * 이 줄의 제목. 관광지 > 방면 순이고, 둘 다 없으면 빈 문자열이다.
  * 빈 문자열이면 줄을 그리지 않는다 — 방면을 모를 때 화살표 조각만 남던 자리다.
+ *
+ * ⚠️ 관광지 이름은 두 언어에서 같다. 이 이름은 버스 API의 노선 문자열에서 온
+ *    국문 지명이라 영문을 붙일 상대가 없다. `spots[]`는 정류장 순번으로 판정한
+ *    결과이고(ADR-025) 상류가 그 목록에 영문을 주지 않는다.
  */
 const headline = computed(() =>
   props.spots?.length
     ? props.spots.map((spot) => spot.name).join(' · ')
-    : formatDirection(props.via, props.routeNm),
+    : formatDirection(props.via, props.routeNm, locale.value),
 )
 </script>
 
@@ -51,16 +58,16 @@ const headline = computed(() =>
       </b>
 
       <span v-if="remainStation !== null" class="block text-[13px] leading-tight text-muted">
-        {{ remainStation }}정거장 전
+        {{ t.common.stopsAway(remainStation) }}
       </span>
     </span>
 
     <span class="flex-none text-right">
       <b class="block text-base font-semibold leading-tight">
-        {{ predictTm !== null ? `${predictTm}분` : '—' }}
+        {{ predictTm !== null ? `${predictTm}${t.common.minuteUnit}` : '—' }}
       </b>
       <span class="mt-0.5 block text-[13px] text-muted">
-        {{ predictTm !== null ? '후' : '위치 확인 중' }}
+        {{ predictTm !== null ? t.bus.after : t.bus.locating }}
       </span>
     </span>
   </div>

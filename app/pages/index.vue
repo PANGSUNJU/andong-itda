@@ -14,9 +14,19 @@ import { nearest } from '#shared/constants/location'
  * 첫 렌더는 항상 안동역 기준이다. 서버에는 위치가 없다.
  * 브라우저에서 좌표가 잡히면 세 목록이 함께 갱신된다.
  */
-useHead({ title: '지금 여기 · 안동잇다' })
+const t = useT()
+const d = useDisplay()
+const localePath = useLocalePath()
+
+useHead(() => ({ title: t.value.home.title }))
 
 const { location, locating, locate } = useLocation()
+
+/** 위치 상태는 키만 들고 있다. 문구는 지금 언어로 여기서 만든다. → `useLocation` */
+const placeLabel = computed(() => t.value.location[location.value.label])
+const locationReason = computed(() =>
+  location.value.reason ? t.value.location[location.value.reason] : null,
+)
 
 const coords = computed(() => ({ lat: location.value.lat, lng: location.value.lng }))
 
@@ -63,8 +73,9 @@ const activeStation = computed(
  * 같은 이름 셋을 그냥 늘어놓으면 여행자는 어느 것도 고를 수 없다.
  */
 function stationTag(station: NearbyStation): string {
-  if (station.terminusOnly) return '종점 승강장 · 도착 정보 없음'
-  return station.direction ? `${station.direction} 방면` : ''
+  if (station.terminusOnly) return t.value.home.terminusTag
+  // 방면은 다음 정류장의 국문 이름이다. 그 이름에 영문 상대가 없다. → ADR-030
+  return station.direction ? t.value.home.directionTag(station.direction) : ''
 }
 
 /** 30m 안쪽이면 "바로 앞"으로 끝낸다. "바로 앞 · 걸어서 약 1분"은 같은 말을 두 번 한다. */
@@ -74,8 +85,11 @@ const stationSubtitle = computed(() => {
 
   const near =
     station.distance < 30
-      ? '바로 앞이에요'
-      : `${formatDistance(station.distance)} · 걸어서 약 ${station.walkMinutes}분`
+      ? t.value.home.rightHere
+      : t.value.home.walkFromHere(
+          formatDistance(station.distance, d.locale.value),
+          station.walkMinutes,
+        )
 
   const tag = stationTag(station)
   return tag ? `${tag} · ${near}` : near
@@ -138,6 +152,8 @@ const rideable = computed(() =>
  * 길 건너인지 같은 쪽인지는 점 세 개를 보면 한 번에 끝난다.
  */
 const mapMarkers = computed(() => [
+  // 지도 위 이름은 국문 그대로다. 배경 지도(카카오맵)가 국문이라 여기만 영문을
+  // 인쇄하면 지도에 적힌 지명과 어긋나 오히려 못 찾는다. → MapCard
   ...walkable.value.map((spot) => ({ lat: spot.lat, lng: spot.lng, name: spot.name })),
   ...stations.value.map((station) => ({
     lat: station.lat,
@@ -175,25 +191,25 @@ onMounted(() => {
       <div class="min-w-0">
         <div class="py-6 pb-4">
           <h1 class="text-[26px] font-semibold leading-tight tracking-[-0.18px] tablet:text-[28px]">
-            지금 {{ location.label }} 부근이에요
+            {{ t.home.heading(placeLabel) }}
           </h1>
           <p class="mt-1.5 text-sm leading-relaxed text-muted">
-            가까운 정류장의 버스와, 기다리는 동안 다녀올 만한 곳이에요
+            {{ t.home.sub }}
           </p>
           <!--
             위치를 못 잡았을 때 이유만 적어 두면 막다른 길이다. 권한을 나중에 허용해도
             새로고침 말고는 되돌릴 방법이 없었다. 다시 시도를 같은 자리에 둔다.
           -->
-          <p v-if="location.reason || locating" class="mt-2 text-[13px] text-muted-soft">
-            <template v-if="locating">위치를 확인하는 중이에요…</template>
+          <p v-if="locationReason || locating" class="mt-2 text-[13px] text-muted-soft">
+            <template v-if="locating">{{ t.home.locating }}</template>
             <template v-else>
-              {{ location.reason }}
+              {{ locationReason }}
               <button
                 type="button"
                 class="ml-1 font-medium text-muted underline"
                 @click="locate()"
               >
-                내 위치로 다시
+                {{ t.home.relocate }}
               </button>
             </template>
           </p>
@@ -203,13 +219,13 @@ onMounted(() => {
           v-if="arrivalsError"
           class="rounded-md border border-hairline bg-surface-soft p-6 text-sm leading-relaxed"
         >
-          <b class="font-semibold">버스 정보를 가져오지 못했어요.</b><br />
-          <span class="text-muted">안동시 버스정보 시스템이 응답하지 않고 있어요.</span>
+          <b class="font-semibold">{{ t.home.busErrorTitle }}</b><br />
+          <span class="text-muted">{{ t.home.busErrorBody }}</span>
           <button
             class="mt-3 rounded-sm border border-ink px-4 py-2 text-sm font-medium"
             @click="refreshArrivals()"
           >
-            다시 시도
+            {{ t.common.retry }}
           </button>
         </div>
 
@@ -250,13 +266,17 @@ onMounted(() => {
             ]"
             @click="selectedId = station.stationId"
           >
-            <span class="block whitespace-nowrap">{{ station.stationNm }}</span>
+            <span class="block whitespace-nowrap">{{ d.stationName(station) }}</span>
             <!--
               방면이 이름을 가른다. 같은 이름 셋을 구분하는 유일한 정보이므로
               칩이 두 줄이 되는 것을 감수한다.
             -->
             <span class="mt-0.5 block whitespace-nowrap text-xs font-normal opacity-70">
-              {{ [stationTag(station), formatDistance(station.distance)].filter(Boolean).join(' · ') }}
+              {{
+                [stationTag(station), formatDistance(station.distance, d.locale.value)]
+                  .filter(Boolean)
+                  .join(' · ')
+              }}
             </span>
           </button>
         </div>
@@ -275,15 +295,16 @@ onMounted(() => {
           :center="coords"
           :radius-m="WALKABLE_M"
           :markers="mapMarkers"
-          :caption="`${location.label} 반경 2km · 정류장 ${stations.length}곳 · 걸어갈 수 있는 관광지 ${walkable.length}곳`"
+          :caption="t.home.mapCaption(placeLabel, stations.length, walkable.length)"
         />
 
         <section v-if="walkable.length" class="mt-8">
           <div class="mb-4">
             <h2 class="text-[22px] font-medium leading-tight tracking-[-0.44px]">
-              걸어서 <em class="not-italic text-primary">갈 수 있는 곳</em>
+              {{ t.home.walkableHeadLead
+              }}<em class="not-italic text-primary">{{ t.home.walkableHeadEmphasis }}</em>
             </h2>
-            <p class="mt-1 text-sm text-muted">버스를 기다리는 동안 다녀올 수 있어요</p>
+            <p class="mt-1 text-sm text-muted">{{ t.home.walkableSub }}</p>
           </div>
 
           <div class="grid grid-cols-2 gap-x-4 gap-y-6 tablet:grid-cols-3">
@@ -294,10 +315,10 @@ onMounted(() => {
         <section v-if="rideable.length" class="mt-8 pb-12">
           <div class="mb-4">
             <h2 class="text-[22px] font-medium leading-tight tracking-[-0.44px]">
-              버스로 갈 수 있는 가까운 곳
+              {{ t.home.rideableHead }}
             </h2>
             <p class="mt-1 text-sm text-muted">
-              걸어가기엔 멀어요. 돌아오는 편까지 함께 확인하세요
+              {{ t.home.rideableSub }}
             </p>
           </div>
 
@@ -312,33 +333,38 @@ onMounted(() => {
       >
         <div class="mb-4">
           <h2 class="text-[22px] font-medium leading-tight tracking-[-0.44px]">
-            안동에서 많이 찾는 곳
+            {{ t.home.popularHead }}
           </h2>
-          <p class="mt-1 text-sm text-muted">한국관광공사 방문 데이터 기준</p>
+          <p class="mt-1 text-sm text-muted">{{ t.home.popularSub }}</p>
         </div>
 
         <div class="flex flex-col">
           <NuxtLink
             v-for="spot in top"
             :key="spot.id"
-            :to="`/spots/${spot.id}`"
+            :to="localePath(`/spots/${spot.id}`)"
             class="flex w-full items-center gap-4 border-b border-hairline-soft py-3 last:border-b-0"
           >
             <span class="w-[22px] flex-none text-center text-base font-semibold text-muted-soft">
               {{ spot.rank }}
             </span>
             <span class="block h-14 w-14 flex-none overflow-hidden rounded-sm">
-              <SpotPhoto :src="spot.imageUrl" :alt="spot.name" />
+              <SpotPhoto :src="spot.imageUrl" :alt="d.name(spot)" />
             </span>
             <span class="min-w-0 flex-1">
-              <b class="block truncate text-base font-medium leading-tight">{{ spot.name }}</b>
-              <span class="mt-0.5 block truncate text-sm text-muted">{{ spot.category }}</span>
+              <b class="block truncate text-base font-medium leading-tight">{{ d.name(spot) }}</b>
+              <span class="mt-0.5 block truncate text-sm text-muted">
+                {{ d.category(spot.category) }}
+              </span>
             </span>
           </NuxtLink>
         </div>
 
-        <NuxtLink to="/browse" class="mt-4 inline-block text-base font-medium underline">
-          전체 보기
+        <NuxtLink
+          :to="localePath('/browse')"
+          class="mt-4 inline-block text-base font-medium underline"
+        >
+          {{ t.home.seeAll }}
         </NuxtLink>
       </aside>
     </div>

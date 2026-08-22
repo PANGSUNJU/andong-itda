@@ -1,4 +1,4 @@
-import type { BusArrival, BusRoute } from '#shared/types/bus'
+import type { BusArrival, BusRoute, StationPin } from '#shared/types/bus'
 import type { SpotBusInfo, SpotStationMap } from '#shared/types/static-data'
 
 import spotStationMap from '../../data/spot-station-map.json'
@@ -71,6 +71,23 @@ export default defineEventHandler(async (event): Promise<SpotBusInfo> => {
 
   const runTotCnt = route?.runTotCnt ?? 0
 
+  /**
+   * 영문 정류장명 — 정적 매핑에 없어 정류장 목록에서 이어 붙인다
+   *
+   * `/api/bus/stations`는 1일 캐시되고 홈이 어차피 부르는 목록이라 추가 비용이
+   * 사실상 없다. 노선 목록과 같은 이유로 원격이 아니라 우리 라우트를 부른다.
+   *
+   * 여기가 영문 화면에서 가장 값이 큰 한 줄이다. 관광지 이름은 26%만 영문이지만
+   * 정류장은 2105곳 전부 채워져 온다. "어디서 내리나"에 영문으로 답할 수 있다.
+   * → ADR-030
+   */
+  const stationNmEn =
+    stationId === null
+      ? undefined
+      : (await $fetch<StationPin[]>('/api/bus/stations')).find(
+          (station) => station.stationId === stationId,
+        )?.nameEn
+
   return {
     spot: entry.spot,
 
@@ -80,6 +97,7 @@ export default defineEventHandler(async (event): Promise<SpotBusInfo> => {
         ? null
         : {
             stationNm: entry.inbound.stationNm ?? '정류장명 미확인',
+            ...(stationNmEn ? { stationNmEn } : {}),
             // SpotBusInfo가 요구하는 필드만 남긴다. rstop·provideType 같은
             // 상류의 빈 필드를 화면까지 흘려보낼 이유가 없다.
             //
@@ -105,6 +123,12 @@ export default defineEventHandler(async (event): Promise<SpotBusInfo> => {
         entry.outbound.stationId === null
           ? '나가는 편 정류장ID를 아직 확인하지 못했다. 시간표로 안내한다.'
           : '기점 정류장이라 접근 중인 차량이 없다. 시간표와 운행 여부로 안내한다.',
+      // 화면에 그대로 뜨는 문장이다. 영문 화면에서만 국문으로 남으면
+      // 왜 실시간이 없는지를 영어 사용자만 알 수 없게 된다. → ADR-031
+      reasonEn:
+        entry.outbound.stationId === null
+          ? "We haven't confirmed the stop for the outbound trip yet, so we go by the timetable."
+          : 'This is the first stop of the route, so no bus is ever "approaching" it. We go by the timetable and whether the route is running.',
     },
 
     /**
@@ -119,5 +143,6 @@ export default defineEventHandler(async (event): Promise<SpotBusInfo> => {
     status: decideStatus(arrivals.length, runTotCnt),
 
     warning: entry.timetable.warning ?? null,
+    warningEn: entry.timetable.warningEn ?? null,
   }
 })

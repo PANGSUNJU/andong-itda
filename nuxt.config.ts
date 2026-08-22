@@ -12,6 +12,38 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   /**
+   * 언어를 주소로 가른다 — `/`는 국문, `/en`은 영문 → ADR-031
+   *
+   * `app/pages/`에서 만들어진 라우트를 통째로 한 벌 더 만들어 `/en`을 붙인다.
+   * 페이지 파일을 복제하지 않는 것이 요점이다. 두 벌을 두면 화면 로직을 고칠 때마다
+   * 두 곳을 고쳐야 하고, 한쪽만 고친 날 국문과 영문 화면이 다르게 동작한다.
+   * 같은 컴포넌트가 그리되 언어만 주소에서 읽는다(`useLocale`).
+   *
+   *   /            → /en
+   *   /browse      → /en/browse
+   *   /spots/:id() → /en/spots/:id()
+   *
+   * 자동 리다이렉트는 넣지 않는다. `Accept-Language`가 영문이라고 해서 한국인을
+   * 영문 화면으로 보내면(국내 브라우저도 영문 로캘이 흔하다) 정본 화면을 뺏는 셈이다.
+   * 언어는 헤더에 붙은 링크로 사람이 고른다.
+   *
+   * ⚠️ `pages` 자체를 순회하면서 push하면 방금 만든 영문 라우트를 다시 복제한다.
+   *    먼저 사본 배열을 만들고 나서 붙인다.
+   */
+  hooks: {
+    'pages:extend'(pages) {
+      const english = pages.map((page) => ({
+        ...page,
+        // 이름은 라우트를 구분하기만 하면 된다. 경로가 이미 유일하므로 그것을 쓴다.
+        name: `en-${page.name ?? page.path}`,
+        path: page.path === '/' ? '/en' : `/en${page.path}`,
+      }))
+
+      pages.push(...english)
+    },
+  },
+
+  /**
    * 인증키 관리
    *
    * tourApiKey는 서버에서만 접근한다. 클라이언트 번들에 포함되면 안 된다.

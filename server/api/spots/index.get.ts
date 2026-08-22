@@ -39,8 +39,14 @@ export default defineCachedEventHandler(
      */
     const withPhotos = await backfillFromGallery(await backfillImages(merged))
 
-    // 영문 이름은 있는 곳에만 붙는다(54곳 중 14곳). 없다고 목록이 달라지지 않는다.
-    const withEnglish = await attachEnglishNames(withPhotos)
+    /**
+     * 영문 이름도 같은 세 단계다(지역 조회 → 광역 검색 → 이름 재검색).
+     * `deepSearch`가 3단계를 켠다. 관광지에서만 켜는 이유는 3단계가 호출 44회를
+     * 더 쓰는데 음식점에서는 한 곳도 못 건지기 때문이다. → ADR-033
+     *
+     * 있는 곳에만 붙는다(54곳 중 17곳). 없다고 목록이 달라지지 않는다.
+     */
+    const withEnglish = await attachEnglishNames(withPhotos, { deepSearch: true })
 
     // 정렬을 보충 뒤에 둔다. 보충은 순위를 건드리지 않지만, 순서가 결과에
     // 의존하지 않는다는 걸 코드 모양으로 남겨 둔다.

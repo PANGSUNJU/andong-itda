@@ -52,6 +52,17 @@ export interface SpotTimetable {
   note?: string
   /** 화면에서 강하게 경고해야 하는 정보 */
   warning?: string
+  /**
+   * note·warning의 영문
+   *
+   * 이 두 문장은 우리가 쓴 것이라 번역할 수 있다(상류가 준 이름·주소와 다르다).
+   * 영문 화면에 그대로 두면 정보의 한계를 알리는 문장만 국문으로 남는데,
+   * 그건 영어 사용자에게 가장 필요한 문장이다. → ADR-016 · ADR-031
+   *
+   * 비어 있으면 화면이 국문으로 되돌린다. 없는 번역을 기계로 지어내지 않는다.
+   */
+  noteEn?: string
+  warningEn?: string
 }
 
 /** 관광지 ↔ 정류장 ↔ 노선 매핑 */
@@ -103,6 +114,11 @@ export interface SpotBusInfo {
   /** 시내 → 관광지. 실시간 조회 가능 */
   inbound: {
     stationNm: string
+    /**
+     * 영문 정류장명. 정적 매핑에는 없고 `/api/bus/stations`에서 stationId로 이어 붙인다.
+     * 상류가 2105곳 전부 채워 주므로 사실상 항상 있다. → ADR-030
+     */
+    stationNmEn?: string
     arrivals: {
       routeNum: string
       /**
@@ -120,6 +136,7 @@ export interface SpotBusInfo {
   outbound: {
     hasRealtime: false
     reason: string
+    reasonEn: string
   }
   schedule: SpotTimetable
   service: {
@@ -130,4 +147,6 @@ export interface SpotBusInfo {
   /** 'arriving' | 'waiting' | 'closed' */
   status: string
   warning: string | null
+  /** 영문이 없으면 null이다. 화면이 국문으로 되돌린다. */
+  warningEn: string | null
 }

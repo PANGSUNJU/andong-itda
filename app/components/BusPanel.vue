@@ -32,6 +32,17 @@ const props = defineProps<{
 
 defineEmits<{ refresh: [] }>()
 
+const t = useT()
+const d = useDisplay()
+
+/**
+ * 정류장 이름 — 화면 언어 하나만
+ *
+ * 상류가 2105곳 전부 `stationEngNm`을 채워 주므로 영문 화면에서는 사실상 항상
+ * 영문이 나온다. 국문을 아래 덧붙이지 않는다 — 한 화면에는 한 언어다. → ADR-032
+ */
+const station = computed(() => ({ stationNm: props.stationNm, nameEn: props.stationNmEn }))
+
 const next = computed(() => props.arrivals[0])
 const rest = computed(() => props.arrivals.slice(1, 4))
 
@@ -45,9 +56,10 @@ const rest = computed(() => props.arrivals.slice(1, 4))
 const nextHeadline = computed(() => {
   const arrival = next.value
   if (!arrival) return ''
+  // 관광지 이름은 노선 문자열에서 온 국문 지명이라 영문 상대가 없다. → ADR-025
   return arrival.spots.length
-    ? `타면 ${arrival.spots.map((spot) => spot.name).join(' · ')}에 가요`
-    : formatDirection(arrival.via, arrival.routeNm)
+    ? t.value.bus.takesYouTo(arrival.spots.map((spot) => spot.name).join(' · '))
+    : formatDirection(arrival.via, arrival.routeNm, d.locale.value)
 })
 
 /**
@@ -73,14 +85,10 @@ const nextSameRoute = computed(() =>
       class="flex items-start justify-between gap-3 border-b border-hairline-soft pb-4"
     >
       <div class="min-w-0">
-        <b class="block truncate text-base font-semibold leading-tight">{{ stationNm }}</b>
-        <!--
-          영문명을 국문 바로 아래 둔다. 언어를 바꾸는 게 아니라 나란히 두는 것이라
-          한국인에게는 방해가 되지 않고, 외국인에게는 여기가 어디인지 알려준다.
-        -->
-        <small v-if="stationNmEn" class="mt-0.5 block truncate text-[13px] text-muted-soft">
-          {{ stationNmEn }}
-        </small>
+        <b class="block truncate text-base font-semibold leading-tight">
+          {{ d.stationName(station) }}
+        </b>
+        <!-- 이름은 지금 화면의 언어 하나만 둔다. 반대편 언어를 겹쳐 쓰지 않는다. → ADR-032 -->
         <small v-if="subtitle" class="mt-0.5 block text-sm text-muted">{{ subtitle }}</small>
 
         <!--
@@ -94,7 +102,7 @@ const nextSameRoute = computed(() =>
           rel="noopener"
           class="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-primary underline"
         >
-          이 정류장까지 길찾기
+          {{ t.bus.directionsToStop }}
         </a>
       </div>
 
@@ -107,18 +115,22 @@ const nextSameRoute = computed(() =>
       />
     </div>
 
-    <div v-if="pending" class="py-10 text-center text-sm text-muted">도착 정보를 불러오는 중…</div>
+    <div v-if="pending" class="py-10 text-center text-sm text-muted">{{ t.bus.loading }}</div>
 
     <template v-else-if="next">
       <div class="pb-4 pt-6 text-center">
         <div class="flex items-baseline justify-center gap-1.5">
           <b class="text-arrival">{{ next.predictTm ?? '—' }}</b>
           <em class="text-2xl font-semibold not-italic">{{
-            next.predictTm !== null ? '분' : ''
+            next.predictTm !== null ? t.common.minuteUnit : ''
           }}</em>
         </div>
         <h2 class="mt-2 text-base font-semibold leading-tight">
-          {{ next.routeNum }}번이 {{ next.predictTm !== null ? '곧 도착해요' : '오고 있어요' }}
+          {{
+            next.predictTm !== null
+              ? t.bus.arrivingSoon(next.routeNum)
+              : t.bus.onTheWay(next.routeNum)
+          }}
         </h2>
         <!--
           닿는 관광지가 방향을 대신한다. 홈에서 "지금 오는 버스가 어디로 가나"에
@@ -136,13 +148,13 @@ const nextSameRoute = computed(() =>
           {{ nextHeadline }}
           <span v-if="next.remainStation !== null" class="font-normal text-muted">
             <!-- 앞 문구가 없으면 구분점도 없다. 점만 남으면 그게 오류로 보인다. -->
-            <template v-if="nextHeadline">· </template>{{ next.remainStation }}정거장 전
+            <template v-if="nextHeadline">· </template>{{ t.common.stopsAway(next.remainStation) }}
           </span>
         </p>
 
         <!-- 놓쳐도 되는지 아닌지가 여기서 갈린다. 같은 번호의 다음 차만 말한다. -->
         <p v-if="nextSameRoute" class="mt-2 text-[13px] text-muted-soft">
-          다음 {{ nextSameRoute.routeNum }}번은 {{ nextSameRoute.predictTm }}분 후예요
+          {{ t.bus.nextSameRoute(nextSameRoute.routeNum, nextSameRoute.predictTm!) }}
         </p>
       </div>
 
@@ -164,18 +176,18 @@ const nextSameRoute = computed(() =>
     -->
     <div v-else class="py-10 text-center">
       <template v-if="terminusOnly">
-        <p class="text-base font-medium">이 승강장은 도착 정보가 뜨지 않아요</p>
+        <p class="text-base font-medium">{{ t.bus.terminusTitle }}</p>
         <p class="mt-1.5 text-sm leading-relaxed text-muted">
-          버스가 출발하거나 운행을 마치는 자리라 '접근 중인 버스'가 없어요.<br />
-          아래에서 다른 승강장을 골라 주세요.
+          {{ t.bus.terminusBody1 }}<br />
+          {{ t.bus.terminusBody2 }}
         </p>
       </template>
 
       <template v-else>
-        <p class="text-base font-medium">지금 이 정류장으로 접근 중인 버스가 없어요</p>
+        <p class="text-base font-medium">{{ t.bus.emptyTitle }}</p>
         <p class="mt-1.5 text-sm leading-relaxed text-muted">
-          배차 간격이 길어서일 수도, 오늘 운행이 끝나서일 수도 있어요.<br />
-          다른 정류장을 확인해 보세요.
+          {{ t.bus.emptyBody1 }}<br />
+          {{ t.bus.emptyBody2 }}
         </p>
       </template>
     </div>

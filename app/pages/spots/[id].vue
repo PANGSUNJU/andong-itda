@@ -15,15 +15,19 @@ import { nearest } from '#shared/constants/location'
 const route = useRoute()
 const id = computed(() => String(route.params.id))
 
+const t = useT()
+const d = useDisplay()
+const localePath = useLocalePath()
+
 const { data: spots } = await useFetch<Spot[]>('/api/spots', { default: () => [] })
 
 const spot = computed(() => spots.value.find((candidate) => candidate.id === id.value))
 
 if (!spot.value) {
-  throw createError({ statusCode: 404, statusMessage: '찾을 수 없는 관광지예요', fatal: true })
+  throw createError({ statusCode: 404, statusMessage: t.value.spot.notFound, fatal: true })
 }
 
-useHead({ title: `${spot.value.name} · 안동잇다` })
+useHead(() => ({ title: t.value.spot.title(spot.value ? d.name(spot.value) : '') }))
 
 /**
  * 버스 정보는 이름으로 조회한다. 정류장 매핑이 있는 7곳만 200을 준다.
@@ -74,6 +78,8 @@ const around = computed(() =>
  * 한 점만 찍으면 "주변"이라는 캡션이 거짓말이 된다.
  */
 const mapMarkers = computed(() =>
+  // 지도 위 이름은 국문 그대로다. 배경 지도가 국문이라 여기만 영문으로 인쇄하면
+  // 지도에 적힌 지명과 어긋난다. → MapCard
   [spot.value!, ...around.value].map((place) => ({
     lat: place.lat,
     lng: place.lng,
@@ -85,55 +91,77 @@ const mapMarkers = computed(() =>
 <template>
   <div v-if="spot" class="mx-auto max-w-[1080px] px-6">
     <div class="py-6 pb-4">
-      <NuxtLink to="/browse" class="text-sm text-muted underline">← 둘러보기</NuxtLink>
+      <NuxtLink :to="localePath('/browse')" class="text-sm text-muted underline">
+        {{ t.spot.back }}
+      </NuxtLink>
       <h1 class="mt-2 text-[26px] font-semibold leading-tight tracking-[-0.18px] tablet:text-[28px]">
-        {{ spot.name }}
+        {{ d.name(spot) }}
       </h1>
-      <!-- 영문명은 있는 곳에만 붙는다(54곳 중 14곳). 없으면 이 줄이 사라질 뿐이다. -->
-      <p v-if="spot.nameEn" class="mt-1 text-sm text-muted-soft">{{ spot.nameEn }}</p>
+      <!--
+        이름은 한 줄이다. 반대편 언어를 아래 붙이지 않는다 — 영문 화면에서
+        국문 이름이 보이는 것은 상류에 영문이 없을 때뿐이다. → ADR-032
+      -->
+      <!-- 주소는 국문만 있다. 상류에 영문 주소가 없어 번역하지 않는다. -->
       <p class="mt-1.5 text-sm leading-relaxed text-muted">
-        <template v-if="spot.rank">{{ spot.rank }}번째로 많이 찾는 곳 · </template>
-        {{ spot.category }}
+        <template v-if="spot.rank">{{ t.spot.rankLine(spot.rank) }} · </template>
+        {{ d.category(spot.category) }}
         <template v-if="spot.address"> · {{ spot.address }}</template>
       </p>
     </div>
 
     <div class="aspect-[4/3] overflow-hidden rounded-md tablet:aspect-[16/7]">
-      <SpotPhoto :src="spot.imageUrl" :alt="spot.name" />
+      <SpotPhoto :src="spot.imageUrl" :alt="d.name(spot)" />
     </div>
 
     <div class="mt-8 desktop:grid desktop:grid-cols-[minmax(0,1fr)_372px] desktop:gap-x-12 desktop:items-start">
       <div class="min-w-0 pb-12">
+        <!--
+          설명은 상류(한국관광공사)가 국문으로만 준다. 영문 화면에서도 국문 그대로다.
+          기계로 옮겨 지어내지 않는다 — 없는 것은 없는 대로 둔다. → ADR-030
+        -->
         <section v-if="spot.description" class="pb-8">
-          <h2 class="mb-3 text-[22px] font-medium leading-tight tracking-[-0.44px]">이런 곳이에요</h2>
+          <h2 class="mb-3 text-[22px] font-medium leading-tight tracking-[-0.44px]">
+            {{ t.spot.aboutHead }}
+          </h2>
           <p class="text-base leading-relaxed text-body">{{ spot.description }}</p>
         </section>
 
         <section class="border-t border-hairline py-8">
-          <h2 class="mb-3 text-[22px] font-medium leading-tight tracking-[-0.44px]">가는 방법</h2>
+          <h2 class="mb-3 text-[22px] font-medium leading-tight tracking-[-0.44px]">
+            {{ t.spot.accessHead }}
+          </h2>
 
           <template v-if="bus">
             <p class="text-base leading-relaxed text-body">
-              <b class="font-semibold">{{ bus.inbound?.stationNm ?? '정류장 미확인' }}</b>에서
-              내려요.
+              {{ t.spot.getOffBefore
+              }}<b class="font-semibold">{{
+                bus.inbound
+                  ? d.stationName({
+                      stationNm: bus.inbound.stationNm,
+                      nameEn: bus.inbound.stationNmEn,
+                    })
+                  : t.bus.stationUnknown
+              }}</b
+              >{{ t.spot.getOffAfter }}
               <template v-if="bus.schedule.departFirst">
-                {{ bus.schedule.outboundFrom ?? '시내' }}에서 첫차
-                {{ bus.schedule.departFirst }}, 막차 {{ bus.schedule.departLast }}예요.
+                {{
+                  t.spot.schedule(
+                    bus.schedule.outboundFrom ?? t.bus.downtown,
+                    bus.schedule.departFirst,
+                    bus.schedule.departLast ?? '—',
+                  )
+                }}
               </template>
             </p>
             <p v-if="!bus.schedule.returnTimesKnown" class="mt-3 text-base leading-relaxed text-body">
-              돌아오는 편 시각은 공식 시간표에 없어요.
-              <b class="font-semibold">도착하면 먼저 귀로 버스를 확인하세요.</b>
+              {{ t.spot.returnUnknownLead }}
+              <b class="font-semibold">{{ t.spot.returnUnknownStrong }}</b>
             </p>
           </template>
 
           <p v-else class="text-base leading-relaxed text-body">
-            <template v-if="busPending">
-              이 관광지의 정류장은 아직 확인하지 못했어요. 임의로 채우지 않고 비워 둡니다.
-            </template>
-            <template v-else>
-              버스 정보가 등록되지 않은 곳이에요. 현재는 인기 관광지 7곳만 안내하고 있어요.
-            </template>
+            <template v-if="busPending">{{ t.spot.busPendingBody }}</template>
+            <template v-else>{{ t.spot.busNoneBody }}</template>
           </p>
 
           <!--
@@ -146,31 +174,31 @@ const mapMarkers = computed(() =>
             rel="noopener"
             class="mt-4 inline-flex items-center gap-1.5 rounded-full border border-ink px-4 py-2.5 text-sm font-medium"
           >
-            카카오맵으로 길찾기
+            {{ t.spot.directions }}
           </a>
         </section>
 
         <section v-if="around.length" class="border-t border-hairline py-8">
           <h2 class="mb-3 text-[22px] font-medium leading-tight tracking-[-0.44px]">
-            근처에 함께 볼 곳
+            {{ t.spot.aroundHead }}
           </h2>
           <div class="flex flex-col">
             <NuxtLink
               v-for="candidate in around"
               :key="candidate.id"
-              :to="`/spots/${candidate.id}`"
+              :to="localePath(`/spots/${candidate.id}`)"
               class="flex w-full items-center gap-4 border-b border-hairline-soft py-3 last:border-b-0"
             >
               <span class="block h-14 w-14 flex-none overflow-hidden rounded-sm">
-                <SpotPhoto :src="candidate.imageUrl" :alt="candidate.name" />
+                <SpotPhoto :src="candidate.imageUrl" :alt="d.name(candidate)" />
               </span>
               <span class="min-w-0 flex-1">
                 <b class="block truncate text-base font-medium leading-tight">
-                  {{ candidate.name }}
+                  {{ d.name(candidate) }}
                 </b>
                 <span class="mt-0.5 block truncate text-sm text-muted">
-                  {{ formatDistance(candidate.distance ?? 0) }} · 걸어서 약
-                  {{ candidate.walkMinutes }}분
+                  {{ formatDistance(candidate.distance ?? 0, d.locale.value) }} ·
+                  {{ t.common.minutesWalk(candidate.walkMinutes ?? 0) }}
                 </span>
               </span>
             </NuxtLink>
@@ -188,12 +216,10 @@ const mapMarkers = computed(() =>
         />
 
         <div v-else class="rounded-md border border-hairline bg-surface-soft p-6">
-          <p class="text-base font-medium">버스 안내 준비 중</p>
+          <p class="text-base font-medium">{{ t.spot.panelPendingTitle }}</p>
           <p class="mt-1.5 text-sm leading-relaxed text-muted">
-            <template v-if="busPending">
-              정류장을 확인하는 중이에요. 확인되지 않은 정류장을 추측해서 넣지 않아요.
-            </template>
-            <template v-else> 지금은 인기 관광지 7곳의 버스 정보를 안내하고 있어요. </template>
+            <template v-if="busPending">{{ t.spot.panelPendingBody }}</template>
+            <template v-else>{{ t.spot.panelNoneBody }}</template>
           </p>
         </div>
 
@@ -202,7 +228,7 @@ const mapMarkers = computed(() =>
           height="240px"
           :center="{ lat: spot.lat, lng: spot.lng }"
           :markers="mapMarkers"
-          :caption="`${spot.name} 주변`"
+          :caption="t.spot.mapCaption(d.name(spot))"
         />
       </aside>
     </div>

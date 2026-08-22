@@ -68,7 +68,8 @@
         "runs": 13,
         "effectiveFrom": "2024-01-05",
         "returnTimesKnown": false,
-        "note": "하회 출발 시각은 공식 시간표에 표기되어 있지 않다. 도착 편이 회차하여 나가는 구조."
+        "note": "하회 출발 시각은 공식 시간표에 표기되어 있지 않다. 도착 편이 회차하여 나가는 구조.",
+        "noteEn": "The official timetable lists no departure times from Hahoe. The arriving bus turns around and goes back out."
       }
     },
     {
@@ -97,7 +98,8 @@
         "runs": 3,
         "effectiveFrom": "2024-01-05",
         "returnTimesKnown": false,
-        "warning": "하루 3회만 운행하며 마지막 도착 편이 15:30이다. 오후 늦게 출발하면 방문할 수 없다."
+        "warning": "하루 3회만 운행하며 마지막 도착 편이 15:30이다. 오후 늦게 출발하면 방문할 수 없다.",
+        "warningEn": "Only 3 runs a day, and the last one arrives at 15:30. Leave any later in the afternoon and you cannot get here."
       }
     },
     {
@@ -173,7 +175,8 @@
         "returnLast": "20:40",
         "returnRuns": 7,
         "returnTimesKnown": true,
-        "note": "귀로 시각이 온혜 기준으로 시간표에 존재한다. 도산서원에서 온혜까지의 이동을 고려해야 한다."
+        "note": "귀로 시각이 온혜 기준으로 시간표에 존재한다. 도산서원에서 온혜까지의 이동을 고려해야 한다.",
+        "noteEn": "Return times exist in the timetable, but measured from Onhye. Allow for getting from Dosanseowon to Onhye."
       }
     },
     {
@@ -206,7 +209,9 @@
         "effectiveFrom": "2026-08-01",
         "returnTimesKnown": false,
         "note": "월영교 정류장ID 확인 완료(354000716). 운행 08:25~18:45로 야간 조명 시간대에는 버스가 없다.",
-        "warning": "야경 명소이지만 막차가 18:45다. 해가 진 뒤 방문하면 돌아오는 버스가 없다."
+        "noteEn": "Stop ID for Woryeonggyo confirmed (354000716). Service runs 08:25-18:45, so there is no bus during the hours the bridge is lit.",
+        "warning": "야경 명소이지만 막차가 18:45다. 해가 진 뒤 방문하면 돌아오는 버스가 없다.",
+        "warningEn": "It is known for the night view, but the last bus is 18:45. Come after sunset and there is no bus back."
       },
       "routeInfo": {
         "routeId": 354300004,
@@ -250,7 +255,8 @@
         "returnLast": "20:00",
         "returnRuns": 38,
         "returnTimesKnown": true,
-        "note": "귀로 시간표가 완전하게 존재하는 몇 안 되는 관광지. 배차도 촘촘하다."
+        "note": "귀로 시간표가 완전하게 존재하는 몇 안 되는 관광지. 배차도 촘촘하다.",
+        "noteEn": "One of the few places with a complete return timetable, and the intervals are short."
       }
     },
     {
@@ -272,7 +278,8 @@
         "realtimeAvailable": false
       },
       "timetable": {
-        "note": "안동역에서 도보 14분 거리로 버스 없이도 접근 가능하다. '걷는 길 - 강변 옛길' 코스의 시작점."
+        "note": "안동역에서 도보 14분 거리로 버스 없이도 접근 가능하다. '걷는 길 - 강변 옛길' 코스의 시작점.",
+        "noteEn": "A 14-minute walk from Andong Station, so you can get there without a bus. It is the start of the 'The Old Riverside Way' walking route."
       }
     }
   ],

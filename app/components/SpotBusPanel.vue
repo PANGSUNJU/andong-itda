@@ -21,12 +21,21 @@ const props = defineProps<{
 
 defineEmits<{ refresh: [] }>()
 
+const t = useT()
+const d = useDisplay()
+
+/** 정류장 이름. 상류가 영문을 채워 주므로 두 언어가 나란히 선다. → ADR-030 */
+const station = computed(() => ({
+  stationNm: props.info.inbound?.stationNm ?? '',
+  nameEn: props.info.inbound?.stationNmEn,
+}))
+
 const next = computed(() => props.info.inbound?.arrivals[0])
 const rest = computed(() => props.info.inbound?.arrivals.slice(1, 4) ?? [])
 
 /** 방면. 상류 via의 종점이 비어 오면 routeNm에서 건진다. 둘 다 없으면 줄을 지운다. */
 const direction = computed(() =>
-  next.value ? formatDirection(next.value.via, next.value.routeNm) : '',
+  next.value ? formatDirection(next.value.via, next.value.routeNm, d.locale.value) : '',
 )
 
 /** 놓쳤을 때를 위한 같은 노선의 다음 차. 목록이 도착 임박순이라 첫 일치가 그 차다. */
@@ -45,18 +54,28 @@ const statusText = computed(() => {
       return null
     case 'waiting':
       return {
-        title: '접근 중인 버스가 없어요',
-        body: '노선은 운행 중이에요. 배차 간격이 길어 기다리면 옵니다.',
+        title: t.value.bus.waitingTitle,
+        body: t.value.bus.waitingBody,
         tone: 'muted' as const,
       }
     default:
       return {
-        title: '오늘 이 노선 운행이 끝났어요',
-        body: '아래 시간표에서 첫차 시각을 확인하세요.',
+        title: t.value.bus.closedTitle,
+        body: t.value.bus.closedBody,
         tone: 'warn' as const,
       }
   }
 })
+
+/**
+ * 정적 데이터의 문장 — 영문이 있으면 영문, 없으면 국문
+ *
+ * 한계를 밝히는 문장이라(ADR-016) 영문 화면에서 빠지면 안 되는 것들이다.
+ * 번역이 비어 있으면 국문이라도 남긴다. 지우는 것이 가장 나쁘다.
+ */
+const note = computed(() => d.pick(props.info.schedule.note, props.info.schedule.noteEn))
+const warning = computed(() => d.pick(props.info.warning, props.info.warningEn))
+const outboundReason = computed(() => d.pick(props.info.outbound.reason, props.info.outbound.reasonEn))
 </script>
 
 <template>
@@ -64,9 +83,10 @@ const statusText = computed(() => {
     <div class="flex items-start justify-between gap-3 border-b border-hairline-soft pb-4">
       <div class="min-w-0">
         <b class="block truncate text-base font-semibold leading-tight">
-          {{ info.inbound?.stationNm ?? '정류장 미확인' }}
+          {{ info.inbound ? d.stationName(station) : t.bus.stationUnknown }}
         </b>
-        <small class="mt-0.5 block text-sm text-muted">시내에서 들어오는 편</small>
+        <!-- 이름은 지금 화면의 언어 하나만 둔다. 반대편 언어를 겹쳐 쓰지 않는다. → ADR-032 -->
+        <small class="mt-0.5 block text-sm text-muted">{{ t.bus.inboundFromDowntown }}</small>
       </div>
       <!--
         도착이 없을 때도 배지를 남긴다. 예전에는 `status === 'arriving'`일 때만 띄웠는데,
@@ -86,23 +106,23 @@ const statusText = computed(() => {
         <div class="flex items-baseline justify-center gap-1.5">
           <b class="text-arrival">{{ next.predictTm ?? '—' }}</b>
           <em class="text-2xl font-semibold not-italic">{{
-            next.predictTm !== null ? '분' : ''
+            next.predictTm !== null ? t.common.minuteUnit : ''
           }}</em>
         </div>
         <h2 class="mt-2 text-base font-semibold leading-tight">
-          {{ next.routeNum }}번이 오고 있어요
+          {{ t.bus.onTheWay(next.routeNum) }}
         </h2>
         <p v-if="direction || next.remainStation !== null" class="mt-1 text-sm text-muted">
           {{ direction }}
           <template v-if="next.remainStation !== null">
             <!-- 앞 문구가 없으면 구분점도 없다. 점만 남으면 그게 오류로 보인다. -->
-            <template v-if="direction">· </template>{{ next.remainStation }}정거장 전
+            <template v-if="direction">· </template>{{ t.common.stopsAway(next.remainStation) }}
           </template>
         </p>
 
         <!-- 놓쳐도 되는지가 여기서 갈린다. 같은 번호의 다음 차만 말한다. -->
         <p v-if="nextSameRoute" class="mt-2 text-[13px] text-muted-soft">
-          다음 {{ nextSameRoute.routeNum }}번은 {{ nextSameRoute.predictTm }}분 후예요
+          {{ t.bus.nextSameRoute(nextSameRoute.routeNum, nextSameRoute.predictTm!) }}
         </p>
       </div>
 
@@ -128,22 +148,27 @@ const statusText = computed(() => {
       <p class="mt-1 text-sm leading-relaxed text-muted">{{ statusText.body }}</p>
     </div>
 
-    <!-- 시간표. 서버가 준 값만 쓰고 없는 값은 만들지 않는다. -->
+    <!--
+      시간표. 서버가 준 값만 쓰고 없는 값은 만들지 않는다.
+      출발지(outboundFrom)는 상류 시간표의 정류장명이라 국문 그대로 나간다.
+    -->
     <dl class="border-t border-hairline-soft pt-4 text-sm">
       <div v-if="info.schedule.departFirst" class="flex justify-between py-1.5">
-        <dt class="text-muted">{{ info.schedule.outboundFrom ?? '시내' }} 출발</dt>
+        <dt class="text-muted">
+          {{ t.bus.departsFrom(info.schedule.outboundFrom ?? t.bus.downtown) }}
+        </dt>
         <dd class="font-medium">
-          첫차 {{ info.schedule.departFirst }} · 막차 {{ info.schedule.departLast }}
+          {{ t.bus.firstLast(info.schedule.departFirst, info.schedule.departLast ?? '—') }}
         </dd>
       </div>
       <div v-if="info.schedule.runs" class="flex justify-between py-1.5">
-        <dt class="text-muted">하루 운행</dt>
-        <dd class="font-medium">{{ info.schedule.runs }}회</dd>
+        <dt class="text-muted">{{ t.bus.runsPerDay }}</dt>
+        <dd class="font-medium">{{ t.bus.runsCount(info.schedule.runs) }}</dd>
       </div>
       <div v-if="info.schedule.returnTimesKnown" class="flex justify-between py-1.5">
-        <dt class="text-muted">돌아오는 편</dt>
+        <dt class="text-muted">{{ t.bus.returnTrip }}</dt>
         <dd class="font-medium">
-          첫차 {{ info.schedule.returnFirst }} · 막차 {{ info.schedule.returnLast }}
+          {{ t.bus.firstLast(info.schedule.returnFirst ?? '—', info.schedule.returnLast ?? '—') }}
         </dd>
       </div>
     </dl>
@@ -156,14 +181,14 @@ const statusText = computed(() => {
       v-if="!info.schedule.returnTimesKnown"
       class="mt-3 rounded-sm bg-surface-soft px-4 py-3 text-[13px] leading-relaxed text-body"
     >
-      <b class="font-semibold">돌아오는 편 시간표는 공식 자료에 없어요.</b><br />
-      {{ info.schedule.note ?? '현장에서 기사님께 막차 시각을 확인하세요.' }}
+      <b class="font-semibold">{{ t.bus.returnUnknownStrong }}</b><br />
+      {{ note ?? t.bus.returnUnknownFallback }}
     </p>
 
-    <p v-if="info.warning" class="mt-3 text-[13px] leading-relaxed text-primary">
-      {{ info.warning }}
+    <p v-if="warning" class="mt-3 text-[13px] leading-relaxed text-primary">
+      {{ warning }}
     </p>
 
-    <p class="mt-3 text-[13px] leading-relaxed text-muted">{{ info.outbound.reason }}</p>
+    <p class="mt-3 text-[13px] leading-relaxed text-muted">{{ outboundReason }}</p>
   </section>
 </template>

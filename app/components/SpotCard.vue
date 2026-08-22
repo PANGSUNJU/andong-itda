@@ -21,8 +21,26 @@ const props = defineProps<{
   to?: string | null
 }>()
 
-// undefined는 "안 넘겼다"(=기본 상세 링크), null은 "링크 없음"이다. 둘을 구분한다.
-const link = computed(() => (props.to === undefined ? `/spots/${props.spot.id}` : props.to))
+const t = useT()
+const d = useDisplay()
+const localePath = useLocalePath()
+
+/**
+ * undefined는 "안 넘겼다"(=기본 상세 링크), null은 "링크 없음"이다. 둘을 구분한다.
+ *
+ * 영문 화면의 카드는 영문 상세로 간다. 여기서 접두어를 빠뜨리면 그리드에서
+ * 카드 하나를 누른 순간 국문으로 떨어진다. → ADR-031
+ */
+const link = computed(() =>
+  props.to === undefined ? localePath(`/spots/${props.spot.id}`) : props.to,
+)
+
+/**
+ * 카드에는 영문명을 따로 붙이지 않는다. 한 화면에 49장이 깔리는데 26%만 영문이
+ * 붙으면 어떤 카드는 세 줄, 어떤 카드는 두 줄이 되어 격자가 들쭉날쭉해진다.
+ * 나란히 두는 자리는 상세 화면과 정류장 카드다. → ADR-030
+ */
+const name = computed(() => d.name(props.spot))
 
 const isTop = computed(
   () => props.spot.rank !== null && props.spot.rank <= (props.highlightTop ?? 3),
@@ -41,26 +59,30 @@ const showWalk = computed(
 <template>
   <component :is="link ? NuxtLink : 'div'" :to="link ?? undefined" class="group block text-left">
     <span class="relative block aspect-square overflow-hidden rounded-md">
-      <SpotPhoto :src="spot.imageUrl" :alt="spot.name" />
+      <SpotPhoto :src="spot.imageUrl" :alt="name" />
 
       <span
         v-if="spot.rank !== null"
         class="absolute left-2.5 top-2.5 w-max rounded-full px-2.5 py-1 text-[11px] font-semibold leading-tight shadow-float"
         :class="isTop ? 'bg-primary text-white' : 'bg-white text-ink'"
       >
-        {{ spot.rank }}위
+        {{ t.card.rankBadge(spot.rank) }}
       </span>
     </span>
 
     <span class="block pt-3">
-      <b class="block truncate text-base font-semibold leading-tight">{{ spot.name }}</b>
+      <b class="block truncate text-base font-semibold leading-tight">{{ name }}</b>
+      <!-- 주소는 국문만 있다. 상류에 영문 주소가 없어 번역하지 않는다. -->
       <span class="mt-0.5 block truncate text-sm text-muted">
-        {{ spot.category }}<template v-if="spot.address"> · {{ shortAddress(spot.address) }}</template>
+        {{ d.category(spot.category)
+        }}<template v-if="spot.address"> · {{ shortAddress(spot.address) }}</template>
       </span>
       <span v-if="spot.distance !== undefined" class="mt-1.5 block text-sm text-ink">
-        <em class="font-semibold not-italic">{{ formatDistance(spot.distance) }}</em>
-        <template v-if="showWalk"> · 걸어서 약 {{ spot.walkMinutes }}분</template>
-        <template v-else> · 버스로 가는 거리</template>
+        <em class="font-semibold not-italic">{{
+          formatDistance(spot.distance, d.locale.value)
+        }}</em>
+        <template v-if="showWalk"> · {{ t.common.minutesWalk(spot.walkMinutes ?? 0) }}</template>
+        <template v-else> · {{ t.card.busRide }}</template>
       </span>
     </span>
   </component>

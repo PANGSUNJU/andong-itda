@@ -1,8 +1,16 @@
+// #shared/~ 별칭이 아니라 상대경로를 쓴다. 별칭은 Nuxt만 알기 때문에
+// scripts/check-bus-logic.ts를 node로 직접 돌릴 때 해석되지 않는다. (→ tourApi.ts의 같은 주석)
+import { MESSAGES, type Locale } from '../i18n/messages.ts'
+
 /**
  * 화면 표시용 포맷
  *
  * 여기 있는 함수는 전부 "숫자를 사람 말로" 바꾸는 일만 한다.
  * 판단(운행 중인가, 막차가 지났는가)은 서버가 이미 끝냈으므로 여기서 다시 하지 않는다.
+ *
+ * ⚠️ `locale`은 **마지막 인자이고 기본값이 'ko'**다. 국문이 정본이라는 뜻이기도 하고,
+ *    `scripts/check-bus-logic.ts`가 이 함수들을 Nuxt 밖에서 직접 부르기 때문이기도 하다.
+ *    필수 인자로 만들면 그 회귀 테스트가 언어 인자를 나르는 일만 하게 된다.
  */
 
 /**
@@ -10,11 +18,16 @@
  *
  * 30m 미만은 "바로 앞"이다. 위치 폴백을 쓰면 기준점이 정류장 좌표와 정확히
  * 겹쳐 "0m"가 나오는데, 그건 거리가 아니라 계산 결과가 새어 나온 것처럼 보인다.
+ *
+ * 영문은 숫자와 단위를 띄운다(`120 m`). 국문 조판에서는 붙이는 게 자연스럽지만
+ * 영문에서 `120m`은 조밀해 보인다.
  */
-export function formatDistance(meters: number): string {
-  if (meters < 30) return '바로 앞'
-  if (meters < 1000) return `${meters}m`
-  return `${(meters / 1000).toFixed(1)}km`
+export function formatDistance(meters: number, locale: Locale = 'ko'): string {
+  if (meters < 30) return MESSAGES[locale].distance.rightHere
+
+  const space = locale === 'ko' ? '' : ' '
+  if (meters < 1000) return `${meters}${space}m`
+  return `${(meters / 1000).toFixed(1)}${space}km`
 }
 
 /**
@@ -39,10 +52,15 @@ export function shortAddress(address: string): string {
  * 화면이 거짓말을 한다. 남은 정류장 수로 대체하고, 그것도 없으면 정보 없음이다.
  * → ADR-006
  */
-export function formatArrival(predictTm: number | null, remainStation: number | null): string {
-  if (predictTm !== null) return `${predictTm}분 후`
-  if (remainStation !== null) return `${remainStation}정거장 전`
-  return '정보 없음'
+export function formatArrival(
+  predictTm: number | null,
+  remainStation: number | null,
+  locale: Locale = 'ko',
+): string {
+  const t = MESSAGES[locale]
+  if (predictTm !== null) return `${predictTm}${t.common.minuteUnit} ${t.bus.after}`.trim()
+  if (remainStation !== null) return t.common.stopsAway(remainStation)
+  return t.bus.noInfo
 }
 
 /**
@@ -51,12 +69,13 @@ export function formatArrival(predictTm: number | null, remainStation: number | 
  * "실시간"이라고 써 붙인 값이 실제로 언제 것인지 말한다. 탭을 백그라운드에 두면
  * 갱신을 건너뛰므로(홈의 30초 타이머), 배지만 뛰고 값은 몇 분 묵어 있을 수 있다.
  */
-export function formatAgo(from: number, now: number): string {
+export function formatAgo(from: number, now: number, locale: Locale = 'ko'): string {
+  const t = MESSAGES[locale].realtime
   const seconds = Math.max(0, Math.round((now - from) / 1000))
-  if (seconds < 45) return '방금'
+  if (seconds < 45) return t.justNow
   const minutes = Math.round(seconds / 60)
-  if (minutes < 60) return `${minutes}분 전`
-  return `${Math.round(minutes / 60)}시간 전`
+  if (minutes < 60) return t.minutesAgo(minutes)
+  return t.hoursAgo(Math.round(minutes / 60))
 }
 
 /**
@@ -96,11 +115,19 @@ export function kakaoDirectionsUrl(name: string, lat: number, lng: number): stri
  *
  * 회귀 검증: `node scripts/check-bus-logic.ts`
  */
-export function formatDirection(via: string, routeNm?: string): string {
+export function formatDirection(via: string, routeNm?: string, locale: Locale = 'ko'): string {
+  /**
+   * ⚠️ 종점 이름은 **국문 그대로 나간다.** 영문 화면에서도 마찬가지다.
+   *    이건 버스 API가 주는 정류장 문자열이고, 영문 대응이 있는 건 정류장
+   *    목록(`stationEngNm`)뿐이라 노선 문자열 안의 지명은 맞출 상대가 없다.
+   *    지어내면 "Toward Imha"라 적힌 화면을 들고 '임하'라 쓰인 버스를 찾게 된다.
+   */
+  const label = MESSAGES[locale].home.directionTag
+
   const destination = via.split('->').pop()?.trim()
-  if (destination) return `${destination} 방면`
+  if (destination) return label(destination)
 
   const inside = routeNm?.match(/\(([^)]*)\)/)?.[1]
   const terminal = inside?.split('-').pop()?.trim()
-  return terminal ? `${terminal} 방면` : ''
+  return terminal ? label(terminal) : ''
 }

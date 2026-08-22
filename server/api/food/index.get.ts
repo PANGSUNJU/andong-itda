@@ -16,7 +16,14 @@ import type { FoodPlace } from '#shared/types/tour'
  */
 export default defineCachedEventHandler(
   async (): Promise<FoodPlace[]> => {
-    // 영문 이름은 15곳 중 2곳에만 붙는다. 그래도 붙는 곳은 붙인다.
+    /**
+     * 영문 이름은 15곳 중 2곳에만 붙는다. 그래도 붙는 곳은 붙인다.
+     *
+     * `deepSearch`를 켜지 않는다. 15곳 전부를 이름으로 재검색해 봤지만 이미 붙어
+     * 있는 두 곳 말고는 한 건도 안 나온다. 켜면 호출만 15회 늘고 결과는 같다.
+     * 이미지 보충이 0/7이었던 것과 같은 이유다 — 음식점은 지역 조회에 정상적으로
+     * 잡히고, 그 레코드에 영문이 없는 것이다. → ADR-023 · ADR-033
+     */
     const places = await attachEnglishNames(await fetchFoodPlaces())
 
     return places.sort(

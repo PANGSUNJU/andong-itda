@@ -16,6 +16,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{ refresh: [] }>()
 
+const t = useT()
+const locale = useLocale()
+
 /**
  * 시각은 브라우저에서만 흐르게 둔다.
  * SSR에서 `Date.now()`를 찍으면 서버 시각으로 "방금"이 굳어 하이드레이션이 어긋난다.
@@ -30,21 +33,21 @@ onMounted(() => {
 })
 
 const ago = computed(() =>
-  props.updatedAt && now.value ? formatAgo(props.updatedAt, now.value) : null,
+  props.updatedAt && now.value ? formatAgo(props.updatedAt, now.value, locale.value) : null,
 )
 </script>
 
 <template>
   <span class="flex flex-none items-center gap-1.5 text-[13px] font-medium text-primary">
     <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" aria-hidden="true" />
-    실시간
+    {{ t.realtime.live }}
     <span v-if="ago" class="font-normal text-muted-soft">{{ ago }}</span>
 
     <button
       type="button"
       class="-my-1 rounded-full p-1 text-muted transition-colors hover:bg-surface-soft disabled:opacity-40"
       :disabled="pending"
-      aria-label="도착 정보 새로고침"
+      :aria-label="t.realtime.refresh"
       @click="emit('refresh')"
     >
       <svg

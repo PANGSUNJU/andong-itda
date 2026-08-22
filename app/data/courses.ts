@@ -1,3 +1,5 @@
+import type { Locale } from '~/i18n/messages'
+
 /**
  * 걷는 길 — 자체 큐레이션 코스
  *
@@ -7,53 +9,83 @@
  *
  * 소요 시간은 직선거리가 아니라 실제 보행로 기준의 추정치다.
  * 낙강물길공원은 2028년까지 공사 중이라 제외했다. → ADR-008
+ *
+ * ⚠️ 이 화면만 두 언어를 **데이터에** 담는다. 다른 화면의 문장은 우리 것이라
+ *    `i18n/messages.ts`에 있고, 이름·주소는 상류 것이라 번역하지 않는다.
+ *    여기는 문장도 우리 것인데 데이터 모양을 하고 있어 사전에 넣으면
+ *    코스를 하나 더 짤 때마다 사전과 데이터 두 곳을 고쳐야 한다.
  */
 
+/** 두 언어의 같은 문장. 한쪽을 빼면 컴파일에서 걸린다. */
+type Text = Record<Locale, string>
+
 export interface CourseStep {
+  /**
+   * ⚠️ 지명은 **국문 그대로**다. 영문 화면에서도 마찬가지다.
+   *
+   *    임청각·칠층전탑의 공식 영문명을 우리가 확인하지 못했고, 확인하지 못한
+   *    이름을 로마자로 지어내면 여행자가 그 이름을 들고 아무에게도 길을 물을 수
+   *    없다. 현장 표지판이 국문이므로 국문이 오히려 쓸모 있다. → ADR-030
+   */
   name: string
-  detail: string
+  detail: Text
 }
 
 export interface Course {
   id: string
-  title: string
+  title: Text
   /** '낮' | '밤' */
-  timeOfDay: string
+  timeOfDay: Text
   distanceKm: number
   minutes: number
-  terrain: string
+  terrain: Text
   steps: CourseStep[]
-  cautions: string[]
+  cautions: Text[]
 }
 
 export const COURSES: Course[] = [
   {
     id: 'riverside',
-    title: '강변 옛길',
-    timeOfDay: '낮',
+    title: { ko: '강변 옛길', en: 'The Old Riverside Way' },
+    timeOfDay: { ko: '낮', en: 'Daytime' },
     distanceKm: 4.1,
     minutes: 70,
-    terrain: '평지',
+    terrain: { ko: '평지', en: 'Flat' },
     steps: [
-      { name: '안동임청각', detail: '구 안동역에서 걸어서 14분' },
-      { name: '법흥사지 칠층전탑', detail: '걸어서 2분' },
-      { name: '신세동 벽화마을', detail: '걸어서 9분' },
-      { name: '월영교', detail: '걸어서 22분' },
+      {
+        name: '안동임청각',
+        detail: { ko: '구 안동역에서 걸어서 14분', en: '14 min walk from the old Andong Station' },
+      },
+      { name: '법흥사지 칠층전탑', detail: { ko: '걸어서 2분', en: '2 min walk' } },
+      { name: '신세동 벽화마을', detail: { ko: '걸어서 9분', en: '9 min walk' } },
+      { name: '월영교', detail: { ko: '걸어서 22분', en: '22 min walk' } },
     ],
-    cautions: ['그늘이 적어요', '물을 챙기세요'],
+    cautions: [
+      { ko: '그늘이 적어요', en: 'Little shade along the way' },
+      { ko: '물을 챙기세요', en: 'Bring water' },
+    ],
   },
   {
     id: 'moonlight',
-    title: '달빛 물길',
-    timeOfDay: '밤',
+    title: { ko: '달빛 물길', en: 'Moonlight on the Water' },
+    timeOfDay: { ko: '밤', en: 'After dark' },
     distanceKm: 1.6,
     minutes: 30,
-    terrain: '야간 조명',
+    terrain: { ko: '야간 조명', en: 'Lit at night' },
     steps: [
-      { name: '안동민속촌', detail: '3번 버스에서 내리면 시작' },
-      { name: '월영공원', detail: '걸어서 7분' },
-      { name: '월영교', detail: '걸어서 5분 · 해 지면 조명이 켜져요' },
+      {
+        name: '안동민속촌',
+        detail: { ko: '3번 버스에서 내리면 시작', en: 'Starts where bus 3 drops you off' },
+      },
+      { name: '월영공원', detail: { ko: '걸어서 7분', en: '7 min walk' } },
+      {
+        name: '월영교',
+        detail: {
+          ko: '걸어서 5분 · 해 지면 조명이 켜져요',
+          en: '5 min walk · the lights come on after sunset',
+        },
+      },
     ],
-    cautions: ['돌아오는 버스를 미리 확인하세요'],
+    cautions: [{ ko: '돌아오는 버스를 미리 확인하세요', en: 'Check the bus back before you set out' }],
   },
 ]

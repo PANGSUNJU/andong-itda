@@ -32,6 +32,7 @@ const KOR_SERVICE = 'https://apis.data.go.kr/B551011/KorService2/areaBasedList2'
 const KOR_SEARCH = 'https://apis.data.go.kr/B551011/KorService2/searchKeyword2'
 const PHOTO_GALLERY = 'https://apis.data.go.kr/B551011/PhotoGalleryService1/gallerySearchList1'
 const ENG_SERVICE = 'https://apis.data.go.kr/B551011/EngService2/areaBasedList2'
+const ENG_SEARCH = 'https://apis.data.go.kr/B551011/EngService2/searchKeyword2'
 
 /**
  * 인증키 정규화
@@ -519,63 +520,221 @@ export async function backfillFromGallery(spots: Spot[]): Promise<Spot[]> {
 const GALLERY_KEYWORD = '안동'
 
 /**
+ * 영문 레코드의 제목에서 국문 이름만 떼어낸다
+ *
+ * EngService2의 제목은 `영문 (국문)` 꼴이고 국문이 **언제나 끝**에 온다.
+ * 그래서 뒤에서부터 짝이 맞는 괄호를 찾아 그 안에 한글이 있을 때만 자른다.
+ *
+ * ⚠️ `replace(/\s*\(.*$/, '')`처럼 첫 괄호부터 지우면 안 된다. 영문 주석이
+ *    괄호로 붙는 제목이 있어("Andong Gunja Village (Ocheon Historic Site) (안동 …)")
+ *    그 설명까지 함께 날아간다. 중첩 괄호도 있어 정규식 한 줄로는 안 된다.
+ */
+function splitEngTitle(title: string): { english: string; korean: string } | null {
+  let rest = title.trim()
+  let korean = ''
+
+  while (rest.endsWith(')')) {
+    let depth = 0
+    let open = -1
+
+    for (let i = rest.length - 1; i >= 0; i--) {
+      if (rest[i] === ')') depth++
+      else if (rest[i] === '(' && --depth === 0) {
+        open = i
+        break
+      }
+    }
+
+    const group = open >= 0 ? rest.slice(open) : ''
+    if (!group || !/[가-힣]/.test(group)) break
+
+    korean = group.slice(1, -1)
+    rest = rest.slice(0, open).trim()
+  }
+
+  /**
+   * 대괄호 꼬리는 이름이 아니다. 상류가 등재 사실을 제목에 붙여 준다
+   * ("Dosanseowon Confucian Academy [UNESCO World Heritage]"). 국문 쪽은
+   * "도산서원"으로만 나오므로, 그대로 두면 영문 화면에서만 제목이 두 배로 길어진다.
+   * 괄호 안의 영문 주석("(Ocheon Historic Site)")은 이름의 일부라 남긴다.
+   */
+  const english = rest.replace(/\s*\[[^\]]*\]/g, '').trim()
+
+  return korean && english ? { english, korean } : null
+}
+
+/**
+ * 이 영문 레코드가 이 관광지인가
+ *
+ * ⚠️ 여기가 오탐이 나던 자리다. 예전에는 양방향 `includes`였는데, 그러면
+ *    **도산서원선비문화수련원이 "Dosanseowon Confucian Academy"가 된다.**
+ *    이름이 포함관계라는 것만으로는 같은 곳이라는 증거가 안 된다 — 우리 이름이
+ *    더 길면 그건 보통 "그 안에 있는 다른 시설"이다.
+ *
+ * 그래서 방향을 나눈다. LocgoHub 이름의 슬래시 별칭을 먼저 가른 뒤
+ *   조각 == 상류 국문명                         같은 곳이다
+ *   상류 국문명이 조각으로 **시작**한다          같은 곳을 더 길게 적었을 뿐이다
+ *                                              ("묵계서원" ↔ "묵계서원 및 안동김씨 묵계종택")
+ *   그 외(우리 쪽이 더 김)                       다른 곳으로 본다
+ */
+function isSameEngPlace(spotName: string, korean: string): boolean {
+  const target = normalizeSpotName(korean)
+  if (!target) return false
+
+  return nameFragments(spotName).some(
+    (fragment) => fragment === target || (fragment.length >= 3 && target.startsWith(fragment)),
+  )
+}
+
+/**
+ * 영문 레코드가 안동 것인가 — 동명이소 차단
+ *
+ * ⚠️ `searchKeyword2`는 **전국**을 뒤진다. 이 검사가 없으면 실제로 이렇게 된다.
+ *      안동시립박물관    → 강릉시 오죽헌/시립박물관  (Gangneung-si)
+ *      백조공원/음악분수 → 방축천 음악분수          (Sejong-si)
+ *      천년숲           → 경북천년숲정원           (Gyeongju-si)
+ *    셋 다 이름은 그럴듯하게 겹친다. 거를 수단이 주소뿐이다.
+ *
+ * 좌표로 거르지 않는 이유는 ADR-021이다. 두 데이터셋의 대표 좌표가 다른 지점을
+ * 가리켜 하회마을만 1,580m가 벌어진다. 주소의 시군명이 훨씬 단단하다.
+ * 실측: 안동 영문 레코드 32건 전부 `addr1`에 `Andong-si`가 있다.
+ */
+const ANDONG_IN_ENG_ADDRESS = /Andong-si/i
+
+/** 영문 레코드 한 건을 조회 가능한 꼴로. 안동이 아니거나 국문명이 없으면 버린다. */
+function toEngRecord(item: EngSpot): { english: string; korean: string } | null {
+  if (!ANDONG_IN_ENG_ADDRESS.test(item.addr1 ?? '')) return null
+  return splitEngTitle(item.title)
+}
+
+/**
  * 영문 이름을 붙인다 — EngService2
  *
- * 언어 전환을 만들지 않는다. 안동 영문 데이터가 32건뿐이라 관광지 54곳 중 14곳,
- * 음식점 15곳 중 2곳에만 붙는다. 화면 문구까지 전부 번역해 놓고 정작 관광지
- * 이름의 74%가 국문으로 남으면, 반만 바뀐 화면이 안 바꾼 것보다 나쁘다.
- * 국문 옆에 나란히 두면 있는 만큼만 도움이 되고 없어도 깨지지 않는다.
+ * 상류에 있는 만큼만 붙는다. 지어내지 않는다. 없으면 국문이 그대로 나가고,
+ * 그건 결함이 아니라 사실이다. 여행자가 현장에서 볼 간판·정류장 표지가 국문이라
+ * 우리만 아는 로마자 이름을 만들면 그 이름으로는 길을 물을 수도 없다. → ADR-030
  *
- * ⚠️ 좌표로 잇지 않는다. 두 데이터셋의 대표 좌표가 다른 지점을 가리켜
- *    하회마을은 1,580m가 벌어진다(ADR-021). 제목 괄호 안의 국문명이 정확하다.
+ * 세 번에 걸쳐 찾는다. 뒤로 갈수록 호출이 비싸진다.
+ *   1. 지역 조회   areaBasedList2(areaCode=35)          32건
+ *   2. 광역 검색   searchKeyword2(keyword='안동')        +20건 — 호출 1회
+ *   3. 이름 재검색 searchKeyword2(관광지 이름)           남은 곳만, 이름당 최대 2회
+ *
+ * ⚠️ 2단계가 없으면 **안동하회마을이 빠진다.** 영문 레코드 264148의 `areacode`가
+ *    빈 값이라 지역 조회에 안 잡힌다. `/api/spots`가 이미지에서 겪은 것과
+ *    똑같은 상류 결함이다(ADR-022). 이미지에는 처방을 썼고 이름에는 안 썼었다.
+ *
+ * ⚠️ 3단계가 없으면 월영교·부용대·만휴정이 빠진다. 제목에 '안동'이 없어
+ *    광역 검색에도 안 걸린다. 대신 호출이 44회 늘어난다 — 관광지에만 켠다.
+ *    음식점은 3단계로 한 곳도 더 못 찾는 것을 확인했다(2/15 그대로).
  *
  * ⚠️ `contentTypeId`를 넘기지 않는다. 국문의 12(관광지)/39(음식점)와 코드 체계가
  *    달라서(안동 32건은 75·76·78·80·82·85) 지정하면 0건이 된다.
  *
+ * ⚠️ contentId로 잇지 않는다. 두 서비스는 ID 체계가 별개다 — 실측(2026-08-19):
+ *    국문 32건과 영문 32건의 contentid 교집합 **0건**이고, 서로의 ID를 반대편
+ *    `detailCommon2`에 넣으면 totalCount 0이다. 연결 고리는 제목 괄호 안 국문명뿐이다.
+ *
+ * 실측(2026-08-19): 관광지 54곳 중 17곳. 1단계 14 → 2단계 +하회마을 →
+ * 3단계 +월영교·부용대·만휴정, 그리고 오탐이던 도산서원선비문화수련원이 빠진다.
+ *
  * 실패해도 던지지 않는다. 이름 한 줄이 본체를 죽이면 안 된다.
  */
-export async function attachEnglishNames<T extends Spot>(spots: T[]): Promise<T[]> {
-  let english: EngSpot[]
+export async function attachEnglishNames<T extends Spot>(
+  spots: T[],
+  { deepSearch = false } = {},
+): Promise<T[]> {
+  const pool: { english: string; korean: string }[] = []
 
   try {
-    const { items } = await fetchTourApi<EngSpot>(ENG_SERVICE, {
-      numOfRows: 100,
-      pageNo: 1,
-      ...KOR_SERVICE_REGION,
-    })
-    english = items
+    const [area, wide] = await Promise.all([
+      fetchTourApi<EngSpot>(ENG_SERVICE, { numOfRows: 100, pageNo: 1, ...KOR_SERVICE_REGION }),
+      fetchTourApi<EngSpot>(ENG_SEARCH, { numOfRows: 100, pageNo: 1, keyword: ENG_WIDE_KEYWORD }),
+    ])
+
+    const seen = new Set<string>()
+    for (const item of [...area.items, ...wide.items]) {
+      if (seen.has(item.contentid)) continue
+      seen.add(item.contentid)
+
+      const record = toEngRecord(item)
+      if (record) pool.push(record)
+    }
   } catch {
     console.warn('[eng] 영문 관광정보 조회에 실패했다. 국문만 보여준다')
     return spots
   }
 
-  /** 국문명(정규화) → 영문 제목. 괄호 안이 국문명이고 그 앞이 영문이다. */
-  const byKorean = new Map<string, string>()
+  const found = new Map<string, string>()
 
-  for (const item of english) {
-    const korean = item.title.match(/\(([^)]*[가-힣][^)]*)\)/)?.[1]
-    const englishName = item.title.replace(/\s*\(.*$/, '').trim()
-    if (korean && englishName) byKorean.set(normalizeSpotName(korean), englishName)
+  const resolve = (spot: T) =>
+    pool.find((record) => isSameEngPlace(spot.name, record.korean))?.english
+
+  for (const spot of spots) {
+    const english = resolve(spot)
+    if (english) found.set(spot.id, english)
+  }
+
+  if (deepSearch) {
+    const missing = spots.filter((spot) => !found.has(spot.id))
+
+    await mapWithLimit(missing, BACKFILL_CONCURRENCY, async (spot) => {
+      for (const keyword of nameFragments(spot.name).slice(0, ENG_SEARCH_MAX_KEYWORDS)) {
+        const hit = (await searchEngSpots(keyword))
+          .map(toEngRecord)
+          .find((record) => record && isSameEngPlace(spot.name, record.korean))
+
+        if (hit) {
+          found.set(spot.id, hit.english)
+          return
+        }
+      }
+    })
   }
 
   return spots.map((spot) => {
-    const key = normalizeSpotName(spot.name)
-    // 완전일치가 없으면 포함관계까지 본다. "안동임청각" ↔ "임청각"은 정규화가 잡지만
-    // "낙강물길공원/공사중(…)" 같은 별칭 꼬리는 못 잡는다.
-    const nameEn =
-      byKorean.get(key) ??
-      [...byKorean].find(([korean]) => korean.includes(key) || key.includes(korean))?.[1]
-
+    const nameEn = found.get(spot.id)
     return nameEn ? { ...spot, nameEn } : spot
   })
 }
 
 /**
- * 이름에서 뽑아낸 조각들 — 갤러리 매칭 전용
+ * 광역 검색어
+ *
+ * 지역 조회가 놓친 것을 줍는 그물이다. 제목이나 주소에 '안동'이 든 영문 레코드가
+ * 걸려 온다. 실측: 32건이 오고 그중 20건이 지역 조회에 없던 안동 항목이다.
+ * `'Andong'`(영문)으로도 쳐 봤지만 새로 걸리는 것이 0건이라 한 번만 부른다.
+ */
+const ENG_WIDE_KEYWORD = '안동'
+
+/**
+ * 이름 재검색에서 한 곳에 쓸 검색어 수
+ *
+ * 결측이 40곳이라 하나 늘릴 때마다 호출이 40회씩 붙는다. 슬래시 별칭이
+ * 둘을 넘는 이름은 없으므로 2에서 끊는다("낙동강12경(부용경)/부용대").
+ */
+const ENG_SEARCH_MAX_KEYWORDS = 2
+
+/** 영문 키워드 검색. 실패는 빈 배열이다 — 보강이지 본체가 아니다. */
+async function searchEngSpots(keyword: string): Promise<EngSpot[]> {
+  try {
+    const { items } = await fetchTourApi<EngSpot>(ENG_SEARCH, {
+      numOfRows: 20,
+      pageNo: 1,
+      keyword,
+    })
+    return items
+  } catch {
+    return []
+  }
+}
+
+/**
+ * 이름에서 뽑아낸 조각들 — 갤러리 매칭과 영문명 매칭이 함께 쓴다
  *
  * LocgoHub 이름은 별칭이 슬래시로 붙는다. "낙동강12경(부용경)/부용대"에서
  * 사람이 아는 이름은 **뒤쪽**인데, 기존 `keywordVariants`는 앞부분만 쓴다.
- * 그래서 슬래시 양쪽을 모두 후보로 둔다. 실측에서 부용대가 이렇게 걸렸다.
+ * 그래서 슬래시 양쪽을 모두 후보로 둔다. 실측에서 부용대가 갤러리 사진도,
+ * 영문명("Buyongdae Cliff")도 이 조각으로 걸렸다.
  *
  * 두 글자 미만은 버린다. "역"·"길" 같은 조각이 아무 사진에나 걸린다.
  */
