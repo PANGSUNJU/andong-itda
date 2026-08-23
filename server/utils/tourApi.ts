@@ -5,6 +5,7 @@ import { distanceMeters } from '../../shared/constants/location.ts'
 import {
   CONTENT_TYPE,
   FOOD_CAT3,
+  KOR_SERVICE_LDONG_REGION,
   KOR_SERVICE_REGION,
   LOCGO_HUB_REGION,
 } from '../../shared/constants/region.ts'
@@ -32,7 +33,6 @@ const KOR_SERVICE = 'https://apis.data.go.kr/B551011/KorService2/areaBasedList2'
 const KOR_SEARCH = 'https://apis.data.go.kr/B551011/KorService2/searchKeyword2'
 const PHOTO_GALLERY = 'https://apis.data.go.kr/B551011/PhotoGalleryService1/gallerySearchList1'
 const ENG_SERVICE = 'https://apis.data.go.kr/B551011/EngService2/areaBasedList2'
-const ENG_SEARCH = 'https://apis.data.go.kr/B551011/EngService2/searchKeyword2'
 
 /**
  * 인증키 정규화
@@ -194,16 +194,26 @@ export async function fetchHubSpots(): Promise<{ items: HubSpot[]; baseYm: strin
  *
  * 관광지(12)와 문화시설(14)을 함께 가져온다. LocgoHub 상위권에
  * 박물관·기념관이 섞여 있어 12만으로는 병합률이 떨어진다.
- * 검증(2026-07-30): 12 → 64건, 14 → 12건.
+ * 실측(2026-08-23): 12 → 107건, 14 → 26건. 호출 2회에 178ms.
+ *
+ * ⚠️ 법정동 코드로 조회한다. 옛 지역 코드로는 74건이고 하회마을·도산서원·월영교가
+ *    통째로 빠진다. → KOR_SERVICE_LDONG_REGION
+ *
+ * ⚠️ `numOfRows`가 100이면 관광지 107건에서 **7건이 잘린다.** 상류가 늘어나도
+ *    조용히 유실되지 않도록 넉넉히 잡는다. 한 번에 받아야 하는 이유는 이 목록이
+ *    뼈대 병합의 후보 풀이자 이미지 2차 매칭의 검색 대상이기 때문이다 — 여기서
+ *    빠진 항목은 뒤 단계에서 네트워크 호출로 다시 찾는 비용이 된다.
  */
+const KOR_LIST_ROWS = 200
+
 export async function fetchKorSpots(): Promise<KorSpot[]> {
   const lists = await Promise.all(
     [CONTENT_TYPE.TOURIST_SPOT, CONTENT_TYPE.CULTURAL_FACILITY].map((contentTypeId) =>
       fetchTourApi<KorSpot>(KOR_SERVICE, {
-        numOfRows: 100,
+        numOfRows: KOR_LIST_ROWS,
         pageNo: 1,
         contentTypeId,
-        ...KOR_SERVICE_REGION,
+        ...KOR_SERVICE_LDONG_REGION,
       }),
     ),
   )
@@ -329,18 +339,18 @@ export function noiseReason(name: string): string | null {
 }
 
 /**
- * KorService2 키워드 검색 — 지역 조회에서 누락된 것을 이름으로 찾는다
+ * KorService2 키워드 검색 — 풀에도 없는 것을 전국에서 이름으로 찾는다
  *
- * ⚠️ 지역 기반 조회(areaBasedList2)만으로는 안동 핵심 관광지가 통째로 빠진다.
- *    ADR-004는 이걸 "KorService2에 없다"고 적었는데 **틀렸다**.
- *    이름으로 검색하면 전부 있고 이미지도 전부 있다. → 08-02 실측
+ * 예전에는 이 함수가 하회마을·도산서원·월영교를 구제하는 유일한 길이었다. 지금은
+ * 아니다. **그 항목들은 법정동 코드로 조회하면 처음부터 풀 안에 있다**
+ * (→ KOR_SERVICE_LDONG_REGION). ADR-004는 "KorService2에 없다"고, 08-02는 "이름으로
+ * 재검색해야 찾을 수 있다"고 적었는데 둘 다 같은 증상을 다르게 본 것이었다.
  *
- *    원인은 상류 데이터 결함이다. 이 항목들은 areacode·sigungucode가 빈 값이라
- *    지역 기반 조회의 그물에 걸리지 않는다.
- *      하회마을 894027 / 도산서원 126200 / 월영교 988449
- *      병산서원 126227 / 봉정사 126158 / 만휴정 126998   — 전부 areacode ''
+ * 남은 역할은 좁다. 풀(관광지 12 + 문화시설 14)에 없는 타입의 항목이다 —
+ * 실측 4건이 여기서 걸린다(레포츠·쇼핑 등 다른 contentTypeId로 등재된 것들).
  *
- * 지역 필터를 걸지 않는다. 걸면 애초에 못 찾는 그 항목들이 또 빠진다.
+ * 지역 필터를 걸지 않는다. 지역으로 잡히는 것은 이미 풀에 있으므로, 여기까지
+ * 내려온 항목에 지역 필터를 거는 것은 같은 그물을 한 번 더 던지는 일이다.
  * 전국에서 찾아온 뒤 좌표로 거른다.
  *
  * 실패해도 던지지 않는다. 이건 보강이지 본체가 아니다.
@@ -380,14 +390,15 @@ export function keywordVariants(name: string): string[] {
 }
 
 /**
- * 키워드 보충에서 같은 장소로 볼 최대 거리(m)
+ * 이름 매칭(2·3차)에서 같은 장소로 볼 최대 거리(m)
  *
- * 지역 조회 매칭(200m)보다 훨씬 넉넉하다. 이름으로 찾아온 후보이므로
+ * 지역 조회 매칭(200m)보다 훨씬 넉넉하다. 이름으로 찾아낸 후보이므로
  * 여기서는 이름이 주 증거고 거리는 위생 검사다.
  * 실측: CGV/안동의 최근접 후보가 185km 떨어진 "CGV 강남점"이었다. 거리가 걸러냈다.
  *
  * 완전일치에 3km를 주는 이유는 두 API의 대표 좌표가 다른 지점을 가리키기 때문이다.
- * 하회마을은 LocgoHub 좌표와 KorService2 좌표가 1,580m 벌어진다.
+ * 하회마을은 LocgoHub 좌표와 KorService2 좌표가 1,580m 벌어진다. **200m 게이트가
+ * 놓치는 것이 바로 이것이고, 2차 로컬 매칭이 존재하는 이유다.**
  */
 const BACKFILL_EXACT_RADIUS_M = 3000
 
@@ -402,35 +413,49 @@ const BACKFILL_PARTIAL_RADIUS_M = 500
 /**
  * 키워드 검색 동시 실행 수
  *
- * TourAPI 한 번이 2~3초씩 걸린다. 결측 46건 × 최대 2개 검색어라
- * 순차로 돌리면 2분을 넘는다. 실측: 6 → 31초, 12 → 16초.
+ * TourAPI 한 번이 2~3초씩 걸린다. 순차로 돌리면 안 된다.
+ * 실측: 6 → 31초, 12 → 16초. 대상이 46곳이던 시절의 숫자다.
  *
- * ⚠️ 16초는 여전히 서버리스 함수 제한을 넘길 수 있다. 캐시가 빈 첫 요청만
- *    해당되지만, 그 요청이 타임아웃되면 캐시가 영영 안 채워진다.
- *    배포 전에 빌드 타임 생성이나 스케줄 워밍으로 옮겨야 한다.
+ * 지금은 2차 로컬 매칭이 앞에서 걸러 대상이 13곳이라 이 단계가 0.7초에 끝난다.
+ * 동시 실행 수를 더 올릴 이유가 없다 — 공공 API에 부담만 준다.
  */
 const BACKFILL_CONCURRENCY = 12
 
 /**
- * 이미지가 없는 관광지를 키워드 검색으로 채운다
+ * 이미지가 없는 관광지를 채운다 — 풀 안에서 먼저, 그래도 없으면 검색으로
  *
- * 유사도가 1순위, 거리가 2순위다. 거리만으로 고르면 틀린다.
- * 하회마을의 최근접 후보는 585m의 "겸암정사"이고 본체는 1,580m로 더 멀다.
- * ADR-021이 경고한 함정이 그대로 재현된 자리다.
+ * **2차(로컬)** 이미 받아 둔 `pool`을 이름으로 다시 훑는다. 네트워크를 쓰지 않는다.
+ * **3차(검색)** 풀에도 없는 것만 전국 `searchKeyword2`로 찾는다.
  *
- * 실측(2026-08-02): 결측 46건 중 21건 보충. 28% → 61%.
- * 1·3·4·5·9·11위가 전부 채워진다. 남는 25건의 절반은 역·터미널·골프장·
- * 영화관·체육시설로 애초에 이미지가 없는 게 정상인 것들이다.
+ * 2차가 왜 성립하나: 1차 병합은 좌표 200m 게이트라(→ matchKorSpot) 두 API의 대표
+ * 좌표가 다른 지점을 가리키는 항목을 놓친다. 하회마을이 1,580m 벌어져 대표적이다
+ * (ADR-021). **그런데 그 레코드는 이미 풀 안에 있다.** 법정동 코드로 조회하기
+ * 시작하면서 생긴 조건이다. 없는 것을 찾으러 나가던 호출이 이미 손안에 있는 것을
+ * 다시 보는 일이 됐다.
+ *
+ * 판정 규칙은 3차와 똑같다(→ pickByName). 유사도가 1순위, 거리가 2순위다.
+ * 거리만으로 고르면 틀린다 — 하회마을의 최근접 후보는 585m의 "겸암정사"이고
+ * 본체는 1,580m로 더 멀다. 실제로 2차가 `contentid 894027`(본체)을 유사도 1.00으로
+ * 집어낸다.
+ *
+ * 실측(2026-08-23, 54곳): 1차 30 → 2차 +6 → 3차 +4 → 갤러리 +1 = 41곳(76%).
+ * 이미지 비율은 옛 방식과 같고, 이 함수의 TourAPI 호출만 **수십 회에서 21회로** 준다.
  */
-export async function backfillImages(spots: Spot[]): Promise<Spot[]> {
-  const targets = spots.filter((spot) => !spot.imageUrl)
-  if (targets.length === 0) return spots
-
+export async function backfillImages(spots: Spot[], pool: KorSpot[]): Promise<Spot[]> {
   const found = new Map<string, KorSpot>()
+
+  for (const spot of spots) {
+    if (spot.imageUrl) continue
+
+    const best = pickByName(spot, pool)
+    if (best) found.set(spot.id, best)
+  }
+
+  const targets = spots.filter((spot) => !spot.imageUrl && !found.has(spot.id))
 
   await mapWithLimit(targets, BACKFILL_CONCURRENCY, async (spot) => {
     for (const keyword of keywordVariants(spot.name)) {
-      const best = pickByKeyword(spot, await searchKorSpots(keyword))
+      const best = pickByName(spot, await searchKorSpots(keyword))
       if (!best) continue
 
       found.set(spot.id, best)
@@ -608,54 +633,50 @@ function toEngRecord(item: EngSpot): { english: string; korean: string } | null 
 }
 
 /**
- * 영문 이름을 붙인다 — EngService2
+ * 영문 이름을 붙인다 — EngService2 조회 한 번
  *
  * 상류에 있는 만큼만 붙는다. 지어내지 않는다. 없으면 국문이 그대로 나가고,
  * 그건 결함이 아니라 사실이다. 여행자가 현장에서 볼 간판·정류장 표지가 국문이라
  * 우리만 아는 로마자 이름을 만들면 그 이름으로는 길을 물을 수도 없다. → ADR-030
  *
- * 세 번에 걸쳐 찾는다. 뒤로 갈수록 호출이 비싸진다.
- *   1. 지역 조회   areaBasedList2(areaCode=35)          32건
- *   2. 광역 검색   searchKeyword2(keyword='안동')        +20건 — 호출 1회
- *   3. 이름 재검색 searchKeyword2(관광지 이름)           남은 곳만, 이름당 최대 2회
+ * **예전에는 세 단계였다.** 지역 조회(32건) → 광역 검색 → 이름 재검색. 3단계가
+ * 관광지에서만 44회를 더 썼고, 그렇게까지 해야 월영교·부용대·만휴정이 붙었다.
  *
- * ⚠️ 2단계가 없으면 **안동하회마을이 빠진다.** 영문 레코드 264148의 `areacode`가
- *    빈 값이라 지역 조회에 안 잡힌다. `/api/spots`가 이미지에서 겪은 것과
- *    똑같은 상류 결함이다(ADR-022). 이미지에는 처방을 썼고 이름에는 안 썼었다.
+ * 법정동 코드로 조회하면 한 번에 57건이 오고 **그 세 단계 전체와 결과가 같다.**
+ * 실측(2026-08-23, 54곳 대조):
  *
- * ⚠️ 3단계가 없으면 월영교·부용대·만휴정이 빠진다. 제목에 '안동'이 없어
- *    광역 검색에도 안 걸린다. 대신 호출이 44회 늘어난다 — 관광지에만 켠다.
- *    음식점은 3단계로 한 곳도 더 못 찾는 것을 확인했다(2/15 그대로).
+ *   현행 3단계(호출 2 + 40회)   17곳
+ *   법정동 코드 1회             17곳   ← 같은 17곳, 영문 표기까지 동일
+ *   법정동 + 옛 2단계(3회)      57레코드 = 법정동 단독과 같은 집합
+ *
+ * 마지막 줄이 광역 검색을 지운 근거다. 옛 두 경로가 주는 레코드는 법정동 조회에
+ * **전부 포함**된다. 남겨 두면 호출 한 번이 늘 뿐 새로 걸리는 것이 없다.
+ * 이름 재검색도 남은 37곳에 40회를 써서 **0곳**을 더 찾았다.
+ *
+ * 유일한 차이는 안동군자마을이 `Andong Gunja Village`에서
+ * `Andong Gunja Village (Ocheon Historic Site)`가 되는 것인데, 괄호 안이 그 마을의
+ * 다른 이름이라 남기기로 이미 정해 둔 쪽이다(→ decisions.md, splitEngTitle).
  *
  * ⚠️ `contentTypeId`를 넘기지 않는다. 국문의 12(관광지)/39(음식점)와 코드 체계가
- *    달라서(안동 32건은 75·76·78·80·82·85) 지정하면 0건이 된다.
+ *    달라서(안동 레코드는 75·76·78·80·82·85) 지정하면 0건이 된다.
  *
  * ⚠️ contentId로 잇지 않는다. 두 서비스는 ID 체계가 별개다 — 실측(2026-08-19):
  *    국문 32건과 영문 32건의 contentid 교집합 **0건**이고, 서로의 ID를 반대편
  *    `detailCommon2`에 넣으면 totalCount 0이다. 연결 고리는 제목 괄호 안 국문명뿐이다.
  *
- * 실측(2026-08-19): 관광지 54곳 중 17곳. 1단계 14 → 2단계 +하회마을 →
- * 3단계 +월영교·부용대·만휴정, 그리고 오탐이던 도산서원선비문화수련원이 빠진다.
- *
  * 실패해도 던지지 않는다. 이름 한 줄이 본체를 죽이면 안 된다.
  */
-export async function attachEnglishNames<T extends Spot>(
-  spots: T[],
-  { deepSearch = false } = {},
-): Promise<T[]> {
+export async function attachEnglishNames<T extends Spot>(spots: T[]): Promise<T[]> {
   const pool: { english: string; korean: string }[] = []
 
   try {
-    const [area, wide] = await Promise.all([
-      fetchTourApi<EngSpot>(ENG_SERVICE, { numOfRows: 100, pageNo: 1, ...KOR_SERVICE_REGION }),
-      fetchTourApi<EngSpot>(ENG_SEARCH, { numOfRows: 100, pageNo: 1, keyword: ENG_WIDE_KEYWORD }),
-    ])
+    const { items } = await fetchTourApi<EngSpot>(ENG_SERVICE, {
+      numOfRows: KOR_LIST_ROWS,
+      pageNo: 1,
+      ...KOR_SERVICE_LDONG_REGION,
+    })
 
-    const seen = new Set<string>()
-    for (const item of [...area.items, ...wide.items]) {
-      if (seen.has(item.contentid)) continue
-      seen.add(item.contentid)
-
+    for (const item of items) {
       const record = toEngRecord(item)
       if (record) pool.push(record)
     }
@@ -664,68 +685,10 @@ export async function attachEnglishNames<T extends Spot>(
     return spots
   }
 
-  const found = new Map<string, string>()
-
-  const resolve = (spot: T) =>
-    pool.find((record) => isSameEngPlace(spot.name, record.korean))?.english
-
-  for (const spot of spots) {
-    const english = resolve(spot)
-    if (english) found.set(spot.id, english)
-  }
-
-  if (deepSearch) {
-    const missing = spots.filter((spot) => !found.has(spot.id))
-
-    await mapWithLimit(missing, BACKFILL_CONCURRENCY, async (spot) => {
-      for (const keyword of nameFragments(spot.name).slice(0, ENG_SEARCH_MAX_KEYWORDS)) {
-        const hit = (await searchEngSpots(keyword))
-          .map(toEngRecord)
-          .find((record) => record && isSameEngPlace(spot.name, record.korean))
-
-        if (hit) {
-          found.set(spot.id, hit.english)
-          return
-        }
-      }
-    })
-  }
-
   return spots.map((spot) => {
-    const nameEn = found.get(spot.id)
+    const nameEn = pool.find((record) => isSameEngPlace(spot.name, record.korean))?.english
     return nameEn ? { ...spot, nameEn } : spot
   })
-}
-
-/**
- * 광역 검색어
- *
- * 지역 조회가 놓친 것을 줍는 그물이다. 제목이나 주소에 '안동'이 든 영문 레코드가
- * 걸려 온다. 실측: 32건이 오고 그중 20건이 지역 조회에 없던 안동 항목이다.
- * `'Andong'`(영문)으로도 쳐 봤지만 새로 걸리는 것이 0건이라 한 번만 부른다.
- */
-const ENG_WIDE_KEYWORD = '안동'
-
-/**
- * 이름 재검색에서 한 곳에 쓸 검색어 수
- *
- * 결측이 40곳이라 하나 늘릴 때마다 호출이 40회씩 붙는다. 슬래시 별칭이
- * 둘을 넘는 이름은 없으므로 2에서 끊는다("낙동강12경(부용경)/부용대").
- */
-const ENG_SEARCH_MAX_KEYWORDS = 2
-
-/** 영문 키워드 검색. 실패는 빈 배열이다 — 보강이지 본체가 아니다. */
-async function searchEngSpots(keyword: string): Promise<EngSpot[]> {
-  try {
-    const { items } = await fetchTourApi<EngSpot>(ENG_SEARCH, {
-      numOfRows: 20,
-      pageNo: 1,
-      keyword,
-    })
-    return items
-  } catch {
-    return []
-  }
 }
 
 /**
@@ -749,8 +712,14 @@ function nameFragments(name: string): string[] {
   return [...new Set(parts)]
 }
 
-/** 키워드 검색 결과 중 이 관광지로 볼 만한 항목. 없으면 null. */
-function pickByKeyword(spot: Spot, candidates: KorSpot[]): KorSpot | null {
+/**
+ * 후보 중 이 관광지로 볼 만한 항목. 없으면 null.
+ *
+ * 2차(로컬 풀)와 3차(키워드 검색)가 같은 규칙을 쓴다. 후보를 어디서 얻었든
+ * 판정 근거는 같아야 하기 때문이다 — 출처에 따라 기준이 달라지면 같은 장소가
+ * 단계마다 다르게 붙는다.
+ */
+export function pickByName(spot: Spot, candidates: KorSpot[]): KorSpot | null {
   const scored = candidates
     // 이미지가 목적이다. 없는 후보는 볼 이유가 없다.
     .filter((kor) => kor.firstimage && kor.mapx && kor.mapy)
@@ -762,7 +731,7 @@ function pickByKeyword(spot: Spot, candidates: KorSpot[]): KorSpot | null {
     .filter(({ distance, similarity }) =>
       similarity === 1
         ? distance <= BACKFILL_EXACT_RADIUS_M
-        : similarity >= NAME_SIMILARITY_MIN_KEYWORD && distance <= BACKFILL_PARTIAL_RADIUS_M,
+        : similarity >= NAME_SIMILARITY_MIN_NAME_MATCH && distance <= BACKFILL_PARTIAL_RADIUS_M,
     )
     // 유사도 내림차순, 같으면 가까운 것.
     .sort((a, b) => b.similarity - a.similarity || a.distance - b.distance)
@@ -771,12 +740,12 @@ function pickByKeyword(spot: Spot, candidates: KorSpot[]): KorSpot | null {
 }
 
 /**
- * 키워드 보충의 이름 게이트
+ * 이름 매칭(2·3차)의 이름 게이트
  *
  * 지역 조회(0.4)보다 높다. 거기서는 좌표 200m가 강한 증거라 이름이 보조였지만,
  * 여기서는 반경이 3km까지 늘어나 이름이 사실상 유일한 증거다.
  */
-const NAME_SIMILARITY_MIN_KEYWORD = 0.9
+const NAME_SIMILARITY_MIN_NAME_MATCH = 0.9
 
 /**
  * 동시 실행 수를 제한한 map

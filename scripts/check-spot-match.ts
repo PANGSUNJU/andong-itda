@@ -14,6 +14,7 @@ import {
   nameSimilarity,
   noiseReason,
   normalizeSpotName,
+  pickByName,
 } from '../server/utils/tourApi.ts'
 
 // LocgoHub는 시군명을 앞에 붙이고, KorService2는 괄호로 동명이소를 구분한다.
@@ -102,7 +103,34 @@ assert.equal(
 // 통과하는 후보가 없으면 병합하지 않는다. LocgoHub 단독 표시가 정상 동작이다.
 assert.equal(matchKorSpot(hub, [kor('하회세계탈박물관', '128.517995', '36.539063', '5')]), null)
 
-/* 키워드 보충 — 지역 조회에 안 잡히는 항목을 이름으로 찾을 때 쓰는 검색어 */
+/* 이름 매칭(2·3차) — 좌표 200m 게이트가 놓친 것을 이름으로 잡는다 */
+
+// 아래 넷은 2026-08-23 실제 응답의 값이다.
+const hahoeSpot = { id: 'h', name: '안동하회마을', lat: 36.539062, lng: 128.517994 } as never
+const hahoeMain = kor('안동 하회마을 [유네스코 세계유산]', '128.5282935032', '36.5506148855', '894027')
+const gyeomam = kor('안동 하회마을 겸암정사', '128.5132518279', '36.5426946970', '1180879')
+const withImage = (k: never) => ({ ...(k as object), firstimage: 'https://x/y.jpg' }) as never
+
+/**
+ * **거리가 아니라 이름이 이긴다.**
+ * 겸암정사가 585m로 더 가깝고 본체는 1,580m로 더 멀다. 거리로 고르면 하회마을
+ * 카드에 겸암정사 사진이 걸린다. 유사도 1.00(본체) > 0.9(겸암정사)로 갈려야 한다.
+ * 2차 로컬 매칭이 존재하는 이유가 바로 이 한 건이다. → ADR-034
+ */
+assert.equal(pickByName(hahoeSpot, [withImage(gyeomam), withImage(hahoeMain)])?.contentid, '894027')
+// 순서를 뒤집어도 같다. 배열 순서에 의존하면 상류가 순서를 바꿀 때 조용히 뒤집힌다.
+assert.equal(pickByName(hahoeSpot, [withImage(hahoeMain), withImage(gyeomam)])?.contentid, '894027')
+
+// 본체가 없으면 겸암정사도 붙지 않는다. 포함관계(0.9)의 반경은 500m인데 585m다.
+assert.equal(pickByName(hahoeSpot, [withImage(gyeomam)]), null)
+
+// 이미지 없는 후보는 애초에 볼 이유가 없다. 이 단계의 목적이 이미지다.
+assert.equal(pickByName(hahoeSpot, [hahoeMain]), null)
+
+// 완전일치라도 3km를 넘으면 다른 곳이다. 실측: CGV/안동의 최근접 후보가 185km였다.
+assert.equal(pickByName(hahoeSpot, [withImage(kor('하회마을', '128.6', '36.6', '9'))]), null)
+
+/* 키워드 보충 — 풀에도 없는 항목을 전국에서 찾을 때 쓰는 검색어 */
 
 // 그대로 검색하면 0건이다. '안동'을 뗀 변형이 있어야 하회마을이 잡힌다.
 assert.deepEqual(keywordVariants('안동하회마을'), ['안동하회마을', '하회마을'])
@@ -160,5 +188,5 @@ assert.equal(foodCategoryOf(food('396커피컴퍼니', 'A05020900')), '카페')
 assert.equal(foodCategoryOf(food('언젠가 생길 국숫집', 'A05029999')), '한식')
 
 console.log(
-  'ok — normalizeSpotName · nameSimilarity · distanceMeters · nearest(거리순·반경·개수) · matchKorSpot(좌표 1순위) · keywordVariants · noiseReason · foodCategoryOf',
+  'ok — normalizeSpotName · nameSimilarity · distanceMeters · nearest(거리순·반경·개수) · matchKorSpot(좌표 1순위) · pickByName(이름 1순위) · keywordVariants · noiseReason · foodCategoryOf',
 )
