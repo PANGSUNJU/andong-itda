@@ -27,6 +27,24 @@ export type Locale = 'ko' | 'en'
 
 export const LOCALES: readonly Locale[] = ['ko', 'en']
 
+/** 'YYYYMMDD' → [월, 일]. 축제 기간 표기가 두 언어에서 이 조각을 쓴다. */
+const monthDay = (value: string) => [Number(value.slice(4, 6)), Number(value.slice(6, 8))] as const
+
+const EN_MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+]
+
 const ko = {
   /** <html lang>. 스크린리더가 어느 언어로 읽을지 정한다. */
   htmlLang: 'ko',
@@ -126,6 +144,53 @@ const ko = {
     noticeConstruction: '낙강물길공원은 2028년까지 공사 중이라 코스에서 뺐어요.',
     noticeSource:
       '이 코스는 공공데이터에 없어서 저희가 직접 짰어요. 다른 정보와 달리 공식 자료가 아니에요.',
+  },
+
+  /**
+   * 축제 — 있을 때만 나타나는 자리
+   *
+   * 상시 탭을 주지 않는다. 안동 축제는 7건이고 대부분의 날에 진행중이 0건이라,
+   * 탭으로 두면 주 동선 셋이 좁아지는 대가로 빈 화면을 얻는다. → ADR-035
+   */
+  festival: {
+    /** 헤더 아이콘의 접근성 이름. 아이콘만 있는 버튼이라 이게 유일한 이름이다. */
+    iconLabel: (count: number) => `안동에서 열리는 축제 ${count}건 보기`,
+    /** 아이콘 옆 한 글자짜리 상태. 진행중이 하나라도 있으면 이쪽이다. */
+    chipNow: '축제',
+    chipSoon: '축제 예정',
+
+    title: '지금 안동에서',
+    subOngoing: '축제가 열리고 있어요',
+    subUpcoming: '곧 축제가 열려요',
+    close: '닫기',
+
+    /** "9월 24일 – 10월 4일". 하루짜리면 한 번만 적는다. */
+    period: (start: string, end: string) => {
+      const [startMonth, startDay] = monthDay(start)
+      const [endMonth, endDay] = monthDay(end)
+      const from = `${startMonth}월 ${startDay}일`
+      if (start === end) return from
+      return `${from} – ${startMonth === endMonth ? `${endDay}일` : `${endMonth}월 ${endDay}일`}`
+    },
+
+    now: '지금 열리고 있어요',
+    lastDay: '오늘이 마지막 날이에요',
+    endsIn: (days: number) => `${days}일 더 열려요`,
+    startsTomorrow: '내일 시작해요',
+    startsIn: (days: number) => `${days}일 뒤에 시작해요`,
+
+    stationsHead: '가까운 정류장',
+    /**
+     * 이 한 줄이 정직성의 자리다. 관광지 버스 안내는 사람이 확인한 매핑이지만
+     * 축제는 좌표에서 계산한 결과다. 근거가 다르면 다르다고 적는다. → ADR-016
+     */
+    stationNote: '축제장 좌표에서 가장 가까운 정류장을 계산했어요. 직접 확인한 매핑은 아니에요.',
+    noStation: '축제장 1km 안에 등록된 정류장이 없어요.',
+    arrivalsEmpty: '지금 이 정류장으로 접근 중인 버스가 없어요.',
+    arrivalsError: '도착 정보를 가져오지 못했어요.',
+    loading: '축제 정보를 불러오는 중…',
+
+    source: '한국관광공사 축제·행사 정보',
   },
 
   spot: {
@@ -237,6 +302,13 @@ const ko = {
     sourcesHead: '데이터 출처',
     sourceSpotsTerm: '관광지 정보 · 사진 · 인기 순위',
     sourceSpotsDesc: '한국관광공사 TourAPI (공공누리)',
+    /**
+     * 축제는 화면에 늘 있지 않다(열릴 때만 아이콘이 뜬다). 그래서 출처는 여기에
+     * 상시로 적어 둔다 — 축제가 없는 날에도 이 데이터를 쓴다는 사실은 남아야 한다.
+     */
+    sourceFestivalTerm: '축제 · 행사 기간',
+    sourceFestivalDesc:
+      '한국관광공사 TourAPI (공공누리) · 열리고 있거나 30일 안에 시작하는 축제만 보여드려요',
     sourceWalkTerm: '걷는 길 코스',
     sourceWalkDesc: '저희가 직접 짰어요 (공공데이터에 안동 걷기길이 없어요)',
     sourceBusTerm: '정류장 · 노선 · 실시간 도착',
@@ -399,6 +471,41 @@ const en: Messages = {
       'These routes are not in any public dataset — we put them together ourselves. Unlike everything else here, they are not official.',
   },
 
+  festival: {
+    iconLabel: (count: number) => `See ${count} ${count === 1 ? 'festival' : 'festivals'} in Andong`,
+    chipNow: 'Festival',
+    chipSoon: 'Festival soon',
+
+    title: 'In Andong right now',
+    subOngoing: 'A festival is on',
+    subUpcoming: 'A festival is about to start',
+    close: 'Close',
+
+    period: (start: string, end: string) => {
+      const [startMonth, startDay] = monthDay(start)
+      const [endMonth, endDay] = monthDay(end)
+      const from = `${EN_MONTHS[startMonth - 1]} ${startDay}`
+      if (start === end) return from
+      return `${from} – ${startMonth === endMonth ? `${endDay}` : `${EN_MONTHS[endMonth - 1]} ${endDay}`}`
+    },
+
+    now: 'Happening now',
+    lastDay: 'Today is the last day',
+    endsIn: (days: number) => `${days} more ${days === 1 ? 'day' : 'days'}`,
+    startsTomorrow: 'Starts tomorrow',
+    startsIn: (days: number) => `Starts in ${days} days`,
+
+    stationsHead: 'Nearest stops',
+    stationNote:
+      "We calculated the nearest stop from the festival's coordinates. This is not a mapping we verified on the ground.",
+    noStation: 'No registered stop within 1 km of the festival grounds.',
+    arrivalsEmpty: 'No bus is approaching this stop right now.',
+    arrivalsError: "Couldn't load arrival information.",
+    loading: 'Loading festivals…',
+
+    source: 'Korea Tourism Organization festival & event data',
+  },
+
   spot: {
     notFound: "We couldn't find that place",
     title: (name: string) => `${name} · Andong Itda`,
@@ -507,6 +614,9 @@ const en: Messages = {
     sourcesHead: 'Data sources',
     sourceSpotsTerm: 'Place information · photos · popularity ranking',
     sourceSpotsDesc: 'Korea Tourism Organization TourAPI (KOGL)',
+    sourceFestivalTerm: 'Festival & event dates',
+    sourceFestivalDesc:
+      'Korea Tourism Organization TourAPI (KOGL) · we only show festivals that are on now or start within 30 days',
     sourceWalkTerm: 'Walking routes',
     sourceWalkDesc: 'Put together by us (no Andong walking trails exist in public data)',
     sourceBusTerm: 'Stops · routes · live arrivals',

@@ -109,25 +109,39 @@ useHead(() => ({
           </NuxtLink>
         </nav>
 
-        <!--
-          언어. 오른쪽 끝에 두 언어를 나란히 둔다.
+        <div class="ml-auto flex flex-none items-center gap-1.5 tablet:gap-2">
+          <!--
+            축제. 열리고 있거나 곧 열릴 때만 나타난다. 없는 날에는 이 자리가
+            통째로 비고 언어 링크가 그대로 오른쪽 끝을 차지한다.
 
-          드롭다운을 쓰지 않는다. 언어가 둘뿐이라 여는 동작이 순수한 손해이고,
-          닫혀 있는 동안 "영어가 있다"는 사실 자체가 숨는다. 외국인 여행자는
-          국문 화면에서 이 두 글자를 찾아야 하는 사람이므로 늘 보여야 한다.
-        -->
-        <nav :aria-label="t.lang.label" class="ml-auto flex flex-none items-center gap-1">
-          <NuxtLink
-            v-for="language in languages"
-            :key="language.code"
-            :to="language.to"
-            :aria-current="language.current ? 'true' : undefined"
-            class="rounded-full px-2.5 py-1.5 text-[13px] font-medium transition-colors tablet:px-3"
-            :class="language.current ? 'bg-surface-strong text-ink' : 'text-muted hover:bg-surface-soft'"
-          >
-            {{ language.label }}
-          </NuxtLink>
-        </nav>
+            NAV에 넣지 않은 이유는 아래 안내 링크와 같다 — 목적지가 아니고,
+            넣으면 모바일 탭바가 4칸이 된다. 게다가 축제는 대부분의 날에 0건이라
+            탭으로 두면 주 동선 하나를 내주고 빈 화면을 얻는다. → ADR-035
+          -->
+          <FestivalBadge />
+
+          <!--
+            언어. 오른쪽 끝에 두 언어를 나란히 둔다.
+
+            드롭다운을 쓰지 않는다. 언어가 둘뿐이라 여는 동작이 순수한 손해이고,
+            닫혀 있는 동안 "영어가 있다"는 사실 자체가 숨는다. 외국인 여행자는
+            국문 화면에서 이 두 글자를 찾아야 하는 사람이므로 늘 보여야 한다.
+          -->
+          <nav :aria-label="t.lang.label" class="flex flex-none items-center gap-1">
+            <NuxtLink
+              v-for="language in languages"
+              :key="language.code"
+              :to="language.to"
+              :aria-current="language.current ? 'true' : undefined"
+              class="rounded-full px-2.5 py-1.5 text-[13px] font-medium transition-colors tablet:px-3"
+              :class="
+                language.current ? 'bg-surface-strong text-ink' : 'text-muted hover:bg-surface-soft'
+              "
+            >
+              {{ language.label }}
+            </NuxtLink>
+          </nav>
+        </div>
       </div>
     </header>
 

@@ -72,7 +72,15 @@ export const CONTENT_TYPE = {
   TOURIST_SPOT: '12',
   /** 문화시설 — 26건 (옛 조회 11건) */
   CULTURAL_FACILITY: '14',
-  /** 축제·공연·행사 — 7건. 옛 조회로는 0건이라 ADR-010이 연동을 제외했다. 미연동 */
+  /**
+   * 축제·공연·행사 — 7건 (옛 조회 0건)
+   *
+   * ⚠️ 이 상수를 `areaBasedList2`에 쓰지 않는다. 그 응답에는 `eventstartdate`가
+   *    없어서 진행 여부를 판정할 수 없다. 축제는 `searchFestival2` 전용 엔드포인트로
+   *    조회한다(→ `fetchFestivals`). 여기 남겨 두는 것은 코드 체계의 기록이다.
+   *
+   * 옛 조회의 0건이 ADR-010("축제 데이터가 없어 제외")의 근거였다. → ADR-035
+   */
   FESTIVAL: '15',
   /** 여행코스 */
   TRAVEL_COURSE: '25',

@@ -1,6 +1,7 @@
 // #shared 별칭이 아니라 상대경로를 쓴다. 별칭은 Nuxt만 알기 때문에
 // scripts/check-spot-match.ts를 node로 직접 돌릴 때 해석되지 않는다.
 // import type은 어차피 컴파일에서 지워지므로 별칭을 그대로 둔다.
+import { festivalQueryStartDate } from '../../shared/constants/festival.ts'
 import { distanceMeters } from '../../shared/constants/location.ts'
 import {
   CONTENT_TYPE,
@@ -10,11 +11,14 @@ import {
   LOCGO_HUB_REGION,
 } from '../../shared/constants/region.ts'
 import type {
+  EngFestival,
   EngSpot,
   FoodCategory,
   FoodPlace,
   GalleryPhoto,
   HubSpot,
+  KorFestival,
+  KorFestivalWithEnglish,
   KorSpot,
   Spot,
   TourApiResponse,
@@ -33,6 +37,8 @@ const KOR_SERVICE = 'https://apis.data.go.kr/B551011/KorService2/areaBasedList2'
 const KOR_SEARCH = 'https://apis.data.go.kr/B551011/KorService2/searchKeyword2'
 const PHOTO_GALLERY = 'https://apis.data.go.kr/B551011/PhotoGalleryService1/gallerySearchList1'
 const ENG_SERVICE = 'https://apis.data.go.kr/B551011/EngService2/areaBasedList2'
+const KOR_FESTIVAL = 'https://apis.data.go.kr/B551011/KorService2/searchFestival2'
+const ENG_FESTIVAL = 'https://apis.data.go.kr/B551011/EngService2/searchFestival2'
 
 /**
  * 인증키 정규화
@@ -135,7 +141,7 @@ async function fetchTourApi<T>(
  * 이미지가 들어오는 자리가 넷(지역 병합·키워드 보충·갤러리·음식점)이므로
  * 대입하는 쪽마다 고치지 않고 여기 한 곳을 지나가게 한다.
  */
-function httpsImage(url: string): string {
+export function httpsImage(url: string): string {
   return url.replace(/^http:\/\//, 'https://')
 }
 
@@ -244,6 +250,91 @@ export async function fetchFoodPlaces(): Promise<FoodPlace[]> {
   })
 
   return items.map(toFoodPlace)
+}
+
+/**
+ * 안동 축제 — `searchFestival2` 단독이다
+ *
+ * **ADR-010은 "축제가 0건이라 제외한다"고 적었다. 그 0건이 조회 방식의 결과였다.**
+ * 옛 지역 코드(areaCode=35)로는 실제로 0건이 오고, 법정동 코드로는 7건이 온다.
+ * 관광지에서 하회마을·도산서원이 통째로 빠지던 것과 정확히 같은 결함이다.
+ * → ADR-035, KOR_SERVICE_LDONG_REGION
+ *
+ * `areaBasedList2`에 `contentTypeId=15`를 주는 길도 있지만 쓰지 않는다.
+ * 그 응답에는 `eventstartdate`가 없어서 **진행 여부를 판정할 수단이 사라진다.**
+ * 축제에서 날짜를 잃으면 남는 것은 이름뿐이다.
+ *
+ * 조회 시작일을 넓게 주고 우리가 거른다. 이 파라미터가 "그 기간에 열리는"이
+ * 아니라 "그 기간에 시작하는"이라 좁게 주면 진행 중인 축제조차 빠진다.
+ * → festivalQueryStartDate
+ *
+ * 실측(2026-09-01): 7건, 203ms, **이미지 7/7 = 100%**(관광지는 76%),
+ * 좌표·주소 전부 있음. 관광지보다 데이터가 깨끗하다.
+ */
+export async function fetchFestivals(): Promise<KorFestivalWithEnglish[]> {
+  const { items } = await fetchTourApi<KorFestival>(KOR_FESTIVAL, {
+    numOfRows: 100,
+    pageNo: 1,
+    arrange: 'A',
+    eventStartDate: festivalQueryStartDate(),
+    ...KOR_SERVICE_LDONG_REGION,
+  })
+
+  return attachEnglishFestivalNames(items)
+}
+
+/**
+ * 축제에 영문 이름을 붙인다 — 조회 한 번
+ *
+ * 관광지의 `attachEnglishNames`와 같은 태도다. 있는 것에만 붙고 지어내지 않는다.
+ * 실측(2026-09-01) 영문 3건 중 국문 7건과 이어지는 것은 탈춤페스티벌 하나다.
+ * 하필 그 하나가 심사 기간에 열리는 축제라 값이 크다.
+ *
+ * **판정을 이름과 날짜 둘 다로 한다.** 관광지에서는 이름만 봤지만 축제는 날짜가
+ * 있으므로 증거를 하나 더 쓸 수 있다. 같은 이름의 축제가 해마다 열리는 데이터라
+ * 이름만 보면 작년 회차에 올해 이름을 붙이게 된다.
+ *
+ * 주소로 안동을 거르지 않는다(관광지는 그렇게 한다). 법정동 코드로 이미 안동만
+ * 조회했고, 그 위에 **국문 7건 중 하나와 이름·날짜가 정확히 맞을 것**을 요구하므로
+ * 동명이소가 끼어들 자리가 없다.
+ *
+ * 실패해도 던지지 않는다. 이름 한 줄이 목록 전체를 죽이면 안 된다.
+ */
+async function attachEnglishFestivalNames(
+  festivals: KorFestival[],
+): Promise<KorFestivalWithEnglish[]> {
+  let english: EngFestival[]
+
+  try {
+    const { items } = await fetchTourApi<EngFestival>(ENG_FESTIVAL, {
+      numOfRows: 100,
+      pageNo: 1,
+      arrange: 'A',
+      eventStartDate: festivalQueryStartDate(),
+      ...KOR_SERVICE_LDONG_REGION,
+    })
+    english = items
+  } catch {
+    console.warn('[festival] 영문 축제 조회에 실패했다. 국문 이름만 보여준다')
+    return festivals
+  }
+
+  return festivals.map((festival) => {
+    const match = english.find((candidate) => {
+      if (
+        candidate.eventstartdate !== festival.eventstartdate ||
+        candidate.eventenddate !== festival.eventenddate
+      ) {
+        return false
+      }
+
+      const record = splitEngTitle(candidate.title)
+      return !!record && normalizeSpotName(record.korean) === normalizeSpotName(festival.title)
+    })
+
+    const nameEn = match ? splitEngTitle(match.title)?.english : undefined
+    return nameEn ? { ...festival, nameEn } : festival
+  })
 }
 
 /**

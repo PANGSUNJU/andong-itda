@@ -179,6 +179,126 @@ export interface EngSpot {
 }
 
 /**
+ * 축제 한 건 — `KorService2/searchFestival2`
+ *
+ * 필드는 관광지(KorSpot)와 같은 꼴에 날짜 넷이 더 붙는다.
+ * `areaBasedList2`가 아니라 전용 엔드포인트를 쓰는 이유는 **날짜 때문**이다.
+ * `searchKeyword2`로 축제를 잡으면 4건이 나오지만 `eventstartdate`가 아예 없어서
+ * 진행 여부를 판정할 수단이 없다. → ADR-035
+ *
+ * ⚠️ 7건 전부 `areacode`·`sigungucode`가 **빈 값**이다. 관광지와 정확히 같은
+ *    결함이라, 옛 지역 코드로 조회하면 0건이 온다. 그 0건이 ADR-010의 근거였다.
+ *    법정동 코드로 조회해야 한다. → KOR_SERVICE_LDONG_REGION
+ */
+export interface KorFestival extends KorSpot {
+  /** 'YYYYMMDD'. 시작일. */
+  eventstartdate: string
+  /** 'YYYYMMDD'. **이 날까지 한다**는 뜻이라 판정에서 양끝을 포함한다. */
+  eventenddate: string
+  /**
+   * ⚠️ 진행 상태로 쓸 수 없다. 이름이 그렇게 읽히지만 실측(2026-09-01) 값은
+   *    "선택안함" 아니면 빈 문자열이다. 진행 여부는 날짜로 판정한다.
+   *    → shared/constants/festival.ts
+   */
+  progresstype?: string
+  /** ⚠️ 실측 7건 전부 빈 값이다. 분류로 쓸 수 없다. */
+  festivaltype?: string
+}
+
+/**
+ * 영문 축제 한 건 — `EngService2/searchFestival2`
+ *
+ * ⚠️ 국문과 **contentid가 다르다.** 실측(2026-09-01): 탈춤페스티벌이 국문 506670,
+ *    영문 697123이다. 관광지에서 확인한 것과 같은 사실이다 — 두 서비스는 ID 체계가
+ *    별개다(ADR-033). 이을 고리는 제목 괄호 안의 국문명과 날짜다.
+ *
+ * ⚠️ 영문 목록이 국문 목록의 부분집합이 아니다. 실측 3건 중 '월영야행'과
+ *    '하회별신굿탈놀이 상설공연'은 **영문에만 있다.** 그래도 영문 화면의 목록을
+ *    영문 응답으로 만들지 않는다. 두 언어가 다른 축제를 보여주면 같은 서비스가
+ *    아니게 된다. 영문 응답은 이름을 붙이는 데만 쓴다.
+ */
+export interface EngFestival extends EngSpot {
+  eventstartdate: string
+  eventenddate: string
+}
+
+/** 영문 이름까지 붙인 축제 원본. 캐시에 담기는 모양이고, 상태는 아직 없다. */
+export interface KorFestivalWithEnglish extends KorFestival {
+  nameEn?: string
+}
+
+/**
+ * 축제 진행 상태 — 화면에 나가는 것은 이 둘뿐이다
+ *
+ * 종료된 축제는 목록에서 뺀다. 지난 축제를 계속 띄우면 "지금 안동에서 무슨 일이
+ * 있는가"에 답하는 자리가 달력이 된다. → `isVisibleFestival`
+ */
+export type FestivalStatus = 'ongoing' | 'upcoming'
+
+/**
+ * 축제장에서 가장 가까운 정류장
+ *
+ * 관광지의 `spot-station-map.json`과 달리 손으로 매핑하지 않는다. 축제는 매년
+ * 바뀌고 새로 생기는데, 사람이 확인한 매핑은 그 속도를 못 따라간다. 좌표에서
+ * 계산하고 **그렇게 구했다는 사실을 화면에 적는다.**
+ *
+ * 실측(2026-09-01) 축제 7건 전부 최근접 정류장이 400m 이내였다. 탈춤페스티벌은
+ * 97m('탈춤공원건너')다. 계산으로 뽑아도 쓸 만한 답이 나오는 조건이다.
+ */
+export interface FestivalStation {
+  stationId: number
+  stationNm: string
+  nameEn?: string
+  /**
+   * 방면 — 노선상 다음 정류장의 이름
+   *
+   * ⚠️ 없으면 같은 이름의 승강장을 고를 수 없다. 실측(2026-09-01): 탈춤페스티벌의
+   *    1·2위가 '탈춤공원건너'(97m)와 '탈춤공원앞'(98m)인데 **영문명이 둘 다
+   *    'Talchum gong-won'으로 같다.** 거리도 1m 차이라 영문 화면에서는 두 칩이
+   *    글자 그대로 구별되지 않는다. 방면이 유일하게 둘을 가르는 정보다.
+   */
+  direction?: string
+  /** 축제장까지 직선거리(m) */
+  distance: number
+  walkMinutes: number
+  /** 도착정보가 원리적으로 오지 않는 승강장. 뒤로 민다. → ADR-015 */
+  terminusOnly?: boolean
+}
+
+/** 화면용 축제. 상태와 남은 날은 캐시하지 않고 요청 시점에 채운다. */
+export interface Festival {
+  /** contentid */
+  id: string
+  name: string
+  /**
+   * 영문 이름 — `EngService2/searchFestival2`에서 붙인다. 관광지와 같은 규칙으로
+   * **있는 것에만** 붙고, 없으면 국문이 그대로 나간다. → ADR-030
+   */
+  nameEn?: string
+  /** 'YYYYMMDD' */
+  startDate: string
+  endDate: string
+  status: FestivalStatus
+  /** 시작까지 남은 날. 진행중이면 0 이하다. */
+  daysUntilStart: number
+  /** 마지막 날까지 남은 날. 마지막 날이면 0. */
+  daysUntilEnd: number
+  lat: number
+  lng: number
+  address?: string
+  imageUrl?: string
+  contentId: string
+  /**
+   * 가까운 정류장. 가까운 순이되 도착정보가 안 뜨는 승강장은 뒤로 민다.
+   *
+   * 하나만 주지 않는다. 실측에서 탈춤페스티벌의 1·2위가 '탈춤공원건너'(97m)와
+   * '탈춤공원앞'(99m)으로 **2m 차이의 반대 방향 승강장**이었다. 가장 가까운 쪽이
+   * 내가 갈 방향이라는 보장이 없다. 홈이 같은 이유로 승강장을 고르게 한다.
+   */
+  stations: FestivalStation[]
+}
+
+/**
  * 관광사진 갤러리 한 건 — `PhotoGalleryService1/gallerySearchList1`
  *
  * 한국관광공사가 직접 수집한 사진이다. KorService2의 `firstimage`가 없을 때

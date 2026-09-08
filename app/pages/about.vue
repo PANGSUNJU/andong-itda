@@ -45,6 +45,15 @@ useHead(() => ({ title: t.value.about.title }))
           <dt class="font-medium">{{ t.about.sourceSpotsTerm }}</dt>
           <dd class="text-muted">{{ t.about.sourceSpotsDesc }}</dd>
         </div>
+        <!--
+          축제는 헤더 아이콘이 열릴 때만 나타나므로, 축제가 없는 날에는 화면
+          어디에도 이 데이터를 쓴다는 흔적이 남지 않는다. 출처는 여기가 상시로
+          떠맡는다. 기능이 조건부라고 출처까지 조건부일 이유는 없다. → ADR-035
+        -->
+        <div>
+          <dt class="font-medium">{{ t.about.sourceFestivalTerm }}</dt>
+          <dd class="text-muted">{{ t.about.sourceFestivalDesc }}</dd>
+        </div>
         <div>
           <dt class="font-medium">{{ t.about.sourceWalkTerm }}</dt>
           <dd class="text-muted">{{ t.about.sourceWalkDesc }}</dd>
