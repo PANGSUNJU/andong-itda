@@ -11,6 +11,7 @@ import assert from 'node:assert/strict'
 import type { BusRouteStation } from '../shared/types/bus.ts'
 import { byPredictTm, decideStatus } from '../server/utils/andongBus.ts'
 import { formatDirection } from '../app/utils/format.ts'
+import { busMinutes } from '../shared/constants/location.ts'
 import { deriveDirections } from './build-station-directions.ts'
 
 const order = (values: (number | null)[]) =>
@@ -80,6 +81,25 @@ assert.equal(formatDirection('도청 -> 임하', '212(도청-국립경국대)'),
 assert.equal(formatDirection('청호한우촌앞 -> '), '')
 assert.equal(formatDirection('청호한우촌앞 -> ', '110'), '')
 
+/**
+ * 버스 소요 시간 추정 — 실제 시간표 두 건이 기준선이다
+ *
+ * 상수(시속 16km)를 이 두 줄로 역산했다. 누군가 상수를 만지면 여기서 걸린다.
+ * 오차 한계를 ±10분으로 둔다. 하회 65분·봉정사 45분에서 그보다 크게 벗어나면
+ * 화면의 "약"이 감당할 수 있는 범위를 넘는다.
+ *
+ *   210 교보생명→하회마을  직선 19,038m  실제 65분
+ *   310 교보생명→봉정사    직선 11,273m  실제 45분
+ */
+assert.ok(Math.abs(busMinutes(19_038) - 65) <= 10, `하회 추정 ${busMinutes(19_038)}분`)
+assert.ok(Math.abs(busMinutes(11_273) - 45) <= 10, `봉정사 추정 ${busMinutes(11_273)}분`)
+
+// 5분 단위로 끊는다. 없는 정밀도를 주장하지 않기 위해서다.
+assert.equal(busMinutes(4_400) % 5, 0)
+// 홈은 2km 밖에서만 이 값을 쓰지만, 하한이 0분으로 내려가면 "버스로 약 0분"이 뜬다.
+assert.equal(busMinutes(0), 5)
+assert.equal(busMinutes(100), 5)
+
 console.log(
-  'ok — byPredictTm (오름차순, null 후순위) · decideStatus (arriving/waiting/closed) · deriveDirections (같은 이름 건너뛰기, 기·종점 전용) · formatDirection (via 우선, routeNm 폴백, 없으면 빈 문자열)',
+  'ok — byPredictTm (오름차순, null 후순위) · decideStatus (arriving/waiting/closed) · deriveDirections (같은 이름 건너뛰기, 기·종점 전용) · formatDirection (via 우선, routeNm 폴백, 없으면 빈 문자열) · busMinutes (실제 시간표 두 건 대비 ±10분)',
 )

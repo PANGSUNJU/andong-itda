@@ -52,6 +52,37 @@ export function walkMinutes(meters: number): number {
   return Math.max(1, Math.round(meters / WALK_METERS_PER_MINUTE))
 }
 
+/**
+ * 버스 소요 시간 추정 — 직선거리 분속 267m(시속 16km)
+ *
+ * "4.4km"는 그 자리에 서 있는 사람이 쓸 수 없는 숫자다. 걸어갈지 탈지는 이미
+ * 정해졌고(2km 밖이다), 남은 질문은 "타면 얼마나 걸리나"뿐이다.
+ *
+ * ⚠️ 도로 거리가 아니라 **직선거리**를 나눈다. 자의적인 상수가 아니라
+ *    실제 노선 두 건의 시간표와 노선 길이로 역산한 값이다(실측 2026-09-09).
+ *
+ *      210(교보생명→하회마을)  노선 25,611m / 직선 19,038m  06:30→07:35 = 65분 → 직선 17.6km/h
+ *      310(교보생명→봉정사)    노선 16,174m / 직선 11,273m  06:10→06:55 = 45분 → 직선 15.0km/h
+ *
+ *    둘 사이를 잡아 16km/h로 둔다. 역으로 검산하면 하회 71분(실제 65), 봉정사 42분(실제 45)이다.
+ *    노선 우회(직선 대비 1.35~1.43배)와 정차 시간이 이 하나의 상수에 함께 들어 있다.
+ *
+ * ⚠️ **기다리는 시간은 빠져 있다.** 탄 뒤에 걸리는 시간이다. 안동 외곽 노선은
+ *    배차가 하루 3~13회라 대기가 이동보다 길 수 있다. 화면은 이 숫자 옆에
+ *    도착정보와 시간표를 함께 놓아야 하고, 이 값만 단독으로 쓰면 안 된다.
+ */
+export const BUS_METERS_PER_MINUTE = 267
+
+/**
+ * 5분 단위로 끊는다. 시속 16km 추정치에서 "17분"은 없는 정밀도를 주장하는 것이고,
+ * "약 20분"은 추정임이 표기에서 드러난다. 도보(`walkMinutes`)를 1분 단위로 두는 것은
+ * 2km 안쪽이라 오차의 절대값이 작기 때문이고, 여기는 그렇지 않다.
+ */
+export function busMinutes(meters: number): number {
+  const minutes = meters / BUS_METERS_PER_MINUTE
+  return Math.max(5, Math.round(minutes / 5) * 5)
+}
+
 /** 두 좌표 사이 직선거리(m). 하버사인. */
 export function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371e3

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { NuxtLink } from '#components'
 import type { Spot } from '#shared/types/tour'
+import { busMinutes } from '#shared/constants/location'
 
 /**
  * 관광지 카드 — 둘러보기 그리드의 단위
@@ -54,6 +55,17 @@ const WALKABLE_M = 2000
 const showWalk = computed(
   () => props.spot.distance !== undefined && props.spot.distance <= WALKABLE_M,
 )
+
+/**
+ * 걸어가기엔 먼 곳에는 타고 걸리는 시간을 붙인다.
+ *
+ * 여기 있던 "버스로 가는 거리"는 왼쪽에 이미 적힌 4.4km를 한 번 더 말할 뿐이었다.
+ * 거리는 남겨 둔다 — 그건 잰 값이고, 이건 추정이다. 둘을 나란히 두면
+ * 추정이 어디서 나왔는지 읽는 사람이 가늠할 수 있다. → `busMinutes`
+ *
+ * 기다리는 시간은 들어 있지 않다. 그건 홈의 도착 카드와 상세의 시간표가 답한다.
+ */
+const rideMinutes = computed(() => busMinutes(props.spot.distance ?? 0))
 </script>
 
 <template>
@@ -82,7 +94,7 @@ const showWalk = computed(
           formatDistance(spot.distance, d.locale.value)
         }}</em>
         <template v-if="showWalk"> · {{ t.common.minutesWalk(spot.walkMinutes ?? 0) }}</template>
-        <template v-else> · {{ t.card.busRide }}</template>
+        <template v-else> · {{ t.card.busRideMinutes(rideMinutes) }}</template>
       </span>
     </span>
   </component>

@@ -39,8 +39,29 @@ const props = defineProps<{
     kind?: 'spot' | 'stop'
     active?: boolean
   }>
-  /** 중심에서 그릴 반경(m). 도보권을 눈으로 보여줄 때만 쓴다. */
+  /**
+   * 중심에서 그릴 반경(m).
+   *
+   * ⚠️ 원은 **화면보다 넓을 때만 뜻이 있다.** 지도가 원 안에 통째로 들어가면
+   *    호가 하나도 안 보여서 화면 전체에 분홍색이 깔린 것으로만 보인다.
+   *    반경보다 좁게 확대하는 화면에서는 넘기지 말 것. → 홈의 "걸어서"가 그 경우다.
+   */
   radiusM?: number
+  /**
+   * 중심에 "나" 점을 찍을지.
+   *
+   * 원과 떼어 놨다. 원은 반경을 말하고 이 점은 위치를 말하는데, 둘을 한 조건에
+   * 묶어 두면 원을 끄는 순간 내가 어디 서 있는지도 함께 사라진다.
+   */
+  markCenter?: boolean
+  /**
+   * 이름을 지도에 인쇄할지. 기본은 인쇄한다.
+   *
+   * 끄는 자리가 있다. 핀이 한곳에 뭉치면 이름표끼리 겹쳐 서로를 덮는데,
+   * 그렇게 겹친 글자는 안 읽히는 데서 그치지 않고 옆 핀의 글자와 섞여 **틀린 문장**이
+   * 된다("…약 15분 by bus by bus"). 그때는 인쇄를 접고 눌러서 보게 한다.
+   */
+  printNames?: boolean
 }>()
 
 const { kakaoMapKey } = useRuntimeConfig().public
@@ -132,28 +153,70 @@ const validMarkers = computed(() =>
 )
 
 /**
- * 화면 맞추기 — 원이 있으면 원 전체가, 없으면 마커 전부가 들어오게
+ * 화면이 이보다 좁아지지는 않게 하는 폭(m)
+ *
+ * 정류장 다섯 곳이 300m 안에 모여 있으면 그 300m에 딱 맞춰 확대된다. 건물 단위라
+ * 어느 동네인지가 화면에서 사라진다. 최소 폭을 둬서 동 이름과 큰길이 함께 남게 한다.
+ */
+const MIN_SPAN_M = 600
+
+/** 위도 1도의 길이(m). 경도는 위도에 따라 줄어들므로 cos를 곱해 쓴다. */
+const METERS_PER_DEGREE = 111_320
+
+/** 최소 폭보다 좁은 범위를 그 폭까지 넓힌다. 이미 넓으면 아무 일도 하지 않는다. */
+function ensureMinSpan(bounds: KakaoMaps) {
+  if (!sdk) return
+
+  const sw = bounds.getSouthWest()
+  const ne = bounds.getNorthEast()
+  const lat = (sw.getLat() + ne.getLat()) / 2
+  const lng = (sw.getLng() + ne.getLng()) / 2
+
+  const halfLat = MIN_SPAN_M / 2 / METERS_PER_DEGREE
+  const halfLng = halfLat / Math.cos((lat * Math.PI) / 180)
+
+  bounds.extend(new sdk.LatLng(lat - halfLat, lng - halfLng))
+  bounds.extend(new sdk.LatLng(lat + halfLat, lng + halfLng))
+}
+
+/**
+ * 화면 맞추기 — 원이 아니라 **찍힌 것**에 맞춘다
  *
  * `draw()`에서 떼어냈다. 지도를 움직일 수 있게 된 이상 되돌아올 방법이 있어야 하고,
  * 되돌아온다는 건 처음 그 화면으로 다시 맞춘다는 뜻이다.
+ *
+ * ⚠️ 원을 화면 맞추기의 기준으로 삼지 않는다. 반경 2km 원은 지름 4km이고 이 카드는
+ *    높이가 220px이라, 원을 다 담으려면 1px이 40m가 된다. 그 축척에서 83m 떨어진
+ *    승강장 둘은 2px 차이라 붙어 버린다 — 이 지도가 하려던 일이 그 축척에서 죽는다.
+ *    원은 배경으로 남기고, 화면은 실제로 찍힌 지점들에 맞춘다.
+ *
+ * 원이 있으면(홈의 "버스로") 그때는 원까지 함께 담는다. 그 화면은 원보다 넓어서
+ * 원이 작게 찍히고, 그 작음이 "걸어서는 여기까지"라는 뜻이 된다.
  */
 function fit() {
   if (!map || !sdk) return
 
-  if (circle) {
-    map.setBounds(circle.getBounds())
-    return
-  }
-
   const points = validMarkers.value
 
-  if (points.length > 1) {
+  if (points.length > 1 || circle || props.center) {
     const bounds = new sdk.LatLngBounds()
     for (const point of points) bounds.extend(new sdk.LatLng(point.lat, point.lng))
+
+    if (circle) {
+      const circleBounds = circle.getBounds()
+      bounds.extend(circleBounds.getSouthWest())
+      bounds.extend(circleBounds.getNorthEast())
+    } else if (props.center) {
+      // 원이 없어도 "나"는 화면에 있어야 한다. 내가 안 보이는 지도는 방향을 못 준다.
+      bounds.extend(new sdk.LatLng(props.center.lat, props.center.lng))
+    }
+
+    ensureMinSpan(bounds)
     map.setBounds(bounds, 24, 24, 24, 24)
     return
   }
 
+  // 기준이 점 하나뿐이거나 아무것도 없을 때. 맞출 범위가 없으니 축척을 직접 준다.
   const only = points[0] ?? props.center ?? ANDONG_ORIGIN
   map.setCenter(new sdk.LatLng(only.lat, only.lng))
   // 한 곳만 있으면 그 주변이 보이게, 아무것도 없으면 안동 전체가 보이게.
@@ -194,7 +257,7 @@ function draw(maps: KakaoMaps) {
   clearOverlays()
 
   const points = validMarkers.value
-  const printNames = points.length <= LABEL_LIMIT
+  const printNames = (props.printNames ?? true) && points.length <= LABEL_LIMIT
 
   for (const point of points) {
     const position = new maps.LatLng(point.lat, point.lng)
@@ -250,29 +313,38 @@ function draw(maps: KakaoMaps) {
     // 마커는 키가 42px이라 이름표를 점보다 더 위로 띄운다.
     maps.event.addListener(marker, 'click', () => showLabel(position, describe(point), 3))
 
-    if (printNames) nameLabel(maps, position, point.name, 2)
+    /**
+     * 관광지 이름표에도 한 줄을 덧붙일 수 있게 둔다. 홈의 "버스로 갈 곳"이
+     * "도산서원 · 버스로 약 45분"으로 뜨는 자리다. note가 없으면 이름만 나온다.
+     */
+    if (printNames) nameLabel(maps, position, describe(point), 2)
   }
 
   /**
-   * 반경 원과 중심점
+   * "나"와, 요청이 있으면 반경 원
    *
    * 중심은 "나"라는 뜻이므로 마커가 아니라 점으로 그린다. 마커를 쓰면
    * 관광지 마커들과 같은 모양이 되어 어느 것이 나인지 알 수 없다.
+   *
+   * 원은 `radiusM`을 받은 화면에만 그린다. 반경보다 좁게 확대하는 화면에서는
+   * 호가 화면 밖으로 나가 분홍색 배경만 남는다. → `radiusM` 프롭의 경고
    */
-  if (props.radiusM && props.center) {
+  if (props.center && (props.radiusM || props.markCenter)) {
     const origin = new maps.LatLng(props.center.lat, props.center.lng)
 
-    circle = new maps.Circle({
-      center: origin,
-      radius: props.radiusM,
-      strokeWeight: 2,
-      strokeColor: PRIMARY,
-      strokeOpacity: 0.5,
-      fillColor: PRIMARY,
-      fillOpacity: 0.06,
-    })
-    circle.setMap(map)
-    overlays.push(circle)
+    if (props.radiusM) {
+      circle = new maps.Circle({
+        center: origin,
+        radius: props.radiusM,
+        strokeWeight: 2,
+        strokeColor: PRIMARY,
+        strokeOpacity: 0.5,
+        fillColor: PRIMARY,
+        fillOpacity: 0.06,
+      })
+      circle.setMap(map)
+      overlays.push(circle)
+    }
 
     const dot = new maps.CustomOverlay({
       position: origin,
@@ -362,6 +434,13 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <p class="border-t border-hairline-soft px-4 py-3 text-[13px] text-muted">{{ caption }}</p>
+    <!--
+      캡션 줄에 조작 하나를 들일 수 있게 열어 둔다. 지도 위에 얹으면 지도를 가리고
+      카드 밖에 두면 무엇을 바꾸는 버튼인지 멀어진다. 홈의 "걸어서 / 버스로"가 여기 온다.
+    -->
+    <div class="flex items-center gap-3 border-t border-hairline-soft px-4 py-3">
+      <p class="min-w-0 flex-1 text-[13px] text-muted">{{ caption }}</p>
+      <slot name="action" />
+    </div>
   </div>
 </template>

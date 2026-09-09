@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ArrivalWithSpots, NearbyStation, StationPin } from '#shared/types/bus'
 import type { Spot } from '#shared/types/tour'
-import { nearest } from '#shared/constants/location'
+import { busMinutes, nearest } from '#shared/constants/location'
 
 /**
  * 지금 여기 — 홈
@@ -146,12 +146,25 @@ const rideable = computed(() =>
 )
 
 /**
- * 홈 지도는 두 가지를 함께 찍는다 — 걸어갈 곳과 서야 할 승강장
+ * 지도의 두 모드 — 걸어서 / 버스로
+ *
+ * 한 지도에 둘을 겹치지 않는다. 도보권은 반경 2km이고 버스로 갈 곳은 30km까지
+ * 흩어져 있어서, 다 담으려면 지도가 안동시 전체로 물러난다. 그러면 이 지도의 본래
+ * 일 — "83m 떨어진 저 승강장이 길 건너인가"를 눈으로 가르는 것 — 이 먼저 죽는다.
+ * 대신 무엇을 보고 있는지 캡션 옆에서 바꾼다.
+ *
+ * 두 모드 모두 반경 원과 "나"는 남는다. 버스 모드에서 원은 작게 찍히는데,
+ * 그 작음 자체가 "걸어서는 여기까지"라는 뜻이라 지우지 않는다.
+ */
+const mapMode = ref<'walk' | 'ride'>('walk')
+
+/**
+ * 걸어서 — 걸어갈 곳과 서야 할 승강장을 함께 찍는다
  *
  * 승강장을 빼놓으면 이름이 같은 셋을 글자로만 갈라야 한다. "83m 떨어진 다른 승강장"이
  * 길 건너인지 같은 쪽인지는 점 세 개를 보면 한 번에 끝난다.
  */
-const mapMarkers = computed(() => [
+const walkMarkers = computed(() => [
   // 지도 위 이름은 국문 그대로다. 배경 지도(카카오맵)가 국문이라 여기만 영문을
   // 인쇄하면 지도에 적힌 지명과 어긋나 오히려 못 찾는다. → MapCard
   ...walkable.value.map((spot) => ({ lat: spot.lat, lng: spot.lng, name: spot.name })),
@@ -166,6 +179,32 @@ const mapMarkers = computed(() => [
     active: station.stationId === activeStation.value?.stationId,
   })),
 ])
+
+/**
+ * 버스로 — 아래 목록과 **같은 여섯 곳**이다
+ *
+ * 지도와 목록이 다른 말을 하면 둘 다 못 믿는다. `rideable`을 그대로 쓴다.
+ *
+ * 이름표는 인쇄하지 않는다(`print-names`). 여섯 곳이 시내 쪽으로 뭉쳐서 인쇄하면
+ * 이름이 서로를 덮는다. 대신 누르면 "송강미술관 · 버스로 약 15분"이 뜬다 — `note`가
+ * 그 문구를 만든다. 정류장은 아예 찍지 않는다. 이 축척에서 다섯 점은 한 덩어리다.
+ */
+const rideMarkers = computed(() =>
+  rideable.value.map((spot) => ({
+    lat: spot.lat,
+    lng: spot.lng,
+    name: spot.name,
+    note: t.value.card.busRideMinutes(busMinutes(spot.distance)),
+  })),
+)
+
+const mapMarkers = computed(() => (mapMode.value === 'ride' ? rideMarkers.value : walkMarkers.value))
+
+const mapCaption = computed(() =>
+  mapMode.value === 'ride'
+    ? t.value.home.mapCaptionRide(placeLabel.value, rideable.value.length)
+    : t.value.home.mapCaption(placeLabel.value, stations.value.length, walkable.value.length),
+)
 
 /** 인기 목록은 상류가 준 순위순 그대로다. nearest()는 사본을 정렬하므로 이 순서를 건드리지 않는다. */
 const top = computed(() => spots.value.slice(0, 5))
@@ -287,16 +326,43 @@ onMounted(() => {
 
           도보권 관광지 섹션 안에 두었더니 그 목록이 비는 위치에서는 지도까지 통째로
           사라졌다. 정류장은 어디서든 있어야 하므로 밖으로 꺼냈다.
-          반경 원의 중심은 사용자 위치이고, 반경은 목록과 같은 기준(WALKABLE_M)이다.
+
+          반경 원은 "버스로"에서만 그린다. 걸어서 모드는 동네 크기로 확대되는데,
+          그 축척에서 반경 2km 원은 화면보다 커서 호가 안 보이고 분홍색만 깔린다.
+          "걸어갈 수 있는 범위"라는 뜻은 걸어서 모드에서는 캡션이 대신 말한다.
         -->
         <MapCard
           class="mt-4"
           height="220px"
           :center="coords"
-          :radius-m="WALKABLE_M"
+          mark-center
+          :radius-m="mapMode === 'ride' ? WALKABLE_M : undefined"
           :markers="mapMarkers"
-          :caption="t.home.mapCaption(placeLabel, stations.length, walkable.length)"
-        />
+          :caption="mapCaption"
+          :print-names="mapMode === 'walk'"
+        >
+          <!--
+            버스로 갈 곳이 없으면 전환할 것도 없다. 안동 밖에서 접속하면 폴백이
+            안동역이라 늘 채워지지만, 반경 30km 안이 비는 경우까지 버튼을 남겨 두면
+            눌러도 아무 일도 일어나지 않는 버튼이 된다.
+          -->
+          <template v-if="rideable.length" #action>
+            <div class="flex flex-none gap-1 rounded-full bg-surface-soft p-0.5">
+              <button
+                v-for="mode in (['walk', 'ride'] as const)"
+                :key="mode"
+                type="button"
+                class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+                :class="
+                  mapMode === mode ? 'bg-ink text-white' : 'text-muted hover:text-body'
+                "
+                @click="mapMode = mode"
+              >
+                {{ mode === 'walk' ? t.home.mapTabWalk : t.home.mapTabRide }}
+              </button>
+            </div>
+          </template>
+        </MapCard>
 
         <section v-if="walkable.length" class="mt-8">
           <div class="mb-4">

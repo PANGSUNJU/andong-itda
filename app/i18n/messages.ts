@@ -104,6 +104,14 @@ const ko = {
 
     mapCaption: (place: string, stops: number, spots: number) =>
       `${place} 반경 2km · 정류장 ${stops}곳 · 걸어갈 수 있는 관광지 ${spots}곳`,
+    /**
+     * 버스 모드. 이 지도에는 글자가 하나도 없다 — 이름표를 접었기 때문이다.
+     * 누를 수 있다는 것과 원이 무엇인지, 둘 다 이 한 줄이 말해야 한다.
+     */
+    mapCaptionRide: (place: string, spots: number) =>
+      `${place}에서 버스로 갈 수 있는 곳 ${spots}곳 · 핀을 누르면 소요 시간이 나와요 · 원 안은 도보 2km`,
+    mapTabWalk: '걸어서',
+    mapTabRide: '버스로',
 
     /** "걸어서 <em>갈 수 있는 곳</em>" — 뒷부분만 색을 준다. */
     walkableHeadLead: '걸어서 ',
@@ -116,6 +124,31 @@ const ko = {
     popularHead: '안동에서 많이 찾는 곳',
     popularSub: '한국관광공사 방문 데이터 기준',
     seeAll: '전체 보기',
+  },
+
+  /**
+   * 오류 화면 — `app/error.vue`
+   *
+   * 이 화면이 없을 때 배포본은 `{"error":true,…,"message":"Server Error"}`를
+   * 날것으로 뱉었다. 없는 관광지 링크 하나에 서비스가 고장 난 것처럼 보였다.
+   */
+  error: {
+    title404: '이 주소에는 아무것도 없어요',
+    body404: '주소가 바뀌었거나, 처음부터 없던 페이지예요.',
+
+    titleServer: '잠시 문제가 생겼어요',
+    /**
+     * 원인을 우리 쪽으로만 적지 않는다. 이 서비스는 안동시·관광공사 API를 그대로
+     * 조합하므로 상류가 멈추면 여기도 멈춘다. 그 사실을 숨기면 "다시 시도"가
+     * 왜 통할 때가 있는지 설명되지 않는다.
+     */
+    bodyServer: '안동시 버스정보나 관광공사 데이터가 응답하지 않을 때도 이 화면이 떠요.',
+
+    goHome: '지금 여기로',
+    goBrowse: '둘러보기',
+    retry: '다시 시도',
+    /** 문의나 재현에 쓰라고 남기는 한 줄. 크게 보일 이유는 없다. */
+    code: (status: number) => `오류 ${status}`,
   },
 
   browse: {
@@ -271,7 +304,11 @@ const ko = {
 
   card: {
     rankBadge: (rank: number) => `${rank}위`,
-    busRide: '버스로 가는 거리',
+    /**
+     * 걸어가기엔 먼 곳. 거리 대신 타고 걸리는 시간을 말한다.
+     * 기다리는 시간은 빠져 있다 — 그건 도착정보와 시간표가 답한다. → `busMinutes`
+     */
+    busRideMinutes: (minutes: number) => `버스로 약 ${minutes}분`,
     noPhoto: '사진 준비 중',
   },
 
@@ -427,6 +464,10 @@ const en: Messages = {
 
     mapCaption: (place: string, stops: number, spots: number) =>
       `Within 2 km of ${place} · ${stops} stops · ${spots} places within walking distance`,
+    mapCaptionRide: (place: string, spots: number) =>
+      `${spots} places you can reach by bus from ${place} · tap a pin for the ride time · the circle is a 2 km walk`,
+    mapTabWalk: 'On foot',
+    mapTabRide: 'By bus',
 
     walkableHeadLead: 'Places you can ',
     walkableHeadEmphasis: 'walk to',
@@ -438,6 +479,20 @@ const en: Messages = {
     popularHead: 'Most visited in Andong',
     popularSub: 'Based on Korea Tourism Organization visit data',
     seeAll: 'See all',
+  },
+
+  error: {
+    title404: "There's nothing at this address",
+    body404: 'The address may have changed, or the page never existed.',
+
+    titleServer: 'Something went wrong',
+    bodyServer:
+      'This screen also appears when the Andong bus system or the Korea Tourism Organization data is not responding.',
+
+    goHome: 'Go to Right Now',
+    goBrowse: 'Explore',
+    retry: 'Try again',
+    code: (status: number) => `Error ${status}`,
   },
 
   browse: {
@@ -584,7 +639,7 @@ const en: Messages = {
 
   card: {
     rankBadge: (rank: number) => `#${rank}`,
-    busRide: 'a bus ride away',
+    busRideMinutes: (minutes: number) => `about ${minutes} min by bus`,
     noPhoto: 'No photo yet',
   },
 
