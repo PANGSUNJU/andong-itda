@@ -9,7 +9,9 @@
 import assert from 'node:assert/strict'
 
 import type { BusRouteStation } from '../shared/types/bus.ts'
+import type { SpotRouteOption } from '../shared/types/static-data.ts'
 import { byPredictTm, decideStatus } from '../server/utils/andongBus.ts'
+import { anchors, groupByNum } from '../server/utils/routeDirection.ts'
 import { formatDirection } from '../app/utils/format.ts'
 import { busMinutes } from '../shared/constants/location.ts'
 import { deriveDirections } from './build-station-directions.ts'
@@ -100,6 +102,75 @@ assert.equal(busMinutes(4_400) % 5, 0)
 assert.equal(busMinutes(0), 5)
 assert.equal(busMinutes(100), 5)
 
+/**
+ * 노선 방향 — 뒤집히면 여행자를 반대 방향 버스에 태운다
+ *
+ * town은 노선 안에서 시내에 드는 순번 목록이고, 두 번째 인자가 관광지의 순번이다.
+ * 실제 값으로 확인한다: 210번(교보생명-하회마을)은 시내가 7~20이고 하회가 51이다.
+ */
+const HAHOE_TOWN = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+
+// 시내가 전부 앞이면 들어오는 편만 성립한다. 타는 자리는 가장 늦은 20이다 —
+// 7을 쓰면 화면이 31정거장 대신 44정거장이라고 말한다.
+assert.deepEqual(anchors(HAHOE_TOWN, 51), { inbound: 20, outbound: null })
+
+// 시내가 전부 뒤면 나가는 편만. 가장 이른 것이 먼저 닿는 시내 정류장이다.
+assert.deepEqual(anchors([30, 31, 40], 5), { inbound: null, outbound: 30 })
+
+// 순환 노선 — 시내에서 타고 갔다가 계속 타고 돌아온다. 둘 다 성립해야 한다.
+assert.deepEqual(anchors([2, 3, 40, 41], 20), { inbound: 3, outbound: 40 })
+
+// 시내와 안 닿는 노선. 환승이 필요하다는 뜻이고, 빈 목록과 구분해서 말해야 한다.
+assert.deepEqual(anchors([], 20), { inbound: null, outbound: null })
+
+/**
+ * 노선 묶기 — 대표는 정거장이 아니라 **덜 걷는 쪽**이다
+ *
+ * 실측에서 210번이 "탈놀이전수관앞 506m"로 뽑혔다. 160m 떨어진 하회마을 정류장을
+ * 두고 한 정거장을 아끼려고 346m를 더 걷게 하는 답이었다.
+ */
+const option = (over: Partial<SpotRouteOption>): SpotRouteOption => ({
+  routeId: 1,
+  routeNum: '210',
+  routeNm: '210(교보생명-하회마을)',
+  runTotCnt: 0,
+  stops: 30,
+  roadMeters: 17000,
+  stationId: 1,
+  stationNm: '정류장',
+  walkMeters: 200,
+  ...over,
+})
+
+const picked = groupByNum([
+  option({ routeId: 1, stops: 30, walkMeters: 506, stationNm: '탈놀이전수관앞' }),
+  option({ routeId: 2, stops: 31, walkMeters: 160, stationNm: '하회마을' }),
+])
+assert.equal(picked.length, 1) // 같은 번호는 하나로 묶인다
+assert.equal(picked[0]!.stationNm, '하회마을') // 한 정거장보다 346m가 무겁다
+
+// 한 갈래라도 돌고 있으면 그 번호는 오늘 다닌다.
+const running = groupByNum([
+  option({ routeId: 1, runTotCnt: 0, walkMeters: 100 }),
+  option({ routeId: 2, runTotCnt: 3, walkMeters: 300 }),
+])
+assert.equal(running[0]!.runTotCnt, 3)
+assert.equal(running[0]!.walkMeters, 100) // 대표는 여전히 덜 걷는 쪽
+
+// 가까운 것이 있으면 1.2km짜리는 대안이 아니다. 목록에 두면 탈 만해 보인다.
+const dropped = groupByNum([
+  option({ routeNum: '210', walkMeters: 160 }),
+  option({ routeNum: '211', walkMeters: 1185 }),
+])
+assert.deepEqual(dropped.map((r) => r.routeNum), ['210'])
+
+// 전부 먼 외곽 관광지는 지우지 않는다. 그게 유일한 답이다.
+const kept = groupByNum([
+  option({ routeNum: '610', walkMeters: 814 }),
+  option({ routeNum: '611', walkMeters: 976 }),
+])
+assert.deepEqual(kept.map((r) => r.routeNum), ['610', '611'])
+
 console.log(
-  'ok — byPredictTm (오름차순, null 후순위) · decideStatus (arriving/waiting/closed) · deriveDirections (같은 이름 건너뛰기, 기·종점 전용) · formatDirection (via 우선, routeNm 폴백, 없으면 빈 문자열) · busMinutes (실제 시간표 두 건 대비 ±10분)',
+  'ok — byPredictTm (오름차순, null 후순위) · decideStatus (arriving/waiting/closed) · deriveDirections (같은 이름 건너뛰기, 기·종점 전용) · formatDirection (via 우선, routeNm 폴백, 없으면 빈 문자열) · busMinutes (실제 시간표 두 건 대비 ±10분) · anchors (들어오는/나가는·순환) · groupByNum (덜 걷는 쪽 대표, 먼 노선 제외)',
 )

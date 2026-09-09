@@ -254,6 +254,11 @@ const ko = {
     /** 정류장 이름을 <b>로 감싸므로 앞뒤를 나눠 둔다. */
     getOffBefore: '',
     getOffAfter: '에서 내려요.',
+    /** "210번{}하회마을에서 내려요" — 노선 번호와 정류장 이름 사이 */
+    rideAnd: '을 타고 ',
+    /** "시내에서 31정거장, 17.0km예요." */
+    fromDowntown: (stops: number, distance: string) =>
+      `시내에서 ${stops}정거장, ${distance}예요.`,
     schedule: (from: string, first: string, last: string) =>
       `${from}에서 첫차 ${first}, 막차 ${last}예요.`,
     returnUnknownLead: '돌아오는 편 시각은 공식 시간표에 없어요.',
@@ -268,6 +273,42 @@ const ko = {
     panelPendingBody: '정류장을 확인하는 중이에요. 확인되지 않은 정류장을 추측해서 넣지 않아요.',
     panelNoneBody: '지금은 인기 관광지 7곳의 버스 정보를 안내하고 있어요.',
     mapCaption: (name: string) => `${name} 주변`,
+  },
+
+  /**
+   * 노선 안내 — 44곳 전부에 답하는 자리
+   *
+   * 실시간 도착(`bus`)과 근거가 다르다. 그쪽은 사람이 확인한 승강장 7곳이고
+   * 이쪽은 노선 데이터로 계산한 결과다. 그 차이를 `note`가 화면에서 말한다.
+   * 근거가 다르면 다르다고 적는다. → ADR-016
+   */
+  spotRoutes: {
+    head: '이 관광지에 오는 버스',
+    inboundHead: '시내에서 오는 편',
+    outboundHead: '시내로 나가는 편',
+    /** "210번" — 노선 번호는 숫자가 아닌 것도 있다(급행3·순환2-1) */
+    routeLabel: (routeNum: string) => `${routeNum}번`,
+    getOff: (station: string) => `${station} 하차`,
+    /** "31정거장 · 17.0km" */
+    ride: (stops: number, distance: string) => `${stops}정거장 · ${distance}`,
+    /** 내려서 걸어야 하는 거리. 30m 미만이면 formatDistance가 "바로 앞"으로 답한다. */
+    thenWalk: (distance: string) => `내려서 ${distance}`,
+    running: '운행 중',
+    /** 전 노선의 운행 차량이 0일 때. 밤에 열어본 사람에게 필요한 문장이다. */
+    idle: '지금 운행 중인 차량이 없어요',
+    more: (count: number) => `외 ${count}개 노선`,
+
+    disconnectedTitle: '한 번에 가는 버스가 없어요',
+    disconnectedBody:
+      '근처에 정류장은 있지만, 그 정류장을 지나는 노선이 시내와 이어지지 않아요. 갈아타야 해요.',
+    noneTitle: '가까운 정류장이 없어요',
+    noneBody: '이 관광지에서 걸어갈 만한 거리에 등록된 정류장이 없어요.',
+
+    /**
+     * 이 한 줄이 정직성의 자리다. 관광지 7곳의 버스 안내는 사람이 확인한 매핑이지만
+     * 이 목록은 좌표와 노선 순서로 계산한 결과다. → 축제의 `stationNote`와 같은 규칙
+     */
+    note: '관광지 근처 정류장을 지나는 노선을 계산했어요. 직접 확인한 안내는 아니에요.',
   },
 
   bus: {
@@ -587,6 +628,9 @@ const en: Messages = {
     aboutHead: 'About this place',
     accessHead: 'Getting there',
     getOffBefore: 'Get off at ',
+    rideAnd: ' takes you there — get off at ',
+    fromDowntown: (stops: number, distance: string) =>
+      `${stops} ${stops === 1 ? 'stop' : 'stops'} from downtown, ${distance}.`,
     getOffAfter: '.',
     schedule: (from: string, first: string, last: string) =>
       `From ${from}, the first bus is ${first} and the last is ${last}.`,
@@ -605,6 +649,28 @@ const en: Messages = {
       "We're still confirming the stop. We don't fill in stops we haven't verified.",
     panelNoneBody: 'We currently show bus information for 7 of the most visited places.',
     mapCaption: (name: string) => `Around ${name}`,
+  },
+
+  spotRoutes: {
+    head: 'Buses that come here',
+    inboundHead: 'From downtown',
+    outboundHead: 'Back to downtown',
+    routeLabel: (routeNum: string) => `Bus ${routeNum}`,
+    getOff: (station: string) => `Get off at ${station}`,
+    ride: (stops: number, distance: string) =>
+      `${stops} ${stops === 1 ? 'stop' : 'stops'} · ${distance}`,
+    thenWalk: (distance: string) => `then ${distance} on foot`,
+    running: 'Running now',
+    idle: 'No buses are running right now',
+    more: (count: number) => `+${count} more ${count === 1 ? 'route' : 'routes'}`,
+
+    disconnectedTitle: 'No single bus goes there',
+    disconnectedBody:
+      'There are stops nearby, but the routes serving them do not connect to downtown. You would need to transfer.',
+    noneTitle: 'No stop within walking distance',
+    noneBody: 'There is no registered bus stop close enough to walk from this place.',
+
+    note: 'We worked this out from route data and the stops nearest the place. It is not a mapping we verified by hand.',
   },
 
   bus: {

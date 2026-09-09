@@ -104,6 +104,93 @@ export interface SpotStationMap {
 }
 
 /**
+ * 노선 색인 — `server/data/route-stations.json`
+ *
+ * `scripts/build-station-directions.ts`가 굽는다. 노선 421개의 정류장 순서를
+ * 통째로 들고 있어 400KB 남짓이지만 **서버에서만 읽는다.** 브라우저로 나가지 않는다.
+ *
+ * 요청 시점에 만들 수 없다. 만들려면 상류를 421번 불러야 하고, 그건 관광지 하나를
+ * 여는 데 21초를 쓰는 일이다. 노선의 정류장 순서는 시간표만큼도 자주 바뀌지 않는다.
+ * → ADR-016과 같은 판단
+ */
+export interface RouteStationIndex {
+  routes: Record<
+    string,
+    {
+      /** [정류장ID, 기점으로부터 누적 거리(m)] — 노선 순서 그대로 */
+      stations: [number, number][]
+      /**
+       * 시내(안동역 반경 3km)에 드는 순번 전부. 비어 있으면 시내와 안 닿는 노선이다.
+       *
+       * 관광지보다 **앞선** 것이 하나라도 있으면 시내에서 타고 갈 수 있고,
+       * **뒤** 것이 하나라도 있으면 타고 시내로 돌아올 수 있다. 순환 노선은 둘 다
+       * 성립하는데 그게 맞다 — 같은 버스로 갔다가 계속 타고 돌아올 수 있다.
+       *
+       * 첫/마지막만 담지 않는다. 실제로 타는 사람은 관광지에 가장 가까운 시내
+       * 정류장에서 타므로, "몇 정거장"을 세려면 그 순번을 고를 수 있어야 한다.
+       */
+      town: number[]
+    }
+  >
+}
+
+/**
+ * 관광지로 가는(에서 오는) 노선 하나
+ *
+ * ⚠️ 이 값들은 **계산 결과**다. 사람이 확인한 `spot-station-map.json`과 근거가 다르다.
+ *    화면은 둘을 같은 무게로 말하면 안 된다. → ADR-016의 연장
+ */
+export interface SpotRouteOption {
+  routeId: number
+  /** 화면 주표시. "210", "급행3" */
+  routeNum: string
+  /** 전체명. "210(교보생명-하회마을)" — 방향이 여기 들어 있다 */
+  routeNm: string
+  /** 지금 이 노선에서 운행 중인 차량 수. 0이면 오늘 운행이 끝났거나 미운행일이다 */
+  runTotCnt: number
+  /** 시내 거점에서 이 관광지까지 정거장 수 */
+  stops: number
+  /**
+   * 노선 위 실제 도로 거리(m). 누적 거리의 차이라 직선거리가 아니다.
+   * 홈 카드의 추정(`busMinutes`)과 달리 여기는 잰 값이다.
+   */
+  roadMeters: number
+  /** 타고 내리는 정류장 */
+  stationId: number
+  stationNm: string
+  stationNmEn?: string
+  /** 그 정류장에서 관광지까지 직선거리(m) */
+  walkMeters: number
+}
+
+/**
+ * 관광지 노선 안내 — /api/spot-routes/[spot] 응답
+ *
+ * `/api/spot-bus`(실시간·시간표)와 별개다. 그쪽은 사람이 확인한 7곳만 답하고,
+ * 이쪽은 노선 데이터만으로 44곳 전부에 답한다. 두 엔드포인트를 합치지 않는 이유는
+ * 근거가 다르기 때문이다 — 하나가 실패해도 다른 하나는 남아야 한다.
+ */
+export interface SpotRouteInfo {
+  spot: string
+  /** 시내 → 관광지 */
+  inbound: SpotRouteOption[]
+  /** 관광지 → 시내 */
+  outbound: SpotRouteOption[]
+  /** 노선 번호로 묶기 전 개수. 화면이 "외 N개"를 말할 때 쓴다 */
+  inboundTotal: number
+  outboundTotal: number
+  /**
+   * 근처에 정류장은 있는데 그 정류장을 지나는 노선이 시내와 닿지 않는 상태.
+   *
+   * 실패가 아니라 답이다. 차 없는 여행자가 가장 알아야 할 사실이 "한 번에 가는
+   * 버스가 없다"이므로, 빈 목록과 구분해서 말해야 한다.
+   */
+  disconnected: boolean
+  /** 관광지 반경 안에서 후보로 본 정류장 수. 0이면 정류장 자체가 멀다 */
+  nearbyStations: number
+}
+
+/**
  * 관광지 통합 버스 정보 — /api/spot-bus/[spot] 응답
  *
  * 실시간 · 정적 시간표 · 운행 여부 세 소스를 결합한다.

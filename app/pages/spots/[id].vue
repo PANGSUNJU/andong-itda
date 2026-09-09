@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Spot } from '#shared/types/tour'
-import type { SpotBusInfo } from '#shared/types/static-data'
+import type { SpotBusInfo, SpotRouteInfo } from '#shared/types/static-data'
 import { nearest } from '#shared/constants/location'
 
 /**
@@ -40,6 +40,22 @@ const {
   pending: busRequestPending,
   refresh: refreshBus,
 } = await useFetch<SpotBusInfo>(() => `/api/spot-bus/${encodeURIComponent(spot.value!.name)}`)
+
+/**
+ * 노선 안내는 44곳 전부에 답한다.
+ *
+ * 위의 `/api/spot-bus`는 사람이 확인한 7곳에만 200을 준다. 나머지 37곳에서
+ * "가는 방법" 자리가 "버스 정보가 등록되지 않은 곳이에요" 한 줄로 끝나던 것을
+ * 이 요청이 메운다. 근거가 다르므로 엔드포인트도 화면 문구도 따로 둔다.
+ *
+ * 두 요청이 서로를 기다리지 않는다. 하나가 실패해도 다른 하나는 뜬다.
+ */
+const { data: routes } = await useFetch<SpotRouteInfo>(
+  () => `/api/spot-routes/${encodeURIComponent(spot.value!.name)}`,
+)
+
+/** "가는 방법" 첫 문장이 쓸 대표 노선. 가장 덜 걷는 것이 맨 앞이다. */
+const mainRoute = computed(() => routes.value?.inbound[0])
 
 /**
  * 이 화면에는 홈 같은 30초 타이머가 없다. 열어 둔 채로 두면 도착 정보가 그대로 늙으므로
@@ -131,18 +147,32 @@ const mapMarkers = computed(() =>
             {{ t.spot.accessHead }}
           </h2>
 
+          <!--
+            노선 문장이 맨 앞이다. 시간표보다 먼저 알아야 하는 것이 "몇 번을 타는가"인데,
+            예전에는 그 문장이 어디에도 없었다 — 확인된 7곳조차 정류장 이름과 첫차·막차만
+            말하고 노선 번호는 말하지 않았다.
+          -->
+          <p v-if="mainRoute" class="text-base leading-relaxed text-body">
+            <b class="font-semibold">{{ t.spotRoutes.routeLabel(mainRoute.routeNum) }}</b
+            >{{ t.spot.rideAnd }}<b class="font-semibold">{{
+              d.stationName({ stationNm: mainRoute.stationNm, nameEn: mainRoute.stationNmEn })
+            }}</b
+            >{{ t.spot.getOffAfter }}
+            {{
+              t.spot.fromDowntown(
+                mainRoute.stops,
+                formatDistance(mainRoute.roadMeters, d.locale.value),
+              )
+            }}
+          </p>
+
+          <!-- 시내와 안 닿는 4곳. "정보 없음"이 아니라 "갈아타야 한다"가 답이다. -->
+          <p v-else-if="routes?.disconnected" class="text-base leading-relaxed text-body">
+            {{ t.spotRoutes.disconnectedTitle }}. {{ t.spotRoutes.disconnectedBody }}
+          </p>
+
           <template v-if="bus">
-            <p class="text-base leading-relaxed text-body">
-              {{ t.spot.getOffBefore
-              }}<b class="font-semibold">{{
-                bus.inbound
-                  ? d.stationName({
-                      stationNm: bus.inbound.stationNm,
-                      nameEn: bus.inbound.stationNmEn,
-                    })
-                  : t.bus.stationUnknown
-              }}</b
-              >{{ t.spot.getOffAfter }}
+            <p class="mt-3 text-base leading-relaxed text-body">
               <template v-if="bus.schedule.departFirst">
                 {{
                   t.spot.schedule(
@@ -159,7 +189,8 @@ const mapMarkers = computed(() =>
             </p>
           </template>
 
-          <p v-else class="text-base leading-relaxed text-body">
+          <!-- 노선도 못 찾고 확인된 매핑도 없을 때만 남는 문장이다. -->
+          <p v-else-if="!mainRoute && !routes?.disconnected" class="text-base leading-relaxed text-body">
             <template v-if="busPending">{{ t.spot.busPendingBody }}</template>
             <template v-else>{{ t.spot.busNoneBody }}</template>
           </p>
@@ -207,6 +238,10 @@ const mapMarkers = computed(() =>
       </div>
 
       <aside class="min-w-0 pb-12 desktop:sticky desktop:top-[96px]">
+        <!--
+          실시간 카드는 승강장을 확정한 7곳에만 뜬다. 없을 때 자리를 비우지 않고
+          아래 노선 카드가 받는다. 예전에는 여기 "버스 안내 준비 중"만 남았다.
+        -->
         <SpotBusPanel
           v-if="bus"
           :info="bus"
@@ -215,13 +250,11 @@ const mapMarkers = computed(() =>
           @refresh="refreshNow()"
         />
 
-        <div v-else class="rounded-md border border-hairline bg-surface-soft p-6">
-          <p class="text-base font-medium">{{ t.spot.panelPendingTitle }}</p>
-          <p class="mt-1.5 text-sm leading-relaxed text-muted">
-            <template v-if="busPending">{{ t.spot.panelPendingBody }}</template>
-            <template v-else>{{ t.spot.panelNoneBody }}</template>
-          </p>
-        </div>
+        <!--
+          노선 카드는 44곳 전부에 뜬다. 실시간 카드가 있는 곳에서도 함께 둔다 —
+          "몇 분 후"와 "몇 번을 타는가"는 다른 질문이고, 후자는 그 카드에 없었다.
+        -->
+        <SpotRoutePanel v-if="routes" :info="routes" :class="bus ? 'mt-4' : ''" />
 
         <MapCard
           class="mt-4"
