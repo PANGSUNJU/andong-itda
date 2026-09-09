@@ -18,7 +18,7 @@ const t = useT()
 const d = useDisplay()
 const localePath = useLocalePath()
 
-useHead(() => ({ title: t.value.home.title }))
+usePageTitle(() => t.value.home.title)
 
 const { location, locating, locate } = useLocation()
 

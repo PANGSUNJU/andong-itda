@@ -21,7 +21,7 @@
  */
 const t = useT()
 
-useHead(() => ({ title: t.value.about.title }))
+usePageTitle(() => t.value.about.title)
 </script>
 
 <template>

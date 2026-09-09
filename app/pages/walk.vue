@@ -10,7 +10,7 @@ import { COURSES } from '~/data/courses'
 const t = useT()
 const locale = useLocale()
 
-useHead(() => ({ title: t.value.walk.title }))
+usePageTitle(() => t.value.walk.title)
 </script>
 
 <template>

@@ -1,6 +1,20 @@
 import { MESSAGES, categoryLabel, type Locale } from '~/i18n/messages'
 
 /**
+ * 주소 규칙은 `shared/`에 있다(사이트맵도 같은 것을 쓴다). 화면에서는 여기서
+ * 자동 임포트되던 이름이 그대로 살아 있어야 하므로 다시 내보낸다.
+ *
+ * ⚠️ `export … from`만 쓰면 안 된다. 다시 내보내기는 이 파일의 **지역 범위에
+ *    이름을 들이지 않아서**, 바로 아래 `useLocalePath()`가 부르는 `pathIn`이
+ *    런타임에 undefined가 된다. 자동 임포트는 그 이름을 내보내는 파일 자신에는
+ *    주입되지 않으므로 타입 검사만으로는 안 걸린다(전역 타입은 있고 값은 없다).
+ *    들여오고 나서 내보낸다.
+ */
+import { barePath, localeOf, pathIn } from '#shared/constants/locale'
+
+export { barePath, localeOf, pathIn }
+
+/**
  * 언어 — 주소가 정본이다
  *
  * `/`가 국문, `/en`이 영문이다. 같은 주소를 토글로 갈아끼우지 않는다. → ADR-031
@@ -14,27 +28,6 @@ import { MESSAGES, categoryLabel, type Locale } from '~/i18n/messages'
  *   검색    두 언어가 각자의 주소를 가져 색인된다. 토글은 색인되지 않는다
  *   캐시    주소가 다르니 SSR 결과를 언어별로 캐시해도 섞이지 않는다
  */
-
-/** 영문 페이지의 주소 접두어. 라우트를 만드는 쪽(nuxt.config)과 같은 값이다. */
-const EN_PREFIX = '/en'
-
-/** 이 경로가 어느 언어의 페이지인가. `/enough`처럼 접두어를 닮은 경로는 걸리지 않는다. */
-export function localeOf(path: string): Locale {
-  return path === EN_PREFIX || path.startsWith(`${EN_PREFIX}/`) ? 'en' : 'ko'
-}
-
-/** 언어 접두어를 뗀 경로. 국문 주소가 곧 이 서비스의 경로 체계다. */
-export function barePath(path: string): string {
-  if (path === EN_PREFIX) return '/'
-  return path.startsWith(`${EN_PREFIX}/`) ? path.slice(EN_PREFIX.length) : path
-}
-
-/** 같은 화면의 다른 언어 주소. 언어 링크와 hreflang이 같은 함수를 쓴다. */
-export function pathIn(locale: Locale, path: string): string {
-  const bare = barePath(path)
-  if (locale === 'ko') return bare
-  return bare === '/' ? EN_PREFIX : `${EN_PREFIX}${bare}`
-}
 
 /** 지금 보고 있는 페이지의 언어 */
 export function useLocale() {

@@ -23,9 +23,18 @@
  *    컴파일러가 못 본다.
  */
 
-export type Locale = 'ko' | 'en'
+/**
+ * 언어 코드는 `shared/`가 갖는다. 사이트맵을 만드는 서버 라우트도 같은 것을
+ * 봐야 하는데 서버는 `app/`을 읽지 못한다. 여기서는 그대로 다시 내보내
+ * 기존 `~/i18n/messages` 임포트가 그대로 동작하게 한다.
+ *
+ * ⚠️ 별칭(`#shared`)이 아니라 상대경로다. `scripts/*.ts`를 node로 직접 돌릴 때
+ *    별칭은 해석되지 않는다. → `app/utils/format.ts`의 같은 주석
+ */
+import type { Locale } from '../../shared/constants/locale.ts'
 
-export const LOCALES: readonly Locale[] = ['ko', 'en']
+export { LOCALES } from '../../shared/constants/locale.ts'
+export type { Locale }
 
 /** 'YYYYMMDD' → [월, 일]. 축제 기간 표기가 두 언어에서 이 조각을 쓴다. */
 const monthDay = (value: string) => [Number(value.slice(4, 6)), Number(value.slice(6, 8))] as const

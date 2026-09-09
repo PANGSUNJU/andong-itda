@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LOCALES, MESSAGES } from '~/i18n/messages'
+import { LOCALES, MESSAGES, type Locale } from '~/i18n/messages'
 
 /**
  * 전역 셸 — 상단 네비(태블릿 이상) + 하단 탭바(폰)
@@ -66,10 +66,53 @@ const languages = computed(() =>
  */
 const origin = useRequestURL().origin
 
+/**
+ * 공유 카드 — 링크를 붙여넣었을 때 뜨는 그림과 문장
+ *
+ * 없으면 회색 빈 상자가 뜬다. 이 서비스가 사람에게 닿는 경로가 대부분 링크
+ * (숙소·안내소·심사위원에게 보낸 URL)인데, 그 첫인상이 빈 상자였다.
+ *
+ * 제목은 페이지가 정한다(→ `usePageTitle`). 여기서는 페이지마다 달라지지 않는
+ * 것만 붙인다 — 설명·이미지·주소·언어. 제목을 여기서도 쓰면 두 자리가 서로
+ * 다른 문장을 말하는 날이 온다.
+ *
+ * ⚠️ og:image는 **절대 주소**여야 한다. 스크래퍼는 우리 페이지 밖에서 이미지를
+ *    받으러 오므로 `/og-card.png`처럼 상대 주소로 적으면 아무것도 못 받는다.
+ */
+const shareImage = computed(() => `${origin}/og-card.png`)
+
+/** 이 화면의 정본 주소. 쿼리는 뺀다 — 검색어가 달라도 같은 문서다. */
+const canonical = computed(() => `${origin}${route.path}`)
+
+/** og가 요구하는 표기는 `ko`가 아니라 `ko_KR`이다. */
+const OG_LOCALE: Record<Locale, string> = { ko: 'ko_KR', en: 'en_US' }
+
 useHead(() => ({
   htmlAttrs: { lang: t.value.htmlLang },
-  meta: [{ name: 'description', content: t.value.description }],
+  meta: [
+    { name: 'description', content: t.value.description },
+
+    { property: 'og:site_name', content: t.value.brand },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:url', content: canonical.value },
+    { property: 'og:description', content: t.value.description },
+    { property: 'og:image', content: shareImage.value },
+    { property: 'og:image:width', content: '1200' },
+    { property: 'og:image:height', content: '630' },
+    { property: 'og:image:alt', content: t.value.brand },
+    { property: 'og:locale', content: OG_LOCALE[locale.value] },
+    ...LOCALES.filter((code) => code !== locale.value).map((code) => ({
+      property: 'og:locale:alternate',
+      content: OG_LOCALE[code],
+    })),
+
+    // 이미지가 1.91:1이라 큰 카드를 쓴다. 정사각 로고였다면 summary가 맞다.
+    { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:description', content: t.value.description },
+    { name: 'twitter:image', content: shareImage.value },
+  ],
   link: [
+    { rel: 'canonical', href: canonical.value },
     ...LOCALES.map((code) => ({
       rel: 'alternate',
       hreflang: code,

@@ -17,7 +17,7 @@ import type { FoodPlace, Spot } from '#shared/types/tour'
 const t = useT()
 const d = useDisplay()
 
-useHead(() => ({ title: t.value.browse.title }))
+usePageTitle(() => t.value.browse.title)
 
 // 두 목록은 서로를 기다릴 이유가 없다. 순차로 await하면 SSR에서 왕복이 두 번 쌓인다.
 const [{ data: spots }, { data: foods }] = await Promise.all([

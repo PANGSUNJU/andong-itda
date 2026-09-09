@@ -27,7 +27,7 @@ if (!spot.value) {
   throw createError({ statusCode: 404, statusMessage: t.value.spot.notFound, fatal: true })
 }
 
-useHead(() => ({ title: t.value.spot.title(spot.value ? d.name(spot.value) : '') }))
+usePageTitle(() => t.value.spot.title(spot.value ? d.name(spot.value) : ''))
 
 /**
  * 버스 정보는 이름으로 조회한다. 정류장 매핑이 있는 7곳만 200을 준다.
