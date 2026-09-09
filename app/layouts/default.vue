@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { LOCALES, MESSAGES, type Locale } from '~/i18n/messages'
+import { MESSAGES, type Locale } from '~/i18n/messages'
+import { LOCALES } from '#shared/constants/locale'
 
 /**
  * 전역 셸 — 상단 네비(태블릿 이상) + 하단 탭바(폰)

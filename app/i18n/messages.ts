@@ -25,15 +25,23 @@
 
 /**
  * 언어 코드는 `shared/`가 갖는다. 사이트맵을 만드는 서버 라우트도 같은 것을
- * 봐야 하는데 서버는 `app/`을 읽지 못한다. 여기서는 그대로 다시 내보내
- * 기존 `~/i18n/messages` 임포트가 그대로 동작하게 한다.
+ * 봐야 하는데 서버는 `app/`을 읽지 못한다.
  *
- * ⚠️ 별칭(`#shared`)이 아니라 상대경로다. `scripts/*.ts`를 node로 직접 돌릴 때
- *    별칭은 해석되지 않는다. → `app/utils/format.ts`의 같은 주석
+ * ⚠️ **타입만** 들여온다. `import type`은 컴파일에서 통째로 지워지므로
+ *    이 파일에 런타임 의존이 생기지 않는다. 그게 여기서 별칭(`#shared`)을
+ *    써도 되는 이유이자, 반드시 타입만 들여와야 하는 이유다.
+ *
+ *    값(`LOCALES`)까지 여기서 다시 내보냈더니 빌드가 깨졌다. 번들러가 이 파일을
+ *    거쳐 `shared/`로 가는 **런타임 경로**를 만들고, 그 상대경로가 출력 디렉터리
+ *    밖으로 나가 Rollup이 해석하지 못한다. 값이 필요한 쪽(레이아웃·사이트맵)은
+ *    `#shared/constants/locale`에서 직접 가져간다.
+ *
+ *    같은 이유로 `app/utils/format.ts`는 이 파일을 상대경로로 들여온다 —
+ *    `scripts/*.ts`를 node로 직접 돌릴 때 별칭이 해석되지 않기 때문이다.
+ *    타입만 오가는 이 줄은 node가 지우고 지나가므로 그 제약과 무관하다.
  */
-import type { Locale } from '../../shared/constants/locale.ts'
+import type { Locale } from '#shared/constants/locale'
 
-export { LOCALES } from '../../shared/constants/locale.ts'
 export type { Locale }
 
 /** 'YYYYMMDD' → [월, 일]. 축제 기간 표기가 두 언어에서 이 조각을 쓴다. */
