@@ -485,6 +485,22 @@ const ko = {
     privacy2:
       '웹사이트를 여는 것만으로 남는 접속 기록은 배포 환경이 자동으로 처리하는 부분이라, 저희가 따로 들여다보거나 다른 목적으로 쓰지 않아요.',
 
+    /**
+     * 만든 과정 — 저장소 링크
+     *
+     * 이 서비스의 판단 근거는 대부분 화면에 안 보이는 곳에 있다. 어느 정류장을
+     * 왜 뒤로 미는지, 모르는 막차 시각을 왜 비워 두는지 같은 것들이다. 그 기록이
+     * 저장소에 있는데 사이트 어디에도 가는 길이 없었다. 제출물이 URL 하나라
+     * 링크가 없으면 아무에게도 닿지 않는다.
+     *
+     * 숫자를 적어 둔다. "결정 기록이 있어요"는 클릭할 이유가 안 되지만 "38건"은
+     * 된다. ⚠️ ADR이 늘면 여기도 고친다. 틀린 숫자를 적느니 안 적는 편이 낫다.
+     */
+    sourceHead: '만든 과정',
+    sourceBody:
+      '화면에 보이지 않는 판단이 많아요. 어느 정류장을 왜 뒤로 미는지, 모르는 막차 시각을 왜 비워 두는지 같은 것들이에요. 그 결정을 38건의 기록으로 남겨 뒀어요.',
+    sourceLink: '소스 코드와 결정 기록 (GitHub)',
+
     closing:
       '안동잇다는 한국관광공사 2026 관광데이터 활용 공모전 출품작이에요. 차 없이 안동을 여행하는 분들을 위해 만들었어요.',
   },
@@ -849,6 +865,11 @@ const en: Messages = {
       'There is no sign-up and no login. We collect nothing that identifies you — no name, contact, or payment details — and there is no database to hold them.',
     privacy2:
       'Access logs that exist simply because you opened the site are handled automatically by our hosting provider. We do not inspect them or use them for anything else.',
+
+    sourceHead: 'How this was built',
+    sourceBody:
+      "A lot of the judgement here never shows on screen — why a stop gets pushed down the list, why we leave a last-bus time blank when we do not know it. Those decisions are written down: 38 records.",
+    sourceLink: 'Source code and decision records (GitHub)',
 
     closing:
       'Andong Itda is an entry in the Korea Tourism Organization 2026 Tourism Data Contest. We built it for people traveling Andong without a car.',

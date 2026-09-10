@@ -134,6 +134,31 @@ usePageTitle(() => t.value.about.title)
       </p>
     </section>
 
+    <!--
+      만든 과정 — 저장소로 가는 길
+
+      제출물이 URL 하나뿐이라 이 링크가 없으면 결정 기록·회귀 스크립트·커밋
+      메시지가 아무에게도 닿지 않는다. 화면이 말하지 않는 근거가 거기 있다.
+
+      새 창으로 연다. 읽던 화면을 저장소로 덮어쓰지 않는다.
+    -->
+    <section class="border-t border-hairline py-8">
+      <h2 class="mb-3 text-[22px] font-medium leading-tight tracking-[-0.44px]">
+        {{ t.about.sourceHead }}
+      </h2>
+
+      <p class="text-base leading-relaxed text-body">{{ t.about.sourceBody }}</p>
+
+      <a
+        href="https://github.com/PANGSUNJU/andong-itda"
+        target="_blank"
+        rel="noopener"
+        class="mt-4 inline-flex items-center gap-1.5 rounded-full border border-ink px-4 py-2.5 text-sm font-medium"
+      >
+        {{ t.about.sourceLink }}
+      </a>
+    </section>
+
     <section class="border-t border-hairline py-8">
       <p class="text-sm leading-relaxed text-muted-soft">
         {{ t.about.closing }}

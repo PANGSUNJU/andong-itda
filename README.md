@@ -4,6 +4,8 @@
 
 버스를 기다리는 시간에 다녀올 수 있는 곳을 알려준다.
 
+**https://andong-itda.vercel.app**
+
 > 2026 관광데이터 활용 공모전 출품작 (1차 통과)
 
 ---
@@ -47,7 +49,7 @@
 - 기초지자체 중심 관광지 정보 (LocgoHubTarService1) — 방문 기반 인기 순위
 - 국문 관광정보 서비스 (KorService2) — 설명·이미지·주소·음식점
 - 관광사진 정보 (PhotoGalleryService1) — 위 둘이 사진을 못 준 곳의 마지막 보충
-- 영문 관광정보 서비스 (EngService2) — 관광지 영문명 (지역 조회 + 광역 검색 + 이름 재검색으로 17/54)
+- 영문 관광정보 서비스 (EngService2) — 관광지 영문명 (지역 조회 + 광역 검색 + 이름 재검색으로 17/44)
 
 **안동시 공공 API**
 - 정류장 정보 / 정류장별 도착정보 / 노선 정보
@@ -95,12 +97,14 @@ node scripts/build-station-directions.ts
 |---|---|---|
 | `GET /api/bus/stations` | 1일 | ✅ 2107건 → 4필드 153KB (`useYn='Y'`·중복 `stationId` 제거, 좌표 5자리) |
 | `GET /api/bus/arrivals?stationId=` | 없음 | ✅ `predictTm` 오름차순, null 후순위 |
-| `GET /api/bus/routes` | 1분 | ✅ 421건 (`runTotCnt` 포함) |
-| `GET /api/spot-bus/[spot]` | 없음 | ✅ 실시간 + 시간표 + 운행여부 결합 |
-| `GET /api/spots` | 1일 | ✅ 54건 (숙박·노이즈 제외, 이미지 76%) |
+| `GET /api/bus/routes` | 1분 | ✅ 422건 (`runTotCnt` 포함) |
+| `GET /api/spot-bus/[spot]` | 없음 | ✅ 실시간 + 시간표 + 운행여부 결합 (사람이 확인한 7곳) |
+| `GET /api/spot-routes/[spot]` | 1분 | ✅ **44곳 전부** — 어느 노선을 타면 오는가 (→ [ADR-036](docs/decisions.md)) |
+| `GET /api/spots` | 1일 | ✅ 44건 (숙박·노이즈 제외, 이미지 35/44) |
 | `GET /api/food` | 1일 | ✅ 15건 (찜닭1·헛제삿밥2·한식8·카페4) |
 | `GET /api/festivals` | 목록만 1일 | ✅ 열리거나 30일 내 시작하는 축제 + 가까운 정류장 (→ [ADR-035](docs/decisions.md)) |
-| `GET /api/spots/[id]` | — | 미구현 (`detailCommon2`는 검증됨. 화면이 아직 없다) |
+| `GET /api/spots/[id]` | — | 미구현 (`detailCommon2`는 검증됨. 목록에서 찾아 쓰고 있다) |
+| `GET /sitemap.xml` | 1일 | ✅ 96건 = (정적 4 + 관광지 44) × 2언어, `/api/spots`에서 생성 |
 
 **좌표를 받는 라우트는 없다.** 주변 정류장·주변 관광지는 목록을 통째로 받아
 브라우저에서 `nearest()`로 고른다. 사용자 좌표를 서버로 보내지 않기 위해서다.
@@ -111,9 +115,10 @@ node scripts/build-station-directions.ts
 | 경로 | 상태 |
 |---|---|
 | `/` 지금 여기 | ✅ 위치 기반 정류장·도착·도보권/버스권 관광지·인기 순위 |
-| `/browse` 둘러보기 | ✅ 관광지 54곳 검색·분류·정렬 / 식도락 15곳 (분류 → [ADR-023](docs/decisions.md)) |
-| `/spots/[id]` 상세 | ✅ 관광 정보 + 버스 안내 한 화면 (등록된 7곳) |
-| `/walk` 걷는 길 | ✅ 자체 큐레이션 코스 2개 (정적) |
+| `/browse` 둘러보기 | ✅ 관광지 44곳 검색·분류·정렬 / 식도락 15곳 (분류 → [ADR-023](docs/decisions.md)) |
+| `/spots/[id]` 상세 | ✅ 관광 정보 + 버스 안내 한 화면. **노선 안내 44곳 전부**, 실시간 도착은 확인된 7곳 (→ [ADR-036](docs/decisions.md)) |
+| `/walk` 걷는 길 | ✅ 코스 2개 + **갈 때·올 때 노선과 막차 경고** (→ [ADR-038](docs/decisions.md)) |
+| 오류 화면 | ✅ `app/error.vue` — 없는 관광지와 없는 주소를 갈라 말한다 |
 | `/en/…` 영문 | ✅ 위 네 화면의 영문 주소 (→ [ADR-031](docs/decisions.md)) |
 | 축제 (헤더 아이콘) | ✅ **열릴 때만 나타난다.** 누르면 기간·장소·가까운 정류장·실시간 도착 (→ [ADR-035](docs/decisions.md)) |
 
@@ -128,7 +133,7 @@ node scripts/build-station-directions.ts
 `nuxt.config.ts`의 `pages:extend`가 라우트만 한 벌 더 만든다. 화면 문구는
 `app/i18n/messages.ts`에 전부 있고 `en`이 타입으로 강제되어 누락이 컴파일에서 잡힌다.
 
-이름은 다르다. **영문이 있으면 영문, 없으면 국문 그대로** 둔다(관광지 17/54, 정류장
+이름은 다르다. **영문이 있으면 영문, 없으면 국문 그대로** 둔다(관광지 17/44, 정류장
 2105/2105). 로마자로 지어내지 않는다 — 현장 간판이 국문이라 지어낸 이름으로는 길을
 물을 수 없다. 주소와 관광지 설명은 상류에 영문이 없어 국문으로 남는다.
 한 화면에는 한 언어만 둔다. 반대편 언어를 나란히 붙이지 않는다.
@@ -137,8 +142,13 @@ node scripts/build-station-directions.ts
 
 홈의 정류장 칩은 이름 아래에 **방면**(노선상 다음 정류장)을 적는다. 정류장 2105곳 중
 1644곳이 다른 정류장과 이름이 같아 이름만으로는 승강장을 고를 수 없다. 도착 정보가
-원리적으로 오지 않는 기·종점 전용 승강장 42곳은 맨 뒤로 보낸다.
-→ [ADR-026](docs/decisions.md)
+오지 않는 **기점 전용** 승강장 15곳은 맨 뒤로 보낸다.
+
+⚠️ 예전에는 이 숫자가 53곳이었다. "노선 중간에 한 번도 안 놓임"으로 판정해
+**기점과 종점을 함께 묶었기 때문**이다. 종점에는 그리로 달려오는 차가 있다 —
+실측(2026-09-10 19:20)에서 종점 전용 승강장 3곳이 전부 도착을 반환했다.
+34곳이 멀쩡한데도 뒤로 밀리고 있었다.
+→ [ADR-026](docs/decisions.md) · [ADR-037](docs/decisions.md)
 
 지도는 `MapCard` 하나가 세 자리(홈 도보 반경 · 둘러보기 분포 · 상세 주변)를 맡는다.
 목록 필터를 그대로 따라간다. 이동·확대·축소는 되고 휠 줌만 껐다 — 카드 위에서
@@ -171,7 +181,7 @@ node scripts/build-station-directions.ts
 
 | 문서 | 내용 |
 |---|---|
-| [docs/decisions.md](docs/decisions.md) | 설계 결정 기록 (ADR 25건) |
+| [docs/decisions.md](docs/decisions.md) | 설계 결정 기록 (ADR 38건) |
 | [docs/dev-log.md](docs/dev-log.md) | 날짜별 개발 로그 · 다음에 할 일 |
 | [docs/api-reference.md](docs/api-reference.md) | 검증된 API 명세 |
 | [PROJECT-PROMPT.md](PROJECT-PROMPT.md) | 프로젝트 구축 지시서 (초기 기준, 일부는 실측으로 갱신됨) |
