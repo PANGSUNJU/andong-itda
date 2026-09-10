@@ -78,6 +78,21 @@ function serviceKey(): string {
  * 결과가 없으면 items가 빈 배열이 아니라 빈 문자열('')로 온다. 그 처리를 여기서 끝낸다.
  */
 /**
+ * 인증키를 지운다 — **로그에도 응답에도 키가 남으면 안 된다**
+ *
+ * ⚠️ ofetch의 오류 메시지는 요청 URL을 **쿼리스트링째** 담는다. 그 안에
+ *    `serviceKey`가 들어 있다. 실제로 배포 로그에 키가 통째로 찍혀 있었다
+ *    (2026-09-11 발견). 더 나쁜 것은 그 메시지가 아래 `createError`의
+ *    `data.reason`으로 들어가 **502 응답 본문에 실려 브라우저까지 나간다**는 점이다.
+ *    TourAPI가 한 번 흔들리면 그때 화면을 열고 있던 누구에게나 키가 간다.
+ *
+ * 진단에 필요한 것은 "어느 주소가 무슨 코드로 실패했는가"이지 키가 아니다.
+ */
+function redactKey(text: string): string {
+  return text.replace(/serviceKey=[^&"s]*/gi, 'serviceKey=***')
+}
+
+/**
  * 오류에서 사람이 읽을 한 줄을 꺼낸다.
  *
  * `fetchTourApi`는 `createError`로 감싸 던지고 진짜 원인은 `data.reason`에 있다.
@@ -85,8 +100,8 @@ function serviceKey(): string {
  */
 function reasonOf(error: unknown): string {
   const data = (error as { data?: { reason?: string } })?.data
-  if (data?.reason) return data.reason
-  return error instanceof Error ? error.message : String(error)
+  if (data?.reason) return redactKey(data.reason)
+  return redactKey(error instanceof Error ? error.message : String(error))
 }
 
 async function fetchTourApi<T>(
@@ -113,7 +128,8 @@ async function fetchTourApi<T>(
       statusMessage: 'TourAPI 호출 실패',
       data: {
         upstream: url,
-        reason: error instanceof Error ? error.message : String(error),
+        // 키를 지우고 담는다. 이 data는 502 본문으로 브라우저까지 나간다.
+        reason: redactKey(error instanceof Error ? error.message : String(error)),
       },
       cause: error,
     })
