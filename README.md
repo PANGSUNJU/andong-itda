@@ -32,7 +32,7 @@
 | 프레임워크 | Nuxt 4 (TypeScript) |
 | 스타일 | Tailwind CSS v4 |
 | 패키지 매니저 | pnpm |
-| 배포 | Vercel |
+| 배포 | Vercel (`icn1` 서울 — 상류가 전부 한국에 있다) |
 | 백엔드 | 없음 (Nuxt server routes) |
 | 데이터베이스 | 없음 |
 
