@@ -47,7 +47,7 @@
 
 **한국관광공사 OpenAPI**
 - 기초지자체 중심 관광지 정보 (LocgoHubTarService1) — 방문 기반 인기 순위
-- 국문 관광정보 서비스 (KorService2) — 설명·이미지·주소·음식점
+- 국문 관광정보 서비스 (KorService2) — 설명·이미지·주소·음식점·축제, 그리고 `detailIntro2`로 이용 안내
 - 관광사진 정보 (PhotoGalleryService1) — 위 둘이 사진을 못 준 곳의 마지막 보충
 - 영문 관광정보 서비스 (EngService2) — 관광지 영문명 (지역 조회 + 광역 검색 + 이름 재검색으로 17/44)
 - 관광지별 연관 관광지 정보 (TarRlteTarService1) — 함께 많이 찾는 곳 (44곳 중 21곳, → [ADR-042](docs/decisions.md))
@@ -104,7 +104,7 @@ node scripts/build-station-directions.ts
 | `GET /api/spots` | 1일 | ✅ 44건 (숙박·노이즈 제외, 이미지 35/44) |
 | `GET /api/food` | 1일 | ✅ 28건 (찜닭6·헛제삿밥2·한식13·카페7) — 법정동 조회 (→ [ADR-039](docs/decisions.md)) |
 | `GET /api/festivals` | 목록만 1일 | ✅ 열리거나 30일 내 시작하는 축제 (→ [ADR-035](docs/decisions.md) · [ADR-041](docs/decisions.md)) |
-| `GET /api/spots/[id]` | — | 미구현 (`detailCommon2`는 검증됨. 목록에서 찾아 쓰고 있다) |
+| `GET /api/spot-guide/[id]` | 1일 | ✅ 이용 안내 — 국문 34/44 · 영문 13/44 (`detailIntro2`, → [ADR-046](docs/decisions.md)) |
 | `GET /api/spot-related/[id]` | 1일 | ✅ 함께 많이 찾는 곳 — 44곳 중 21곳 (→ [ADR-042](docs/decisions.md)) |
 | `GET /api/walk-areas` | 1일 | ✅ 걸어서 이어지는 동네 12곳 (→ [ADR-043](docs/decisions.md)) |
 | `GET /sitemap.xml` | 1일 | ✅ 96건 = (정적 4 + 관광지 44) × 2언어, `/api/spots`에서 생성 |
@@ -119,7 +119,7 @@ node scripts/build-station-directions.ts
 |---|---|
 | `/` 지금 여기 | ✅ 위치 기반 정류장·도착·도보권/버스권 관광지·인기 순위 |
 | `/browse` 둘러보기 | ✅ 관광지 44곳 검색·분류·정렬 / 식도락 28곳 (분류 → [ADR-023](docs/decisions.md)) |
-| `/spots/[id]` 상세 | ✅ 관광 정보 + 버스 안내 한 화면. **노선 안내 44곳 전부**, 실시간 도착은 확인된 7곳 (→ [ADR-036](docs/decisions.md)) |
+| `/spots/[id]` 상세 | ✅ 관광 정보 + 버스 안내 + **이용 안내**(운영시간·휴무일·주차·문의) 한 화면. 노선 안내 44곳 전부, 실시간 도착은 확인된 7곳 (→ [ADR-036](docs/decisions.md) · [ADR-046](docs/decisions.md)) |
 | `/walk` 걷는 길 | ✅ 코스 2개(갈 때·올 때 노선·막차 경고) + **걸어서 이어지는 동네 12곳** (→ [ADR-038](docs/decisions.md) · [ADR-043](docs/decisions.md)) |
 | 오류 화면 | ✅ `app/error.vue` — 없는 관광지와 없는 주소를 갈라 말한다 |
 | `/en/…` 영문 | ✅ 위 네 화면의 영문 주소 (→ [ADR-031](docs/decisions.md)) |
