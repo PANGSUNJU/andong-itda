@@ -36,11 +36,20 @@ export interface StationDirections {
   /** stationId → 방면(다음 정류장 이름) */
   directions: Record<string, string>
   /**
-   * 노선의 중간에 한 번도 놓이지 않는 정류장.
+   * 도착정보가 오지 않는 승강장 — **기점 전용**이다.
    *
-   * 기점이거나 종점으로만 등장한다는 뜻이고, 그런 승강장에는 "접근 중인 차량"이
-   * 성립하지 않아 도착정보(`tab=2`)가 **항상 빈 배열**이다. → ADR-015
-   * 실측(2026-08-13): 354000536 "안동역(안동터미널)" = 종점 62 / 기점 6 / 중간 0 → 도착 0건.
+   * ⚠️ 예전에는 "노선 중간에 한 번도 안 놓임"이 조건이었고, 그건 기점과 종점을
+   *    한 덩어리로 묶었다. 둘은 다르다. 기점에는 접근 중인 차가 성립하지 않지만
+   *    종점에는 **그리로 달려오는 차가 있다.**
+   *
+   *    실측(2026-09-10 19:20, 49개 노선 76대 운행 중):
+   *      기점으로만 등장   18곳 · 측정 가능 7곳 → 도착 **0곳** (ADR-015가 맞다)
+   *      종점으로만 등장   18곳 · 측정 가능 3곳 → 도착 **3곳 전부**
+   *                       봉정사 310 9분 · 국립경국대 4건 · 정부경북지방합동청사 5건
+   *      대조군(중간)      30곳 → 20곳
+   *
+   *    옛 조건은 53곳을 묶었고 그중 34곳이 멀쩡한 승강장이었다. 홈은 그것들을
+   *    뒤로 밀고 "다른 승강장을 골라 주세요"라고 말하고 있었다. → ADR-037
    */
   terminusOnly: number[]
 }
@@ -104,16 +113,34 @@ export function deriveRouteIndex(entries: [number, BusRouteStation[]][]): RouteS
  *
  * 회귀 검증: `node scripts/check-bus-logic.ts`
  */
+/**
+ * 구조로는 설명되지 않지만 실측으로 도착이 오지 않는 승강장.
+ *
+ * 354000536 안동역(안동터미널) — 종점 62 / 기점 4 / 중간 0. 구조만 보면 종점이라
+ * 도착이 와야 하는데, 실측(2026-09-10 19:20)에서 **그리로 오는 노선에 26대가
+ * 도는데 도착 0건**이었다. 2026-08-13 측정도 같았다. 회차·하차 전용 승강장으로
+ * 보이지만 상류가 그 사실을 필드로 주지 않으므로 여기 손으로 적는다.
+ *
+ * ⚠️ 추측으로 늘리지 말 것. **"운행 중인 차가 그 정류장으로 오는데 0건"을 실제로
+ *    관측한 승강장만** 넣는다. 근거 없이 넣으면 멀쩡한 승강장이 화면에서 사라진다.
+ */
+const MEASURED_EMPTY = [354000536]
+
 export function deriveDirections(lists: BusRouteStation[][]): StationDirections {
   const tally = new Map<number, Map<string, number>>()
-  /** stationId → [노선 중간에 놓인 횟수, 전체 등장 횟수] */
-  const position = new Map<number, [number, number]>()
+  /** stationId → [중간에 놓인 횟수, 전체 등장 횟수, 종점으로 놓인 횟수] */
+  const position = new Map<number, [number, number, number]>()
 
   for (const list of lists) {
     for (const [index, station] of list.entries()) {
-      const seen = position.get(station.stationId) ?? [0, 0]
+      const seen = position.get(station.stationId) ?? [0, 0, 0]
       const isMiddle = index > 0 && index < list.length - 1
-      position.set(station.stationId, [seen[0] + (isMiddle ? 1 : 0), seen[1] + 1])
+      const isLast = index === list.length - 1 && list.length > 1
+      position.set(station.stationId, [
+        seen[0] + (isMiddle ? 1 : 0),
+        seen[1] + 1,
+        seen[2] + (isLast ? 1 : 0),
+      ])
 
       const next = list.slice(index + 1).find((later) => later.stationNm !== station.stationNm)
       if (!next) continue
@@ -130,12 +157,20 @@ export function deriveDirections(lists: BusRouteStation[][]): StationDirections 
     if (top) directions[String(stationId)] = top[0]
   }
 
-  const terminusOnly = [...position]
-    .filter(([, [middle]]) => middle === 0)
+  /**
+   * 기점으로만 등장 = 중간에도 없고 종점으로도 없다.
+   *
+   * 이 조건만이 "접근 중인 차량이 원리적으로 없다"를 뜻한다. 종점을 여기 넣으면
+   * 실제로 버스가 오는 승강장을 화면에서 지워 버린다.
+   */
+  const originOnly = [...position]
+    .filter(([, [middle, , last]]) => middle === 0 && last === 0)
     .map(([stationId]) => stationId)
-    .sort((a, b) => a - b)
 
-  return { directions, terminusOnly }
+  return {
+    directions,
+    terminusOnly: [...new Set([...originOnly, ...MEASURED_EMPTY])].sort((a, b) => a - b),
+  }
 }
 
 async function fetchBusApi<T>(tab: string, id?: number): Promise<T[]> {

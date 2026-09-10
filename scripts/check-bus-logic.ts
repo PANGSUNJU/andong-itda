@@ -73,10 +73,23 @@ const { directions, terminusOnly } = deriveDirections([나가는편, 들어오�
 assert.equal(directions['416'], '송야교사거리')
 assert.equal(directions['459'], '송야교사거리')
 
-// 노선 중간에 한 번도 놓이지 않은 승강장 = 도착정보가 영영 오지 않는 곳.
-// 이 판정이 뒤집히면 오지 않을 버스를 기다리게 하거나, 멀쩡한 승강장을 뒤로 민다.
-assert.equal(terminusOnly.includes(416), true)
+/**
+ * 도착정보가 영영 오지 않는 승강장 = **기점 전용**이다.
+ *
+ * ⚠️ 예전 조건은 "중간에 한 번도 안 놓임"이었고 기점과 종점을 함께 묶었다.
+ *    실측(2026-09-10 19:20)이 그걸 반증했다 — 종점으로만 등장하는 승강장 중
+ *    측정 가능한 3곳이 **전부** 도착을 반환했다(봉정사 310 9분 등). 옛 조건은
+ *    53곳을 묶었고 그중 34곳이 멀쩡한 승강장이었다. → ADR-037
+ *
+ * 아래 두 정류장은 위 픽스처에서 둘 다 종점으로 등장하므로(들어오는편의 끝)
+ * 기점 전용이 아니다. 이 두 줄이 뒤집히면 실제로 버스가 오는 승강장이
+ * 화면에서 뒤로 밀리고 "다른 승강장을 골라 주세요"를 듣는다.
+ */
+assert.equal(terminusOnly.includes(416), false)
 assert.equal(terminusOnly.includes(459), false)
+
+// 기점으로만 등장하는 승강장은 잡아야 한다. 900은 들어오는편의 첫 정류장뿐이다.
+assert.equal(terminusOnly.includes(900), true)
 
 /**
  * 방면 — 상류가 종점을 줄 때와 안 줄 때

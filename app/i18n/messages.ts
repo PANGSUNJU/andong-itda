@@ -113,7 +113,12 @@ const ko = {
     busErrorTitle: '버스 정보를 가져오지 못했어요.',
     busErrorBody: '안동시 버스정보 시스템이 응답하지 않고 있어요.',
 
-    terminusTag: '종점 승강장 · 도착 정보 없음',
+    /**
+     * ⚠️ "종점 승강장"이라고 적었었다. 이제 이 꼬리표가 붙는 19곳은 대부분
+     *    **기점**이다(실측으로 종점은 도착이 온다 → ADR-037). 어느 쪽인지
+     *    말하지 않고 결과만 적는다 — 여행자에게 필요한 건 그 사실이다.
+     */
+    terminusTag: '도착 정보가 없는 승강장',
     directionTag: (destination: string) => `${destination} 방면`,
     rightHere: '바로 앞이에요',
     walkFromHere: (distance: string, minutes: number) =>
@@ -537,7 +542,7 @@ const en: Messages = {
     busErrorTitle: "Couldn't load bus information.",
     busErrorBody: "Andong's bus information system isn't responding right now.",
 
-    terminusTag: 'Terminus platform · no arrival info',
+    terminusTag: 'No arrival info at this platform',
     directionTag: (destination: string) => `Toward ${destination}`,
     rightHere: "It's right in front of you",
     walkFromHere: (distance: string, minutes: number) =>
