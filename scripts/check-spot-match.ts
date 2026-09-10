@@ -167,7 +167,13 @@ assert.equal(noiseReason('안동퇴계예던길/1코스'), null)
 
 /* 음식점 분류 — ADR-023. 아래 이름은 전부 2026-08-02 실제 응답의 title이다. */
 
-const food = (title: string, cat3: string) => ({ title, cat3 }) as never
+/**
+ * 두 분류 필드를 다 받는다. 법정동 코드로 조회한 레코드는 `cat3`가 비어서 오고
+ * `lclsSystm2`만 채워진다(실측 2026-09-10). 옛 레코드는 그 반대가 아니라 둘 다
+ * 채워져 온다. 그래서 이 픽스처는 한쪽만 있는 경우를 각각 만들어 본다. → ADR-039
+ */
+const food = (title: string, cat3: string, lclsSystm2 = '') =>
+  ({ title, cat3, lclsSystm2 }) as never
 
 // 이름이 스스로 밝히는 것만 태깅한다.
 assert.equal(foodCategoryOf(food('안동 유진찜닭', 'A05020100')), '찜닭')
@@ -186,6 +192,23 @@ assert.equal(foodCategoryOf(food('맘모스베이커리', 'A05020900')), '카페
 assert.equal(foodCategoryOf(food('396커피컴퍼니', 'A05020900')), '카페')
 // 상류가 새 cat3를 보내와도 목록에서 사라지지 않는다. 모르는 값은 한식으로 둔다.
 assert.equal(foodCategoryOf(food('언젠가 생길 국숫집', 'A05029999')), '한식')
+
+/**
+ * ⚠️ 법정동 조회 레코드는 `cat3`가 빈 문자열이다. `cat3`만 보던 시절 아래 셋이
+ *    카페인데 한식으로 분류됐다. 실제 응답의 title과 lclsSystm2다. → ADR-039
+ */
+assert.equal(foodCategoryOf(food('브레드 79', '', 'FD05')), '카페')
+assert.equal(foodCategoryOf(food('아차가', '', 'FD05')), '카페')
+assert.equal(foodCategoryOf(food('월영당', '', 'FD05')), '카페')
+
+// 같은 조회로 들어온 한식·찜닭은 그대로 갈린다. 찜닭이 1곳에서 6곳이 된 자리다.
+assert.equal(foodCategoryOf(food('중앙찜닭', '', 'FD01')), '찜닭')
+assert.equal(foodCategoryOf(food('원조안동찜닭 본점', '', 'FD01')), '찜닭')
+assert.equal(foodCategoryOf(food('경상도추어탕', '', 'FD01')), '한식')
+
+// 옛 레코드는 둘 다 채워져 온다. 한쪽만 봐도 같은 답이어야 한다.
+assert.equal(foodCategoryOf(food('맘모스베이커리', 'A05020900', 'FD05')), '카페')
+assert.equal(foodCategoryOf(food('농가맛집 뜰', 'A05020100', 'FD01')), '한식')
 
 console.log(
   'ok — normalizeSpotName · nameSimilarity · distanceMeters · nearest(거리순·반경·개수) · matchKorSpot(좌표 1순위) · pickByName(이름 1순위) · keywordVariants · noiseReason · foodCategoryOf',

@@ -6,8 +6,8 @@ import { distanceMeters } from '../../shared/constants/location.ts'
 import {
   CONTENT_TYPE,
   FOOD_CAT3,
+  FOOD_LCLS,
   KOR_SERVICE_LDONG_REGION,
-  KOR_SERVICE_REGION,
   LOCGO_HUB_REGION,
 } from '../../shared/constants/region.ts'
 import type {
@@ -246,7 +246,7 @@ export async function fetchFoodPlaces(): Promise<FoodPlace[]> {
     numOfRows: 100,
     pageNo: 1,
     contentTypeId: CONTENT_TYPE.RESTAURANT,
-    ...KOR_SERVICE_REGION,
+    ...KOR_SERVICE_LDONG_REGION,
   })
 
   return items.map(toFoodPlace)
@@ -363,9 +363,15 @@ const FOOD_NAME_PATTERNS: ReadonlyArray<{ category: FoodCategory; pattern: RegEx
  *
  * 카페 판정을 먼저 한다. 한식/카페 구분은 API가 직접 준 답이라
  * 이름 추측보다 강하다. 향토음식 태깅은 그 한식 안에서만 한다.
+ *
+ * ⚠️ `lclsSystm2`를 먼저 본다. 법정동 코드로 조회한 레코드는 `cat3`가 빈 문자열로
+ *    오기 때문이다(실측 2026-09-10, 새 13곳 전부). `cat3`만 보던 시절에는
+ *    브레드 79·아차가·월영당이 카페인데 한식으로 분류됐다. → ADR-039
+ *
+ *    둘 다 확인한다. 어느 한쪽이 비어도 나머지가 답한다.
  */
 export function foodCategoryOf(kor: KorSpot): FoodCategory {
-  if (kor.cat3 === FOOD_CAT3.CAFE) return '카페'
+  if (kor.lclsSystm2 === FOOD_LCLS.CAFE || kor.cat3 === FOOD_CAT3.CAFE) return '카페'
 
   return FOOD_NAME_PATTERNS.find(({ pattern }) => pattern.test(kor.title))?.category ?? '한식'
 }

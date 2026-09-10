@@ -101,7 +101,7 @@ node scripts/build-station-directions.ts
 | `GET /api/spot-bus/[spot]` | 없음 | ✅ 실시간 + 시간표 + 운행여부 결합 (사람이 확인한 7곳) |
 | `GET /api/spot-routes/[spot]` | 1분 | ✅ **44곳 전부** — 어느 노선을 타면 오는가 (→ [ADR-036](docs/decisions.md)) |
 | `GET /api/spots` | 1일 | ✅ 44건 (숙박·노이즈 제외, 이미지 35/44) |
-| `GET /api/food` | 1일 | ✅ 15건 (찜닭1·헛제삿밥2·한식8·카페4) |
+| `GET /api/food` | 1일 | ✅ 28건 (찜닭6·헛제삿밥2·한식13·카페7) — 법정동 조회 (→ [ADR-039](docs/decisions.md)) |
 | `GET /api/festivals` | 목록만 1일 | ✅ 열리거나 30일 내 시작하는 축제 + 가까운 정류장 (→ [ADR-035](docs/decisions.md)) |
 | `GET /api/spots/[id]` | — | 미구현 (`detailCommon2`는 검증됨. 목록에서 찾아 쓰고 있다) |
 | `GET /sitemap.xml` | 1일 | ✅ 96건 = (정적 4 + 관광지 44) × 2언어, `/api/spots`에서 생성 |
@@ -115,7 +115,7 @@ node scripts/build-station-directions.ts
 | 경로 | 상태 |
 |---|---|
 | `/` 지금 여기 | ✅ 위치 기반 정류장·도착·도보권/버스권 관광지·인기 순위 |
-| `/browse` 둘러보기 | ✅ 관광지 44곳 검색·분류·정렬 / 식도락 15곳 (분류 → [ADR-023](docs/decisions.md)) |
+| `/browse` 둘러보기 | ✅ 관광지 44곳 검색·분류·정렬 / 식도락 28곳 (분류 → [ADR-023](docs/decisions.md)) |
 | `/spots/[id]` 상세 | ✅ 관광 정보 + 버스 안내 한 화면. **노선 안내 44곳 전부**, 실시간 도착은 확인된 7곳 (→ [ADR-036](docs/decisions.md)) |
 | `/walk` 걷는 길 | ✅ 코스 2개 + **갈 때·올 때 노선과 막차 경고** (→ [ADR-038](docs/decisions.md)) |
 | 오류 화면 | ✅ `app/error.vue` — 없는 관광지와 없는 주소를 갈라 말한다 |
@@ -181,7 +181,7 @@ node scripts/build-station-directions.ts
 
 | 문서 | 내용 |
 |---|---|
-| [docs/decisions.md](docs/decisions.md) | 설계 결정 기록 (ADR 38건) |
+| [docs/decisions.md](docs/decisions.md) | 설계 결정 기록 (ADR 39건) |
 | [docs/dev-log.md](docs/dev-log.md) | 날짜별 개발 로그 · 다음에 할 일 |
 | [docs/api-reference.md](docs/api-reference.md) | 검증된 API 명세 |
 | [PROJECT-PROMPT.md](PROJECT-PROMPT.md) | 프로젝트 구축 지시서 (초기 기준, 일부는 실측으로 갱신됨) |
