@@ -763,22 +763,63 @@ function toEngRecord(item: EngSpot): { english: string; korean: string } | null 
  *
  * 실패해도 던지지 않는다. 이름 한 줄이 본체를 죽이면 안 된다.
  */
+
+/**
+ * 영문 이름 풀 — **성공한 것만 캐시된다**
+ *
+ * ⚠️ 여기서 try/catch를 하지 않는 것이 요점이다. 던지면 `defineCachedFunction`이
+ *    아무것도 저장하지 않고, 다음 요청이 다시 시도한다. 실패를 캐시에 넣지 않는다.
+ *
+ *    예전에는 이 조회가 `/api/spots`의 **캐시된 본문 안에서** 돌았고 실패를
+ *    조용히 삼켰다. 그래서 상류가 한 번 흔들리면 그 결과가 **하루 동안 얼어붙었다.**
+ *    실측(2026-09-10): 배포본이 관광지 영문명 0/44, 음식점 0/28을 내보내고 있었다.
+ *    로컬은 같은 코드로 17/44였다. `/en` 화면 전체가 국문 이름으로 나갔다는 뜻이다.
+ *
+ *    축제가 이미 같은 처방을 쓰고 있었다 — 목록은 캐시하고 판정은 요청 시점에.
+ *    → ADR-035 · ADR-040
+ */
+type EngRecord = { english: string; korean: string }
+
+/**
+ * ⚠️ `defineCachedFunction`을 **모듈 최상위에서 부르지 않는다.** 이 파일은
+ *    `scripts/check-spot-match.ts`가 node로 직접 들여온다. 최상위에서 부르면
+ *    Nitro 자동 임포트가 없는 그 환경에서 임포트 순간 ReferenceError가 난다
+ *    (실제로 그렇게 회귀 스크립트를 깨뜨렸다). 첫 호출 때 만든다.
+ */
+let cachedEnglishPool: (() => Promise<EngRecord[]>) | null = null
+
+function englishPool(): Promise<EngRecord[]> {
+  cachedEnglishPool ??= defineCachedFunction(
+    async (): Promise<EngRecord[]> => {
+      const { items } = await fetchTourApi<EngSpot>(ENG_SERVICE, {
+        numOfRows: KOR_LIST_ROWS,
+        pageNo: 1,
+        ...KOR_SERVICE_LDONG_REGION,
+      })
+
+      return items.flatMap((item) => {
+        const record = toEngRecord(item)
+        return record ? [record] : []
+      })
+    },
+    {
+      maxAge: 60 * 60 * 24, // 1일
+      name: 'tour-english',
+      getKey: () => 'all',
+    },
+  )
+
+  return cachedEnglishPool()
+}
+
 export async function attachEnglishNames<T extends Spot>(spots: T[]): Promise<T[]> {
-  const pool: { english: string; korean: string }[] = []
+  let pool: EngRecord[]
 
   try {
-    const { items } = await fetchTourApi<EngSpot>(ENG_SERVICE, {
-      numOfRows: KOR_LIST_ROWS,
-      pageNo: 1,
-      ...KOR_SERVICE_LDONG_REGION,
-    })
-
-    for (const item of items) {
-      const record = toEngRecord(item)
-      if (record) pool.push(record)
-    }
+    pool = await englishPool()
   } catch {
-    console.warn('[eng] 영문 관광정보 조회에 실패했다. 국문만 보여준다')
+    // 다음 요청이 다시 시도한다. 이 실패는 캐시에 남지 않는다.
+    console.warn('[eng] 영문 관광정보 조회에 실패했다. 이번 응답만 국문으로 나간다')
     return spots
   }
 

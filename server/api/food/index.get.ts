@@ -18,7 +18,10 @@ import type { FoodPlace } from '#shared/types/tour'
  * 캐시는 /api/spots와 같은 1일이다. 상류가 월 단위로 움직이는 데이터라
  * 더 짧게 볼 이유가 없다. 28건이라 캐시가 비어도 첫 요청이 2~3초면 끝난다.
  */
-export default defineCachedEventHandler(
+/**
+ * 관광지와 같은 구조다 — 목록은 캐시, 영문 이름은 요청 시점. → ADR-040
+ */
+const cachedFood = defineCachedFunction(
   async (): Promise<FoodPlace[]> => {
     /**
      * 영문 이름은 28곳 중 5곳에만 붙는다. 그래도 붙는 곳은 붙인다.
@@ -28,9 +31,7 @@ export default defineCachedEventHandler(
      * 같은 이유다. 음식점은 지역 조회에 정상적으로 잡히고, 그 레코드에 영문이
      * 없는 것이다. → ADR-023 · ADR-033
      */
-    const places = await attachEnglishNames(await fetchFoodPlaces())
-
-    return places.sort(
+    return (await fetchFoodPlaces()).sort(
       (a, b) =>
         FOOD_CATEGORY_ORDER.indexOf(a.category) - FOOD_CATEGORY_ORDER.indexOf(b.category) ||
         a.name.localeCompare(b.name, 'ko'),
@@ -41,4 +42,8 @@ export default defineCachedEventHandler(
     name: 'tour-food',
     getKey: () => 'all',
   },
+)
+
+export default defineEventHandler(
+  async (): Promise<FoodPlace[]> => attachEnglishNames(await cachedFood()),
 )

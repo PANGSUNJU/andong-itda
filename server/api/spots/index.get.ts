@@ -19,7 +19,20 @@ import type { Spot } from '#shared/types/tour'
  *
  * 1일 캐시한다. 원본이 월 단위로 갱신되는 데이터라 그보다 짧게 볼 이유가 없다.
  */
-export default defineCachedEventHandler(
+/**
+ * 목록은 캐시하고 **영문 이름은 요청 시점에 붙인다.**
+ *
+ * ⚠️ 예전에는 영문 붙이기가 이 캐시 안에 있었고, 그 조회가 실패하면 결과를
+ *    조용히 삼킨 채 **하루 동안 캐시에 얼어붙었다.** 실측(2026-09-10): 배포본이
+ *    영문명 0/44를 내보내고 있었고 로컬은 같은 코드로 17/44였다.
+ *    `/en` 화면 전체가 국문 이름으로 나가고 있었다는 뜻이다. → ADR-040
+ *
+ *    축제가 이미 같은 처방을 쓴다 — 목록은 1일 캐시, 판정은 요청 시점(ADR-035).
+ *    실패할 수 있는 것과 오래 사는 것을 같은 캐시에 담지 않는다.
+ *
+ * 요청마다 도는 것은 44 × 57번의 이름 비교뿐이다. 영문 풀 자체는 따로 캐시된다.
+ */
+const cachedSpots = defineCachedFunction(
   async (): Promise<Spot[]> => {
     // 두 소스는 서로를 기다릴 이유가 없다.
     const [hub, korSpots] = await Promise.all([fetchHubSpots(), fetchKorSpots()])
@@ -42,18 +55,10 @@ export default defineCachedEventHandler(
      */
     const withPhotos = await backfillFromGallery(await backfillImages(merged, korSpots))
 
-    /**
-     * 영문 이름도 같은 처방을 받았다. 지역 조회 → 광역 검색 → 이름 재검색 44회이던
-     * 것이 법정동 조회 **한 번**이 됐고, 붙는 곳은 같은 17곳이다. → ADR-034
-     *
-     * 있는 곳에만 붙는다(54곳 중 17곳). 없다고 목록이 달라지지 않는다.
-     */
-    const withEnglish = await attachEnglishNames(withPhotos)
-
     // 정렬을 보충 뒤에 둔다. 보충은 순위를 건드리지 않지만, 순서가 결과에
     // 의존하지 않는다는 걸 코드 모양으로 남겨 둔다.
     // hubRank 오름차순. 문자열로 오는 값이라 mergeSpot에서 숫자로 바꿔 둔다.
-    return withEnglish.sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity))
+    return withPhotos.sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity))
   },
   {
     maxAge: 60 * 60 * 24, // 1일
@@ -61,4 +66,8 @@ export default defineCachedEventHandler(
     // 쿼리 파라미터를 붙여 호출해도 캐시 항목이 늘어나지 않게 키를 고정한다.
     getKey: () => 'all',
   },
+)
+
+export default defineEventHandler(
+  async (): Promise<Spot[]> => attachEnglishNames(await cachedSpots()),
 )
