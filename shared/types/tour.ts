@@ -235,35 +235,6 @@ export interface KorFestivalWithEnglish extends KorFestival {
  */
 export type FestivalStatus = 'ongoing' | 'upcoming'
 
-/**
- * 축제장에서 가장 가까운 정류장
- *
- * 관광지의 `spot-station-map.json`과 달리 손으로 매핑하지 않는다. 축제는 매년
- * 바뀌고 새로 생기는데, 사람이 확인한 매핑은 그 속도를 못 따라간다. 좌표에서
- * 계산하고 **그렇게 구했다는 사실을 화면에 적는다.**
- *
- * 실측(2026-09-01) 축제 7건 전부 최근접 정류장이 400m 이내였다. 탈춤페스티벌은
- * 97m('탈춤공원건너')다. 계산으로 뽑아도 쓸 만한 답이 나오는 조건이다.
- */
-export interface FestivalStation {
-  stationId: number
-  stationNm: string
-  nameEn?: string
-  /**
-   * 방면 — 노선상 다음 정류장의 이름
-   *
-   * ⚠️ 없으면 같은 이름의 승강장을 고를 수 없다. 실측(2026-09-01): 탈춤페스티벌의
-   *    1·2위가 '탈춤공원건너'(97m)와 '탈춤공원앞'(98m)인데 **영문명이 둘 다
-   *    'Talchum gong-won'으로 같다.** 거리도 1m 차이라 영문 화면에서는 두 칩이
-   *    글자 그대로 구별되지 않는다. 방면이 유일하게 둘을 가르는 정보다.
-   */
-  direction?: string
-  /** 축제장까지 직선거리(m) */
-  distance: number
-  walkMinutes: number
-  /** 도착정보가 원리적으로 오지 않는 승강장. 뒤로 민다. → ADR-015 */
-  terminusOnly?: boolean
-}
 
 /** 화면용 축제. 상태와 남은 날은 캐시하지 않고 요청 시점에 채운다. */
 export interface Festival {
@@ -288,14 +259,6 @@ export interface Festival {
   address?: string
   imageUrl?: string
   contentId: string
-  /**
-   * 가까운 정류장. 가까운 순이되 도착정보가 안 뜨는 승강장은 뒤로 민다.
-   *
-   * 하나만 주지 않는다. 실측에서 탈춤페스티벌의 1·2위가 '탈춤공원건너'(97m)와
-   * '탈춤공원앞'(99m)으로 **2m 차이의 반대 방향 승강장**이었다. 가장 가까운 쪽이
-   * 내가 갈 방향이라는 보장이 없다. 홈이 같은 이유로 승강장을 고르게 한다.
-   */
-  stations: FestivalStation[]
 }
 
 /**

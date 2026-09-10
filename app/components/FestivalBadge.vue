@@ -58,10 +58,7 @@ function hide() {
   dialog.value?.close()
 }
 
-/**
- * 팝업 안의 실시간 조회는 열려 있는 동안에만 산다. `open`이 false면
- * FestivalArrivals가 언마운트되어 닫아 둔 팝업이 버스 API를 부르지 않는다.
- */
+/** 닫히면 내용도 언마운트한다. 닫아 둔 팝업이 아무것도 붙들고 있지 않게 한다. */
 function onClose() {
   open.value = false
 }
@@ -69,35 +66,12 @@ function onClose() {
 /**
  * 배경(백드롭)을 누르면 닫는다. `<dialog>`는 백드롭 클릭을 자동으로 처리하지
  * 않으므로 직접 붙인다. 클릭 대상이 dialog 자신일 때만 닫는다 — 안쪽 내용을
- * 누른 것까지 닫으면 정류장 칩을 고르다 팝업이 사라진다.
+ * 누른 것까지 닫으면 글자를 긁다가 팝업이 사라진다.
  */
 function onBackdrop(event: MouseEvent) {
   if (event.target === dialog.value) hide()
 }
 
-/** 축제마다 고른 승강장. 안 고르면 첫 번째(가장 가깝고 도착이 뜨는 쪽)다. */
-const picked = ref<Record<string, number>>({})
-
-function stationOf(festival: Festival) {
-  const id = picked.value[festival.id]
-  return festival.stations.find((station) => station.stationId === id) ?? festival.stations[0]
-}
-
-/**
- * 승강장 칩의 둘째 줄 — 이름이 같은 승강장을 가르는 자리
- *
- * 홈의 `stationTag`와 같은 규칙이다. 방면이 있으면 방면, 없으면 거리만.
- * 기·종점 승강장은 방면 대신 "도착 정보 없음"을 먼저 말한다 — 고르기 전에
- * 알아야 하는 사실이라 거리보다 앞선다. → ADR-015
- */
-function stationChipTag(station: Festival['stations'][number]): string {
-  if (station.terminusOnly) return t.value.home.terminusTag
-
-  const distance = formatDistance(station.distance, d.locale.value)
-  return station.direction
-    ? `${t.value.home.directionTag(station.direction)} · ${distance}`
-    : distance
-}
 
 /**
  * 기간 아래 한 줄 — 오늘 기준으로 무엇을 말해야 하는가
@@ -208,91 +182,24 @@ function when(festival: Festival): string {
           </p>
 
           <!--
-            여기가 이 팝업이 축제 목록이 아니라 이 서비스의 화면인 이유다.
-            축제 이름과 날짜는 어디에나 있다. "그래서 어느 버스를 타느냐"에
-            답하는 곳이 없어서 이 서비스를 만들었다. → ADR-012
+            목적지는 축제장이다. 이름도 축제 이름을 국문 그대로 넘긴다 —
+            배경 지도가 국문이라 영문 이름을 실어 보내면 지도에 적힌 지명과
+            어긋난다. → MapCard의 같은 판단
+
+            ⚠️ 여기 "가까운 정류장"이 있었다. 축제장 좌표에서 최근접 승강장 셋을
+               계산해 실시간 도착까지 붙였는데, 그 계산이 **승강장을 가르지
+               못했다** — 탈춤페스티벌의 1·2위가 97m와 98m이고 영문명이 둘 다
+               'Talchum gong-won'이었다. 고르라고 내밀 수 있는 정보가 아니었다.
+               팝업은 축제만 말하고, 가는 길은 카카오맵에 넘긴다. → ADR-041
           -->
-          <div class="mt-4">
-            <h3 class="text-[13px] font-semibold text-muted">{{ t.festival.stationsHead }}</h3>
-
-            <p v-if="!festival.stations.length" class="mt-2 text-sm text-muted">
-              {{ t.festival.noStation }}
-            </p>
-
-            <template v-else>
-              <!-- 승강장이 둘 이상일 때만 고르게 한다. 하나뿐이면 고를 것이 없다. -->
-              <div v-if="festival.stations.length > 1" class="mt-2 flex gap-2 overflow-x-auto">
-                <button
-                  v-for="station in festival.stations"
-                  :key="station.stationId"
-                  type="button"
-                  class="flex-none rounded-full border px-3 py-1.5 text-left text-[13px] font-medium transition-colors"
-                  :class="[
-                    station.stationId === stationOf(festival)?.stationId
-                      ? 'border-ink bg-ink text-white'
-                      : 'border-hairline text-body hover:bg-surface-soft',
-                    station.terminusOnly && station.stationId !== stationOf(festival)?.stationId
-                      ? 'opacity-60'
-                      : '',
-                  ]"
-                  @click="picked[festival.id] = station.stationId"
-                >
-                  <span class="block whitespace-nowrap">{{ d.stationName(station) }}</span>
-                  <!--
-                    방면이 이름을 가른다. 실측에서 '탈춤공원건너'와 '탈춤공원앞'은
-                    영문명이 둘 다 'Talchum gong-won'이고 거리도 1m 차이라, 이 줄이
-                    없으면 영문 화면에서 같은 칩이 두 개 나란히 선다. 홈과 같은 처방이다.
-                  -->
-                  <span class="mt-0.5 block whitespace-nowrap text-xs font-normal opacity-70">
-                    {{ stationChipTag(station) }}
-                  </span>
-                </button>
-              </div>
-
-              <template v-if="stationOf(festival)">
-                <p class="mt-2 text-sm text-muted">
-                  <b class="font-medium text-ink">{{ d.stationName(stationOf(festival)!) }}</b>
-                  ·
-                  {{ formatDistance(stationOf(festival)!.distance, d.locale.value) }}
-                  ·
-                  {{ t.common.minutesWalk(stationOf(festival)!.walkMinutes) }}
-                </p>
-
-                <p v-if="stationOf(festival)!.terminusOnly" class="mt-1 text-[13px] text-muted-soft">
-                  {{ t.home.terminusTag }}
-                </p>
-
-                <!-- 승강장을 바꾸면 조회도 바뀌어야 한다. key로 다시 마운트한다. -->
-                <FestivalArrivals
-                  :key="stationOf(festival)!.stationId"
-                  :station-id="stationOf(festival)!.stationId"
-                  class="mt-1"
-                />
-
-                <!--
-                  목적지는 정류장이 아니라 축제장이다. 이름도 축제 이름을 국문
-                  그대로 넘긴다 — 배경 지도가 국문이라 영문 이름을 실어 보내면
-                  지도에 적힌 지명과 어긋난다. → MapCard의 같은 판단
-                -->
-                <a
-                  :href="kakaoDirectionsUrl(festival.name, festival.lat, festival.lng)"
-                  target="_blank"
-                  rel="noopener"
-                  class="mt-3 inline-block text-sm font-medium underline"
-                >
-                  {{ t.spot.directions }}
-                </a>
-              </template>
-
-              <!--
-                계산으로 구한 정류장이라고 적는다. 관광지 버스 안내는 사람이
-                확인한 매핑이고 이건 아니다. 근거가 다르면 다르다고 말한다.
-              -->
-              <p class="mt-3 text-[13px] leading-relaxed text-muted-soft">
-                {{ t.festival.stationNote }}
-              </p>
-            </template>
-          </div>
+          <a
+            :href="kakaoDirectionsUrl(festival.name, festival.lat, festival.lng)"
+            target="_blank"
+            rel="noopener"
+            class="mt-4 inline-block text-sm font-medium underline"
+          >
+            {{ t.spot.directions }}
+          </a>
         </section>
 
         <p class="px-6 pb-6 text-[13px] text-muted-soft">{{ t.festival.source }}</p>

@@ -102,7 +102,7 @@ node scripts/build-station-directions.ts
 | `GET /api/spot-routes/[spot]` | 1분 | ✅ **44곳 전부** — 어느 노선을 타면 오는가 (→ [ADR-036](docs/decisions.md)) |
 | `GET /api/spots` | 1일 | ✅ 44건 (숙박·노이즈 제외, 이미지 35/44) |
 | `GET /api/food` | 1일 | ✅ 28건 (찜닭6·헛제삿밥2·한식13·카페7) — 법정동 조회 (→ [ADR-039](docs/decisions.md)) |
-| `GET /api/festivals` | 목록만 1일 | ✅ 열리거나 30일 내 시작하는 축제 + 가까운 정류장 (→ [ADR-035](docs/decisions.md)) |
+| `GET /api/festivals` | 목록만 1일 | ✅ 열리거나 30일 내 시작하는 축제 (→ [ADR-035](docs/decisions.md) · [ADR-041](docs/decisions.md)) |
 | `GET /api/spots/[id]` | — | 미구현 (`detailCommon2`는 검증됨. 목록에서 찾아 쓰고 있다) |
 | `GET /sitemap.xml` | 1일 | ✅ 96건 = (정적 4 + 관광지 44) × 2언어, `/api/spots`에서 생성 |
 
@@ -120,7 +120,7 @@ node scripts/build-station-directions.ts
 | `/walk` 걷는 길 | ✅ 코스 2개 + **갈 때·올 때 노선과 막차 경고** (→ [ADR-038](docs/decisions.md)) |
 | 오류 화면 | ✅ `app/error.vue` — 없는 관광지와 없는 주소를 갈라 말한다 |
 | `/en/…` 영문 | ✅ 위 네 화면의 영문 주소 (→ [ADR-031](docs/decisions.md)) |
-| 축제 (헤더 아이콘) | ✅ **열릴 때만 나타난다.** 누르면 기간·장소·가까운 정류장·실시간 도착 (→ [ADR-035](docs/decisions.md)) |
+| 축제 (헤더 아이콘) | ✅ **열릴 때만 나타난다.** 누르면 기간·장소·길찾기 (→ [ADR-035](docs/decisions.md) · [ADR-041](docs/decisions.md)) |
 
 **축제는 화면을 차지하지 않는다.** 안동 축제는 7건이고 대부분의 날에 진행중이
 0건이라, 탭으로 두면 주 동선 하나를 내주고 빈 화면을 얻는다. 그래서 열리고
@@ -181,7 +181,7 @@ node scripts/build-station-directions.ts
 
 | 문서 | 내용 |
 |---|---|
-| [docs/decisions.md](docs/decisions.md) | 설계 결정 기록 (ADR 40건) |
+| [docs/decisions.md](docs/decisions.md) | 설계 결정 기록 (ADR 41건) |
 | [docs/dev-log.md](docs/dev-log.md) | 날짜별 개발 로그 · 다음에 할 일 |
 | [docs/api-reference.md](docs/api-reference.md) | 검증된 API 명세 |
 | [PROJECT-PROMPT.md](PROJECT-PROMPT.md) | 프로젝트 구축 지시서 (초기 기준, 일부는 실측으로 갱신됨) |

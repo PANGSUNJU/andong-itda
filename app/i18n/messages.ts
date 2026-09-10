@@ -255,17 +255,12 @@ const ko = {
     startsTomorrow: '내일 시작해요',
     startsIn: (days: number) => `${days}일 뒤에 시작해요`,
 
-    stationsHead: '가까운 정류장',
     /**
-     * 이 한 줄이 정직성의 자리다. 관광지 버스 안내는 사람이 확인한 매핑이지만
-     * 축제는 좌표에서 계산한 결과다. 근거가 다르면 다르다고 적는다. → ADR-016
+     * ⚠️ 여기 "가까운 정류장"이 있었다. 축제장 좌표에서 최근접 승강장 셋을 계산해
+     *    실시간 도착까지 붙였는데, 그 계산이 **승강장을 가르지 못했다** —
+     *    탈춤페스티벌의 1·2위가 97m와 98m이고 영문명이 둘 다 같았다.
+     *    걷어냈다. 팝업은 축제만 말한다. → ADR-041
      */
-    stationNote: '축제장 좌표에서 가장 가까운 정류장을 계산했어요. 직접 확인한 매핑은 아니에요.',
-    noStation: '축제장 1km 안에 등록된 정류장이 없어요.',
-    arrivalsEmpty: '지금 이 정류장으로 접근 중인 버스가 없어요.',
-    arrivalsError: '도착 정보를 가져오지 못했어요.',
-    loading: '축제 정보를 불러오는 중…',
-
     source: '한국관광공사 축제·행사 정보',
   },
 
@@ -336,7 +331,7 @@ const ko = {
 
     /**
      * 이 한 줄이 정직성의 자리다. 관광지 7곳의 버스 안내는 사람이 확인한 매핑이지만
-     * 이 목록은 좌표와 노선 순서로 계산한 결과다. → 축제의 `stationNote`와 같은 규칙
+     * 이 목록은 좌표와 노선 순서로 계산한 결과다. 근거가 다르면 다르다고 적는다.
      */
     note: '관광지 근처 정류장을 지나는 노선을 계산했어요. 직접 확인한 안내는 아니에요.',
   },
@@ -505,7 +500,7 @@ const ko = {
      */
     sourceHead: '만든 과정',
     sourceBody:
-      '화면에 보이지 않는 판단이 많아요. 어느 정류장을 왜 뒤로 미는지, 모르는 막차 시각을 왜 비워 두는지 같은 것들이에요. 그 결정을 40건의 기록으로 남겨 뒀어요.',
+      '화면에 보이지 않는 판단이 많아요. 어느 정류장을 왜 뒤로 미는지, 모르는 막차 시각을 왜 비워 두는지 같은 것들이에요. 그 결정을 41건의 기록으로 남겨 뒀어요.',
     sourceLink: '소스 코드와 결정 기록 (GitHub)',
 
     closing:
@@ -679,14 +674,6 @@ const en: Messages = {
     endsIn: (days: number) => `${days} more ${days === 1 ? 'day' : 'days'}`,
     startsTomorrow: 'Starts tomorrow',
     startsIn: (days: number) => `Starts in ${days} days`,
-
-    stationsHead: 'Nearest stops',
-    stationNote:
-      "We calculated the nearest stop from the festival's coordinates. This is not a mapping we verified on the ground.",
-    noStation: 'No registered stop within 1 km of the festival grounds.',
-    arrivalsEmpty: 'No bus is approaching this stop right now.',
-    arrivalsError: "Couldn't load arrival information.",
-    loading: 'Loading festivals…',
 
     source: 'Korea Tourism Organization festival & event data',
   },
@@ -875,7 +862,7 @@ const en: Messages = {
 
     sourceHead: 'How this was built',
     sourceBody:
-      "A lot of the judgement here never shows on screen — why a stop gets pushed down the list, why we leave a last-bus time blank when we do not know it. Those decisions are written down: 40 records.",
+      "A lot of the judgement here never shows on screen — why a stop gets pushed down the list, why we leave a last-bus time blank when we do not know it. Those decisions are written down: 41 records.",
     sourceLink: 'Source code and decision records (GitHub)',
 
     closing:
