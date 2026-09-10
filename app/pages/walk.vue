@@ -1,16 +1,98 @@
 <script setup lang="ts">
-import { COURSES } from '~/data/courses'
+import type { SpotBusInfo, SpotRouteInfo } from '#shared/types/static-data'
+import { COURSES, type Course } from '~/data/courses'
 
 /**
  * 걷는 길 — 버스 없이 걸어서 이어지는 코스
  *
- * 데이터가 정적이므로 이 화면은 상류 장애의 영향을 받지 않는다.
- * 버스가 끊긴 시간대에 여행자에게 남는 유일한 선택지이기도 하다.
+ * 코스 자체는 정적이라 상류 장애의 영향을 받지 않는다. 버스가 끊긴 시간대에
+ * 여행자에게 남는 유일한 선택지이기도 하다.
+ *
+ * ⚠️ 그렇다고 버스와 무관한 화면은 아니었다. 세 탭 중 여기만 버스와 이어져 있지
+ *    않아서, "버스를 기다리는 시간에 다녀올 곳을 알려준다"는 이 서비스의 조직
+ *    원리가 이 화면에서만 빠져 있었다(ADR-012). 걸어서 이어지는 길이라도
+ *    **시작점까지는 타고 가야 하고 끝점에서는 타고 돌아와야 한다.** → ADR-038
+ *
+ * 코스는 그대로 뜬다. 버스 줄만 붙거나 안 붙는다 — 상류가 죽어도 걷는 길은 남는다.
  */
 const t = useT()
+const d = useDisplay()
 const locale = useLocale()
 
 usePageTitle(() => t.value.walk.title)
+
+/** 코스의 시작·끝. 월영교는 두 코스가 공유하므로 한 번만 부른다. */
+const routeNames = [...new Set(COURSES.flatMap((course) => [course.start, course.end]))]
+const endNames = [...new Set(COURSES.map((course) => course.end))]
+
+/**
+ * 노선과, 끝점의 경고를 함께 받는다.
+ *
+ * 끝점은 `/api/spot-bus`도 부른다. 거기에만 있는 것이 하나 있어서다 — 사람이
+ * 확인한 시간표에서 나온 **경고 문장**. 월영교가 그 경우다. "야경 명소이지만
+ * 막차가 18:45다"는 밤 코스에 반드시 붙어야 하는 문장인데, 노선 데이터에는 없다.
+ *
+ * 404는 오류가 아니다. 사람이 확인한 관광지 7곳에만 있는 정보이므로,
+ * 없으면 그 줄을 그리지 않는다. → ADR-016
+ */
+const { data: bus } = await useAsyncData(
+  'walk-bus',
+  async () => {
+    const [routes, ends] = await Promise.all([
+      Promise.all(
+        routeNames.map(async (name) => {
+          try {
+            return [
+              name,
+              await $fetch<SpotRouteInfo>(`/api/spot-routes/${encodeURIComponent(name)}`),
+            ] as const
+          } catch {
+            return [name, null] as const
+          }
+        }),
+      ),
+      Promise.all(
+        endNames.map(async (name) => {
+          try {
+            return [
+              name,
+              await $fetch<SpotBusInfo>(`/api/spot-bus/${encodeURIComponent(name)}`),
+            ] as const
+          } catch {
+            return [name, null] as const
+          }
+        }),
+      ),
+    ])
+
+    return {
+      routes: Object.fromEntries(routes) as Record<string, SpotRouteInfo | null>,
+      ends: Object.fromEntries(ends) as Record<string, SpotBusInfo | null>,
+    }
+  },
+  { default: () => ({ routes: {}, ends: {} }) },
+)
+
+/** 시작점까지 타고 갈 대표 노선. 목록이 덜 걷는 순이라 첫 번째가 그것이다. */
+function toStart(course: Course) {
+  return bus.value.routes[course.start]?.inbound[0]
+}
+
+/** 끝점에서 시내로 나가는 노선 번호. 하차 정류장은 갈 때와 같으므로 번호만 말한다. */
+function toTown(course: Course) {
+  return [...new Set(bus.value.routes[course.end]?.outbound.map((r) => r.routeNum) ?? [])]
+}
+
+/**
+ * 끝점의 경고 — 이 화면에서 가장 값이 큰 한 줄
+ *
+ * `달빛 물길`은 "해 지면 조명이 켜져요"로 끝나는데 월영교 막차가 18:45다.
+ * 그동안 이 화면은 **돌아올 수 없는 밤 코스를 안내하고 있었다.**
+ */
+function endWarning(course: Course) {
+  const info = bus.value.ends[course.end]
+  return info ? d.pick(info.warning, info.warningEn) : null
+}
 </script>
 
 <template>
@@ -63,8 +145,64 @@ usePageTitle(() => t.value.walk.title)
           </li>
         </ol>
 
+        <!--
+          버스로 오가기 — 걷는 길이 서비스의 조직 원리로 돌아오는 자리
+
+          문구는 관광지 상세와 같은 사전(`spotRoutes`)을 쓴다. 같은 사실을 두 화면이
+          다른 말로 하면 읽는 사람이 다른 것으로 읽는다.
+        -->
+        <div class="border-t border-hairline-soft pt-4">
+          <b class="block text-[13px] font-semibold text-muted">{{ t.walk.busHead }}</b>
+
+          <dl class="mt-1.5 text-sm">
+            <div class="flex gap-3 py-1">
+              <dt class="w-11 flex-none text-muted">{{ t.walk.goLabel }}</dt>
+              <dd v-if="toStart(course)" class="min-w-0 leading-relaxed">
+                <b class="font-semibold">
+                  {{ t.spotRoutes.routeLabel(toStart(course)!.routeNum) }}
+                </b>
+                ·
+                {{
+                  t.spotRoutes.getOff(
+                    d.stationName({
+                      stationNm: toStart(course)!.stationNm,
+                      nameEn: toStart(course)!.stationNmEn,
+                    }),
+                  )
+                }}
+                ·
+                {{ t.spotRoutes.thenWalk(formatDistance(toStart(course)!.walkMeters, d.locale.value)) }}
+              </dd>
+              <dd v-else class="text-muted">{{ t.walk.startUnknown }}</dd>
+            </div>
+
+            <div class="flex gap-3 py-1">
+              <dt class="w-11 flex-none text-muted">{{ t.walk.backLabel }}</dt>
+              <dd v-if="toTown(course).length" class="min-w-0 leading-relaxed">
+                {{ t.walk.backFrom(course.end) }}
+                <b class="font-semibold">
+                  {{ toTown(course).map((num) => t.spotRoutes.routeLabel(num)).join(' · ') }}
+                </b>
+              </dd>
+              <!-- 갈 수는 있는데 못 돌아오는 안내가 이 서비스에서 가장 위험하다. → ADR-016 -->
+              <dd v-else class="text-primary">{{ t.walk.returnUnknown }}</dd>
+            </div>
+          </dl>
+
+          <!--
+            끝점의 경고. 밤 코스에 "막차가 18:45다"가 붙는 자리다.
+            이 한 줄이 이 화면에서 가장 값이 크다.
+          -->
+          <p v-if="endWarning(course)" class="mt-2 text-[13px] leading-relaxed text-primary">
+            {{ endWarning(course) }}
+          </p>
+
+          <!-- 근거를 밝힌다. 관광지 상세와 같은 문장을 쓴다. -->
+          <p class="mt-2 text-[13px] leading-relaxed text-muted-soft">{{ t.spotRoutes.note }}</p>
+        </div>
+
         <div
-          class="flex flex-wrap gap-6 border-t border-hairline-soft pt-4 text-sm text-muted"
+          class="mt-4 flex flex-wrap gap-6 border-t border-hairline-soft pt-4 text-sm text-muted"
         >
           <span v-for="caution in course.cautions" :key="caution.ko">{{ caution[locale] }}</span>
         </div>

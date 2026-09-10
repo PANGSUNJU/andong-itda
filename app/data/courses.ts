@@ -34,6 +34,19 @@ export interface CourseStep {
 export interface Course {
   id: string
   title: Text
+  /**
+   * 코스가 시작·끝나는 **관광지 이름**.
+   *
+   * `/api/spot-routes`가 이 이름으로 노선을 찾는다(→ ADR-036의 노선 안내). 그래서
+   * `/api/spots` 목록에 실제로 있는 이름이어야 한다. 없으면 화면이 버스 줄을
+   * 그리지 않을 뿐 나머지는 그대로 뜬다.
+   *
+   * `steps[0].name`을 쓰지 않고 따로 두는 이유는, 코스가 관광지가 아닌 곳에서
+   * 시작할 수도 있기 때문이다. 그때 이 칸이 비면 "버스를 못 찾았다"가 아니라
+   * "여기서는 안 찾는다"가 되어야 한다.
+   */
+  start: string
+  end: string
   /** '낮' | '밤' */
   timeOfDay: Text
   distanceKm: number
@@ -47,6 +60,8 @@ export const COURSES: Course[] = [
   {
     id: 'riverside',
     title: { ko: '강변 옛길', en: 'The Old Riverside Way' },
+    start: '안동임청각',
+    end: '월영교',
     timeOfDay: { ko: '낮', en: 'Daytime' },
     distanceKm: 4.1,
     minutes: 70,
@@ -68,14 +83,24 @@ export const COURSES: Course[] = [
   {
     id: 'moonlight',
     title: { ko: '달빛 물길', en: 'Moonlight on the Water' },
+    start: '안동민속촌',
+    end: '월영교',
     timeOfDay: { ko: '밤', en: 'After dark' },
     distanceKm: 1.6,
     minutes: 30,
     terrain: { ko: '야간 조명', en: 'Lit at night' },
     steps: [
       {
+        /**
+         * ⚠️ 여기 "3번 버스에서 내리면 시작"이라고 적혀 있었다. 안동민속촌에 오는
+         *    노선은 **112번**이다(실측 2026-09-10). 손으로 적은 노선 번호가
+         *    조용히 틀어져 있었고, 아무도 그걸 검증하지 않았다.
+         *
+         *    노선 번호는 이제 데이터에 적지 않는다. 아래 "버스로 오가기" 줄이
+         *    상류에서 계산해 채운다. 손으로 적으면 또 틀어진다.
+         */
         name: '안동민속촌',
-        detail: { ko: '3번 버스에서 내리면 시작', en: 'Starts where bus 3 drops you off' },
+        detail: { ko: '여기서 시작해요', en: 'The walk starts here' },
       },
       { name: '월영공원', detail: { ko: '걸어서 7분', en: '7 min walk' } },
       {

@@ -196,6 +196,20 @@ const ko = {
     sub: '버스 없이 걸어서 이어지는 길만 골랐어요',
     summary: (km: number, minutes: number, terrain: string) =>
       `${km}km · 약 ${minutes}분 · ${terrain}`,
+    /**
+     * 걷는 길이 세 탭 중 유일하게 버스와 안 이어져 있었다. 버스를 기다리는 시간에
+     * 다녀올 곳을 알려주는 서비스인데, 정작 "걷는 길"만 어떻게 가고 어떻게
+     * 돌아오는지를 말하지 않았다. → ADR-038
+     */
+    busHead: '버스로 오가기',
+    goLabel: '갈 때',
+    backLabel: '올 때',
+    /** 코스 끝에서 시내로 나가는 노선. 번호만 말한다 — 하차 정류장은 갈 때와 같다. */
+    backFrom: (place: string) => `${place}에서`,
+    startUnknown: '시작점까지 한 번에 오는 버스를 찾지 못했어요',
+    /** 이 서비스에서 가장 위험한 실패가 "갈 수는 있는데 못 돌아오는" 안내다. → ADR-016 */
+    returnUnknown: '돌아오는 편을 찾지 못했어요. 출발 전에 꼭 확인하세요',
+
     noticeConstruction: '낙강물길공원은 2028년까지 공사 중이라 코스에서 뺐어요.',
     noticeSource:
       '이 코스는 공공데이터에 없어서 저희가 직접 짰어요. 다른 정보와 달리 공식 자료가 아니에요.',
@@ -606,6 +620,13 @@ const en: Messages = {
     sub: 'Routes that connect on foot — no bus needed',
     summary: (km: number, minutes: number, terrain: string) =>
       `${km} km · about ${minutes} min · ${terrain}`,
+    busHead: 'Getting there and back',
+    goLabel: 'There',
+    backLabel: 'Back',
+    backFrom: (place: string) => `From ${place}`,
+    startUnknown: 'We could not find a single bus to the start',
+    returnUnknown: 'We could not find a way back. Check before you set out',
+
     noticeConstruction:
       'Nakgang Water Trail Park is under construction until 2028, so we left it out.',
     noticeSource:
