@@ -163,6 +163,12 @@ export interface FoodPlace extends Spot {
  */
 export interface EngSpot {
   contentid: string
+  /**
+   * ⚠️ 국문과 **코드 체계가 다르다.** 안동 레코드는 75·76·78·79·80·82·85로 오는데
+   *    국문은 12(관광지)·14(문화시설)·39(음식점)다. `detailIntro2`는 이 값을
+   *    요구하므로 목록에서 받아 그대로 되돌려 준다 — 우리가 변환하지 않는다.
+   */
+  contenttypeid: string
   /** "Andong Folk Village (안동민속촌)" */
   title: string
   /**
@@ -365,4 +371,31 @@ export interface GalleryPhoto {
   galPhotographyLocation: string
   /** 촬영자가 붙인 태그. 제목에 없는 이름이 여기 있다(하회마을 사진의 '부용대'). */
   galSearchKeyword: string
+}
+
+/**
+ * 이용 안내 — `detailIntro2`가 답하는 "몇 시에 문 여나"
+ *
+ * 목록 조회(`areaBasedList2`)에는 없는 값들이다. 관광지 한 곳씩 따로 물어야 온다.
+ * 실측(2026-09-11, 44곳 전부 호출): 국문 34/44곳에 운영시간·휴무일·주차·문의 중
+ * 하나 이상이 있다. 나머지 10곳 중 9곳은 애초에 KorService2와 매칭되지 않은
+ * 곳(`contentId` 없음)이다. → ADR-046
+ *
+ * ⚠️ 영문은 **별개 서비스에서 따로 받는다.** 두 서비스는 ID 체계가 달라서
+ *    같은 contentId로 영문을 부를 수 없다(ADR-030의 같은 벽). 그래서 필드마다
+ *    국문·영문을 나란히 둔다 — 영문 화면은 있으면 영문, 없으면 국문을 쓴다.
+ *
+ * ⚠️ `tel`에는 영문 짝이 없다. 전화번호는 언어를 타지 않는다.
+ */
+export interface SpotGuide {
+  useTime?: string
+  useTimeEn?: string
+  restDate?: string
+  restDateEn?: string
+  parking?: string
+  parkingEn?: string
+  /** 관람료. 문화시설·레포츠에만 있다. 관광지(12)에는 이 필드 자체가 없다. */
+  fee?: string
+  feeEn?: string
+  tel?: string
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { NuxtLink } from '#components'
 
-import type { RelatedSpot, Spot } from '#shared/types/tour'
+import type { RelatedSpot, Spot, SpotGuide } from '#shared/types/tour'
 import type { SpotBusInfo, SpotRouteInfo } from '#shared/types/static-data'
 import { nearest } from '#shared/constants/location'
 
@@ -58,6 +58,38 @@ const { data: routes } = await useFetch<SpotRouteInfo>(
 
 /** "가는 방법" 첫 문장이 쓸 대표 노선. 가장 덜 걷는 것이 맨 앞이다. */
 const mainRoute = computed(() => routes.value?.inbound[0])
+
+/**
+ * 이용 안내 — 운영시간·휴무일·주차·관람료·문의
+ *
+ * 목록 조회에는 없는 값이라 관광지 한 곳씩 따로 물어야 한다. 그래서 별도
+ * 엔드포인트다. 없으면 빈 객체가 오고, 그때는 아래에서 섹션 자체가 사라진다.
+ * 404가 아니다 — 안내가 없는 것은 오류가 아니다. → ADR-046
+ */
+const { data: guide } = await useFetch<SpotGuide>(() => `/api/spot-guide/${id.value}`, {
+  default: () => ({}) as SpotGuide,
+})
+
+/**
+ * 화면에 그릴 줄만 남긴다.
+ *
+ * 영문 값이 있으면 영문, 없으면 국문이 그대로 나간다(`d.pick`). 상류가 영문으로
+ * 준 만큼만 영문이 되고 나머지는 국문이다 — 기계로 옮겨 지어내지 않는다.
+ * → ADR-030
+ *
+ * ⚠️ 전화번호에는 영문 짝을 두지 않는다. 번호는 언어를 타지 않는다.
+ */
+const guideRows = computed(() => {
+  const g = guide.value
+
+  return [
+    { label: t.value.spot.guideTime, value: d.pick(g.useTime, g.useTimeEn) },
+    { label: t.value.spot.guideRest, value: d.pick(g.restDate, g.restDateEn) },
+    { label: t.value.spot.guideFee, value: d.pick(g.fee, g.feeEn) },
+    { label: t.value.spot.guideParking, value: d.pick(g.parking, g.parkingEn) },
+    { label: t.value.spot.guideTel, value: g.tel ?? null },
+  ].filter((row): row is { label: string; value: string } => Boolean(row.value))
+})
 
 /**
  * 함께 많이 찾는 곳 — 방문 데이터가 고른 곳
@@ -241,6 +273,37 @@ const mapMarkers = computed(() =>
           >
             {{ t.spot.directions }}
           </a>
+        </section>
+
+        <!--
+          이용 안내 — "몇 시에 문 여나"
+
+          가는 방법 바로 뒤에 둔다. 위에서 "막차 18:45"를 읽은 눈이 곧바로
+          "문 닫는 시각"을 만나야 여행자가 계산을 할 수 있다.
+
+          한 줄이라도 있을 때만 그린다. 값이 없는 관광지에 빈 표를 남기지 않는다.
+        -->
+        <section v-if="guideRows.length" class="border-t border-hairline py-8">
+          <h2 class="mb-3 font-serif text-[22px] font-semibold leading-tight tracking-[-0.44px]">
+            {{ t.spot.guideHead }}
+          </h2>
+
+          <dl class="text-base">
+            <div
+              v-for="row in guideRows"
+              :key="row.label"
+              class="flex gap-4 border-b border-hairline-soft py-2.5 last:border-b-0"
+            >
+              <dt class="w-[68px] flex-none text-muted">{{ row.label }}</dt>
+              <!--
+                상류가 줄바꿈으로 하절기·동절기를 가른다. `whitespace-pre-line`이
+                그걸 살린다 — 한 줄로 붙이면 두 시간표가 한 문장이 되어 읽을 수 없다.
+              -->
+              <dd class="min-w-0 whitespace-pre-line leading-relaxed text-body">{{ row.value }}</dd>
+            </div>
+          </dl>
+
+          <p class="mt-3 text-[13px] leading-relaxed text-muted-soft">{{ t.spot.guideNote }}</p>
         </section>
 
         <!--

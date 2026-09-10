@@ -308,6 +308,26 @@ const ko = {
     directions: '카카오맵으로 길찾기',
 
     /**
+     * 이용 안내 — `detailIntro2`. "몇 시에 문 여나"에 답한다.
+     *
+     * 가는 방법 **바로 뒤**에 둔다. 야경 명소인데 막차가 18:45라는 사실과,
+     * 문 닫는 시각이 한 화면에서 이어져야 여행자가 계산을 할 수 있다.
+     */
+    guideHead: '이용 안내',
+    guideTime: '운영시간',
+    guideRest: '휴무일',
+    guideParking: '주차',
+    guideFee: '관람료',
+    guideTel: '문의',
+    /**
+     * 두 언어에서 각각 다른 일을 한다.
+     *   국문 — 상류 값이 낡을 수 있다는 것(공사·계절 변경이 반영되기까지 시간이 걸린다)
+     *   영문 — 위에 국문이 섞여 있는 이유
+     * 그래서 직역이 아니다.
+     */
+    guideNote: '한국관광공사 자료 그대로예요. 방문 전에 한 번 더 확인하세요.',
+
+    /**
      * 여섯 번째 관광공사 API. 거리로 고른 "근처에 함께 볼 곳"이 답하지 못하는
      * 질문에 답한다 — 가깝다고 같이 보는 것은 아니고, 멀어도 같이 본다.
      */
@@ -531,7 +551,7 @@ const ko = {
      */
     sourceHead: '만든 과정',
     sourceBody:
-      '화면에 보이지 않는 판단이 많아요. 어느 정류장을 왜 뒤로 미는지, 모르는 막차 시각을 왜 비워 두는지 같은 것들이에요. 그 결정을 45건의 기록으로 남겨 뒀어요.',
+      '화면에 보이지 않는 판단이 많아요. 어느 정류장을 왜 뒤로 미는지, 모르는 막차 시각을 왜 비워 두는지 같은 것들이에요. 그 결정을 46건의 기록으로 남겨 뒀어요.',
     sourceLink: '소스 코드와 결정 기록 (GitHub)',
 
     closing:
@@ -743,6 +763,15 @@ const en: Messages = {
       'No bus information is registered here. We currently cover 7 of the most visited places.',
     directions: 'Directions in KakaoMap',
 
+    guideHead: 'Visiting',
+    guideTime: 'Hours',
+    guideRest: 'Closed',
+    guideParking: 'Parking',
+    guideFee: 'Admission',
+    guideTel: 'Phone',
+    guideNote:
+      'Straight from Korea Tourism Organization data — some details exist only in Korean. Please check again before you go.',
+
     relatedHead: 'Often visited together',
     relatedNote:
       'Places visited by the same people, from Korea Tourism Organization visit data. Only places inside Andong are shown.',
@@ -908,7 +937,7 @@ const en: Messages = {
 
     sourceHead: 'How this was built',
     sourceBody:
-      "A lot of the judgement here never shows on screen — why a stop gets pushed down the list, why we leave a last-bus time blank when we do not know it. Those decisions are written down: 45 records.",
+      "A lot of the judgement here never shows on screen — why a stop gets pushed down the list, why we leave a last-bus time blank when we do not know it. Those decisions are written down: 46 records.",
     sourceLink: 'Source code and decision records (GitHub)',
 
     closing:

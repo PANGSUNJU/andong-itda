@@ -23,6 +23,7 @@ import type {
   RelatedSpot,
   RelatedSpotItem,
   Spot,
+  SpotGuide,
   TourApiResponse,
 } from '#shared/types/tour'
 
@@ -42,6 +43,9 @@ const REL_SERVICE = 'https://apis.data.go.kr/B551011/TarRlteTarService1/areaBase
 const ENG_SERVICE = 'https://apis.data.go.kr/B551011/EngService2/areaBasedList2'
 const KOR_FESTIVAL = 'https://apis.data.go.kr/B551011/KorService2/searchFestival2'
 const ENG_FESTIVAL = 'https://apis.data.go.kr/B551011/EngService2/searchFestival2'
+const KOR_DETAIL_COMMON = 'https://apis.data.go.kr/B551011/KorService2/detailCommon2'
+const KOR_DETAIL_INTRO = 'https://apis.data.go.kr/B551011/KorService2/detailIntro2'
+const ENG_DETAIL_INTRO = 'https://apis.data.go.kr/B551011/EngService2/detailIntro2'
 
 /**
  * 인증키 정규화
@@ -837,9 +841,14 @@ function isSameEngPlace(spotName: string, korean: string): boolean {
 const ANDONG_IN_ENG_ADDRESS = /Andong-si/i
 
 /** 영문 레코드 한 건을 조회 가능한 꼴로. 안동이 아니거나 국문명이 없으면 버린다. */
-function toEngRecord(item: EngSpot): { english: string; korean: string } | null {
+function toEngRecord(item: EngSpot): EngRecord | null {
   if (!ANDONG_IN_ENG_ADDRESS.test(item.addr1 ?? '')) return null
-  return splitEngTitle(item.title)
+
+  const split = splitEngTitle(item.title)
+  if (!split) return null
+
+  // ID 둘을 함께 들고 간다. 이름만 가지고는 영문 `detailIntro2`를 부를 수 없다.
+  return { ...split, contentId: item.contentid, contentTypeId: item.contenttypeid }
 }
 
 /**
@@ -891,7 +900,12 @@ function toEngRecord(item: EngSpot): { english: string; korean: string } | null 
  *    축제가 이미 같은 처방을 쓰고 있었다 — 목록은 캐시하고 판정은 요청 시점에.
  *    → ADR-035 · ADR-040
  */
-type EngRecord = { english: string; korean: string }
+type EngRecord = {
+  english: string
+  korean: string
+  contentId: string
+  contentTypeId: string
+}
 
 /**
  * ⚠️ `defineCachedFunction`을 **모듈 최상위에서 부르지 않는다.** 이 파일은
@@ -967,6 +981,186 @@ export async function attachEnglishNames<T extends Spot>(spots: T[]): Promise<T[
     const nameEn = pool.find((record) => isSameEngPlace(spot.name, record.korean))?.english
     return nameEn ? { ...spot, nameEn } : spot
   })
+}
+
+/**
+ * 이용 안내 필드 이름 — **콘텐츠 타입마다 다르다**
+ *
+ * 이게 이 조회에서 유일하게 어려운 부분이다. `detailIntro2`는 타입별로 응답 스키마가
+ * 통째로 다르다. 관광지는 `usetime`인데 문화시설은 `usetimeculture`, 쇼핑은
+ * `opentime`이다. 처음 재 볼 때 이걸 모르고 `usetime`만 봤다가 **문화시설 9곳이
+ * 전부 빈칸으로 나왔다.**
+ *
+ * 타입 코드로 표를 만들지 않고 후보 이름을 늘어놓는다. 이유가 둘이다.
+ *   1. 영문 서비스는 타입 코드 체계가 아예 다르다(75·76·78…). 표를 두 벌 들고
+ *      있어야 하는데, 실제로 다른 것은 **접미사뿐**이다.
+ *   2. 못 보던 타입이 하나 들어와도 이름이 같은 규칙이면 그냥 걸린다.
+ *
+ * 비어 있지 않은 첫 값을 쓴다. 한 응답에 둘이 함께 오는 경우는 없다.
+ */
+const INTRO_KEYS = {
+  useTime: ['usetime', 'usetimeculture', 'usetimeleports', 'opentime', 'opentimefood'],
+  restDate: [
+    'restdate',
+    'restdateculture',
+    'restdateleports',
+    'restdateshopping',
+    'restdatefood',
+  ],
+  parking: ['parking', 'parkingculture', 'parkingleports', 'parkingshopping', 'parkingfood'],
+  /** 관람료. 문화시설·레포츠에만 있다. 관광지(12)에는 필드 자체가 없다. */
+  fee: ['usefee', 'usefeeleports'],
+  tel: [
+    'infocenter',
+    'infocenterculture',
+    'infocenterleports',
+    'infocentershopping',
+    'infocenterfood',
+  ],
+} as const
+
+/**
+ * 상류 문장을 화면에 낼 꼴로
+ *
+ * ⚠️ 이 값들에는 **HTML이 섞여 온다.** `<br>`로 줄을 나누고 `&amp;`로 &를 적는다.
+ *    그대로 인쇄하면 "09:00~18:00&lt;br&gt;입장 마감 17:30"이 화면에 뜬다.
+ *
+ * 줄바꿈은 살린다 — 하절기/동절기가 한 줄에 붙으면 읽을 수 없다. 대신 빈 줄은
+ * 걷어낸다. 상류가 `<br><br>`을 자주 쓴다.
+ */
+function cleanIntro(value: unknown): string {
+  return String(value ?? '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/g, "'")
+    /**
+     * 계절 머리표 앞에서 줄을 나눈다.
+     *
+     * 상류가 구분자 없이 붙여 준다 — 하회마을 실측값이 이렇다.
+     *   `[하절기(4월~9월)]- 09:00~18:00 - 입장 마감 17:30[동절기(10월~3월)]- 09:00~17:00`
+     * 두 시간표가 한 문장이 되어 읽을 수 없다. 글자는 하나도 바꾸지 않고 줄만 나눈다.
+     */
+    .replace(/(?<=\S)\[/g, '\n[')
+    .split('\n')
+    .map((line) => line.replace(/[^\S\n]+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n')
+    .trim()
+}
+
+/** 후보 이름 중 비어 있지 않은 첫 값. 없으면 undefined — 빈 문자열을 남기지 않는다. */
+function pickIntro(item: Record<string, unknown>, keys: readonly string[]): string | undefined {
+  for (const key of keys) {
+    const value = cleanIntro(item[key])
+    if (value) return value
+  }
+
+  return undefined
+}
+
+/**
+ * 상세 응답의 item은 배열일 때도, 객체 하나일 때도 있다.
+ * 목록 조회와 달리 이 엔드포인트들은 그 꼴이 일정하지 않다.
+ */
+function firstItem<T>(items: T[]): Record<string, unknown> | null {
+  const list = Array.isArray(items) ? items : [items as T]
+  return (list[0] as Record<string, unknown> | undefined) ?? null
+}
+
+/** 국문 이용 안내. contentId가 없는 곳(44곳 중 9곳)은 물어볼 수단이 없다. */
+async function korGuide(spot: Spot): Promise<SpotGuide> {
+  if (!spot.contentId) return {}
+
+  // 타입 코드를 모르면 detailIntro2를 부를 수 없다. 목록에는 그 값이 없어서 한 번 더 묻는다.
+  const common = await fetchTourApi<unknown>(KOR_DETAIL_COMMON, { contentId: spot.contentId })
+  const contentTypeId = String(firstItem(common.items)?.contenttypeid ?? '')
+  if (!contentTypeId) return {}
+
+  const intro = await fetchTourApi<unknown>(KOR_DETAIL_INTRO, {
+    contentId: spot.contentId,
+    contentTypeId,
+  })
+  const item = firstItem(intro.items)
+  if (!item) return {}
+
+  return {
+    ...optional('useTime', pickIntro(item, INTRO_KEYS.useTime)),
+    ...optional('restDate', pickIntro(item, INTRO_KEYS.restDate)),
+    ...optional('parking', pickIntro(item, INTRO_KEYS.parking)),
+    ...optional('fee', pickIntro(item, INTRO_KEYS.fee)),
+    ...optional('tel', pickIntro(item, INTRO_KEYS.tel)),
+  }
+}
+
+/**
+ * 영문 이용 안내 — 이름으로 이어 붙인다
+ *
+ * ⚠️ 국문 contentId로는 못 부른다. 두 서비스는 ID 체계가 별개다(교집합 0건).
+ *    유일한 연결 고리가 영문 제목 괄호 안의 국문명이라, 영문명을 붙일 때 쓰는
+ *    그 풀을 그대로 쓴다. → `attachEnglishNames`
+ *
+ * 실측(2026-09-11): 영문 풀에 걸리는 17곳 중 운영시간·휴무일이 실제로 있는 곳은
+ * 13곳이다. 나머지는 국문 값이 영문 화면에 그대로 나간다 — 지어내지 않는다.
+ */
+async function engGuide(spot: Spot): Promise<SpotGuide> {
+  const pool = await englishPool()
+  const record = pool.find((candidate) => isSameEngPlace(spot.name, candidate.korean))
+
+  /**
+   * ⚠️ ID 둘이 다 있어야 부른다. 없는데 부르면 쿼리에 `undefined`가 실려 나가고
+   *    상류가 오류로 답한다 — 개발에서 실제로 그렇게 실패했다. 풀은 1일 캐시라,
+   *    레코드에 ID를 더한 그날 **어제 꼴로 저장된 값**이 그대로 살아 있었다.
+   *    캐시된 자료 구조를 넓힐 때 늘 있는 일이므로 읽는 쪽에서 막는다.
+   */
+  if (!record?.contentId || !record.contentTypeId) return {}
+
+  const intro = await fetchTourApi<unknown>(ENG_DETAIL_INTRO, {
+    contentId: record.contentId,
+    contentTypeId: record.contentTypeId,
+  })
+  const item = firstItem(intro.items)
+  if (!item) return {}
+
+  return {
+    ...optional('useTimeEn', pickIntro(item, INTRO_KEYS.useTime)),
+    ...optional('restDateEn', pickIntro(item, INTRO_KEYS.restDate)),
+    ...optional('parkingEn', pickIntro(item, INTRO_KEYS.parking)),
+    ...optional('feeEn', pickIntro(item, INTRO_KEYS.fee)),
+  }
+}
+
+/** 값이 있을 때만 키를 만든다. 이 프로젝트는 빈 문자열을 부재로 쓰지 않는다. */
+function optional<K extends string>(key: K, value: string | undefined) {
+  return (value ? { [key]: value } : {}) as { [P in K]?: string }
+}
+
+/**
+ * 이용 안내 — "몇 시에 문 여나"에 답한다
+ *
+ * 국문과 영문을 **따로, 동시에** 묻는다. 서로를 기다리지 않는 이유는 화면과 같다 —
+ * 영문 서비스가 죽어도 국문 안내는 떠야 하고, 그 반대도 마찬가지다. 실제로
+ * 배포에서 EngService2만 혼자 403을 낸 적이 있다(ADR-040).
+ *
+ * 던지지 않는다. 이용 안내 한 칸이 관광지 상세 전체를 죽이면 안 된다.
+ */
+export async function fetchSpotGuide(spot: Spot): Promise<SpotGuide> {
+  const [kor, eng] = await Promise.all([
+    korGuide(spot).catch((error) => {
+      console.warn('[guide] 국문 이용 안내 조회에 실패했다 —', reasonOf(error))
+      return {} as SpotGuide
+    }),
+    engGuide(spot).catch((error) => {
+      console.warn('[guide] 영문 이용 안내 조회에 실패했다 —', reasonOf(error))
+      return {} as SpotGuide
+    }),
+  ])
+
+  return { ...kor, ...eng }
 }
 
 /**
