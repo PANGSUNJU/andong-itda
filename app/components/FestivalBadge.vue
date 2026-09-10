@@ -52,16 +52,71 @@ const open = ref(false)
 function show() {
   open.value = true
   dialog.value?.showModal()
+  lockScroll()
 }
 
+/**
+ * 닫는 길이 셋이다 — X 버튼 · 백드롭 · Esc. Esc는 `@cancel`로 이리 들어온다.
+ *
+ * ⚠️ 잠금 해제를 close 이벤트 하나에만 걸지 않는다. 여기서도 한 번 푼다.
+ *    두 번 풀어도 아무 일이 없고(unlockScroll이 잠긴 상태만 되돌린다), 한 번도
+ *    안 풀리면 페이지 전체가 굳는다. 값이 다른 두 실패의 비용이다.
+ */
 function hide() {
   dialog.value?.close()
+  unlockScroll()
 }
 
 /** 닫히면 내용도 언마운트한다. 닫아 둔 팝업이 아무것도 붙들고 있지 않게 한다. */
 function onClose() {
   open.value = false
+  unlockScroll()
 }
+
+/**
+ * 뒤 화면을 붙든다 — `showModal()`이 해 주지 않는 하나
+ *
+ * 네이티브 `<dialog>`는 Esc·포커스 가두기·inert를 공짜로 주지만 **배경 스크롤은
+ * 막지 않는다.** 팝업 위에서 휠을 굴리면 목록 끝에서 스크롤이 뒤 페이지로 넘어가고,
+ * 닫고 나면 읽던 자리가 아니라 엉뚱한 곳에 서 있게 된다.
+ *
+ * ⚠️ `overflow: hidden`을 쓰지 않았다. 그 방법은 **iOS 사파리에서 듣지 않는다** —
+ *    이 서비스는 버스를 기다리며 휴대폰으로 보는 화면이라 그게 주 환경이다.
+ *    본문을 통째로 `position: fixed`로 띄우면 스크롤할 것 자체가 없어진다.
+ *
+ * 대신 두 가지를 되돌려 줘야 한다.
+ *   1. 있던 자리 — 띄우는 순간 맨 위로 튄다. 음수 `top`으로 붙잡았다가 풀 때 되돌린다.
+ *   2. 스크롤바 폭 — 사라지면서 화면이 그만큼 오른쪽으로 튄다. 패딩으로 메운다.
+ */
+let lockedY = 0
+
+function lockScroll() {
+  const body = document.body
+  lockedY = window.scrollY
+  const gap = window.innerWidth - document.documentElement.clientWidth
+
+  body.style.position = 'fixed'
+  body.style.top = `-${lockedY}px`
+  body.style.left = '0'
+  body.style.right = '0'
+  if (gap > 0) body.style.paddingRight = `${gap}px`
+}
+
+function unlockScroll() {
+  const body = document.body
+  // 잠기지 않았는데 풀면 `scrollTo(0, 0)`이 사람을 맨 위로 보낸다.
+  if (body.style.position !== 'fixed') return
+
+  body.style.position = ''
+  body.style.top = ''
+  body.style.left = ''
+  body.style.right = ''
+  body.style.paddingRight = ''
+  window.scrollTo(0, lockedY)
+}
+
+// 팝업이 열린 채로 화면을 떠나는 경로가 있다(길찾기 링크·뒤로가기). 잠금을 두고 가면 페이지가 굳는다.
+onUnmounted(unlockScroll)
 
 /**
  * 배경(백드롭)을 누르면 닫는다. `<dialog>`는 백드롭 클릭을 자동으로 처리하지
@@ -130,6 +185,7 @@ function when(festival: Festival): string {
       ref="dialog"
       class="m-auto w-[min(30rem,calc(100vw-2rem))] rounded-md border border-hairline bg-white p-0 text-ink shadow-float backdrop:bg-ink/40"
       @close="onClose()"
+      @cancel="hide()"
       @click="onBackdrop($event)"
     >
       <!-- 열려 있을 때만 내용을 만든다. 닫힌 팝업이 버스 API를 부르지 않게 한다. -->
@@ -145,12 +201,28 @@ function when(festival: Festival): string {
               {{ anyOngoing ? t.festival.subOngoing : t.festival.subUpcoming }}
             </p>
           </div>
+          <!--
+            낱말이 아니라 ×다. 제목 옆에 "닫기"가 글자로 있으면 그것도 읽을 것이
+            하나 더 있는 것처럼 보인다. 낱말은 aria-label로 남으므로 화면 낭독기는
+            그대로 "닫기"를 읽는다 — 문구는 지우지 않고 자리만 옮긴 것이다.
+          -->
           <button
             type="button"
-            class="-mr-2 -mt-1 flex-none rounded-full px-3 py-2 text-sm font-medium text-muted hover:bg-surface-soft"
+            :aria-label="t.festival.close"
+            class="-mr-2 -mt-1 flex h-9 w-9 flex-none items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-soft hover:text-ink"
             @click="hide()"
           >
-            {{ t.festival.close }}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              class="h-[18px] w-[18px]"
+              aria-hidden="true"
+            >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
           </button>
         </div>
 
