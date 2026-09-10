@@ -87,7 +87,14 @@ const ko = {
    * 버튼이 아니라 링크다. 누르면 같은 화면의 다른 주소로 간다. → ADR-031
    */
   lang: {
-    label: '언어 선택',
+    /**
+     * 하나짜리 전환 링크의 접근성 이름.
+     *
+     * ⚠️ 각 언어의 값이 **반대편**을 가리킨다. 언어가 둘뿐이라 그게 성립하고,
+     *    "English로 보기"를 국문 화면에서 읽는 것이 "언어 선택"보다 정확하다.
+     *    셋이 되면 이 구조가 무너진다 — 그때는 다시 목록으로 돌아가야 한다.
+     */
+    switch: 'English로 보기',
     ko: '한국어',
     en: 'English',
   },
@@ -548,7 +555,7 @@ const en: Messages = {
   },
 
   lang: {
-    label: 'Select language',
+    switch: 'View this page in Korean',
     ko: '한국어',
     en: 'English',
   },

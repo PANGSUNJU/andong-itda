@@ -41,14 +41,15 @@ const activePath = computed(() => {
  * 영문 홈이 아니라 영문으로 된 하회마을 상세다. `fullPath`를 쓰므로 검색어 같은
  * 쿼리도 함께 넘어간다.
  */
-const languages = computed(() =>
-  LOCALES.map((code) => ({
-    code,
-    label: MESSAGES[code].lang[code],
-    to: pathIn(code, route.fullPath),
-    current: code === locale.value,
-  })),
-)
+/**
+ * 반대편 언어 하나. 화면에는 지금 언어가 아니라 **갈 곳**이 적힌다.
+ *
+ * 이름은 그 언어로 쓴다("English"·"한국어"). 읽을 사람이 그 언어 사용자다.
+ */
+const otherLanguage = computed(() => {
+  const code = LOCALES.find((candidate) => candidate !== locale.value) ?? 'en'
+  return { code, label: MESSAGES[code].lang[code], to: pathIn(code, route.fullPath) }
+})
 
 /**
  * 언어별 메타 — `<html lang>`과 hreflang
@@ -165,26 +166,30 @@ useHead(() => ({
           <FestivalBadge />
 
           <!--
-            언어. 오른쪽 끝에 두 언어를 나란히 둔다.
+            언어. 반대편 하나만 둔다.
 
-            드롭다운을 쓰지 않는다. 언어가 둘뿐이라 여는 동작이 순수한 손해이고,
-            닫혀 있는 동안 "영어가 있다"는 사실 자체가 숨는다. 외국인 여행자는
-            국문 화면에서 이 두 글자를 찾아야 하는 사람이므로 늘 보여야 한다.
+            두 언어를 나란히 두고 지금 언어를 칠해 두던 방식이었다. 그때도 "영어가
+            있다"는 사실은 보였지만, 외국인 여행자는 **둘 중 어느 쪽이 눌리는지**를
+            먼저 판단해야 했다. 갈 곳 하나만 적으면 그 판단이 사라진다.
+            폰에서 헤더 폭이 한 칸 넉넉해지는 것은 덤이다.
+
+            ⚠️ 버튼이 아니라 **링크**다. 언어는 주소이므로(ADR-031) 새 탭으로 열 수
+               있어야 하고 검색엔진이 따라갈 수 있어야 한다. 토글을 자바스크립트로
+               만들면 둘 다 잃는다.
+
+            `lang`·`hreflang`을 붙인다. 없으면 스크린리더가 국문 화면의 "English"를
+            국문 음성으로 읽는다. 눈에 보이는 글자는 한 단어지만 읽히는 것은 그 단어의
+            언어까지다.
           -->
-          <nav :aria-label="t.lang.label" class="flex flex-none items-center gap-1">
-            <NuxtLink
-              v-for="language in languages"
-              :key="language.code"
-              :to="language.to"
-              :aria-current="language.current ? 'true' : undefined"
-              class="rounded-full px-2.5 py-1.5 text-[13px] font-medium transition-colors tablet:px-3"
-              :class="
-                language.current ? 'bg-surface-strong text-ink' : 'text-muted hover:bg-surface-soft'
-              "
-            >
-              {{ language.label }}
-            </NuxtLink>
-          </nav>
+          <NuxtLink
+            :to="otherLanguage.to"
+            :lang="otherLanguage.code"
+            :hreflang="otherLanguage.code"
+            :aria-label="t.lang.switch"
+            class="flex-none rounded-full border border-hairline px-3 py-1.5 text-[13px] font-medium text-body transition-colors hover:bg-surface-soft"
+          >
+            {{ otherLanguage.label }}
+          </NuxtLink>
         </div>
       </div>
     </header>
