@@ -77,6 +77,18 @@ function serviceKey(): string {
  * 두 서비스가 같은 래퍼(response.header/body)를 쓴다.
  * 결과가 없으면 items가 빈 배열이 아니라 빈 문자열('')로 온다. 그 처리를 여기서 끝낸다.
  */
+/**
+ * 오류에서 사람이 읽을 한 줄을 꺼낸다.
+ *
+ * `fetchTourApi`는 `createError`로 감싸 던지고 진짜 원인은 `data.reason`에 있다.
+ * 그걸 안 꺼내면 로그에 "TourAPI 호출 실패"만 남아 아무것도 말해 주지 않는다.
+ */
+function reasonOf(error: unknown): string {
+  const data = (error as { data?: { reason?: string } })?.data
+  if (data?.reason) return data.reason
+  return error instanceof Error ? error.message : String(error)
+}
+
 async function fetchTourApi<T>(
   url: string,
   params: Record<string, string | number>,
@@ -314,8 +326,9 @@ async function attachEnglishFestivalNames(
       ...KOR_SERVICE_LDONG_REGION,
     })
     english = items
-  } catch {
-    console.warn('[festival] 영문 축제 조회에 실패했다. 국문 이름만 보여준다')
+  } catch (error) {
+    // 이유를 함께 적는다. 이유 없는 경고는 배포 로그에서 아무것도 말해 주지 않는다.
+    console.warn('[festival] 영문 축제 조회에 실패했다. 국문 이름만 보여준다 —', reasonOf(error))
     return festivals
   }
 
@@ -812,14 +825,41 @@ function englishPool(): Promise<EngRecord[]> {
   return cachedEnglishPool()
 }
 
+/**
+ * 마지막 실패 시각 — 죽은 상류를 요청마다 다시 두드리지 않는다
+ *
+ * 영문 붙이기를 캐시 밖으로 꺼내면서(ADR-040) 생긴 위험이다. 성공은 1일 캐시되지만
+ * **실패는 캐시되지 않으므로**, 상류가 계속 죽어 있으면 모든 요청이 실패하는 호출을
+ * 한 번씩 더 하게 된다. 그건 화면을 느리게 만들 뿐 아무것도 고치지 못한다.
+ *
+ * 1분만 쉬었다 다시 시도한다. 캐시가 아니라 **재시도 간격**이다 — 하루를 얼리는
+ * 것과 다르다. 상류가 살아나면 1분 안에 화면이 영문으로 돌아온다.
+ */
+let englishFailedAt = 0
+const ENGLISH_RETRY_MS = 60_000
+
 export async function attachEnglishNames<T extends Spot>(spots: T[]): Promise<T[]> {
+  if (englishFailedAt && Date.now() - englishFailedAt < ENGLISH_RETRY_MS) return spots
+
   let pool: EngRecord[]
 
   try {
     pool = await englishPool()
-  } catch {
-    // 다음 요청이 다시 시도한다. 이 실패는 캐시에 남지 않는다.
-    console.warn('[eng] 영문 관광정보 조회에 실패했다. 이번 응답만 국문으로 나간다')
+    englishFailedAt = 0
+  } catch (error) {
+    englishFailedAt = Date.now()
+    /**
+     * ⚠️ 이유를 함께 적는다. 이 한 줄이 배포 로그에서 유일한 단서다.
+     *    실측(2026-09-10): 같은 키·같은 호스트인데 KorService2는 되고 EngService2만
+     *    배포본에서 빈손으로 온다. 로컬(한국)에서는 136ms에 57건이 온다. → ADR-040
+     */
+    console.warn('[eng] 영문 관광정보 조회에 실패했다. 국문으로 나간다 —', reasonOf(error))
+    return spots
+  }
+
+  if (!pool.length) {
+    // 오류 없이 0건이 오는 경우가 이 프로젝트에 이미 있었다(lDongSignguCd 47170).
+    console.warn('[eng] 영문 관광정보가 0건으로 왔다. 오류는 아니지만 이름이 안 붙는다')
     return spots
   }
 
