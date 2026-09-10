@@ -33,3 +33,6 @@ __pycache__/
 *.py[cod]
 .venv
 venv/
+
+# 일회용 패치 스크립트 (앞에 점이 붙은 임시 .mjs)
+.*.mjs
