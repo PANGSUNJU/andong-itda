@@ -117,7 +117,7 @@ const mapCaption = computed(() =>
     <div class="desktop:grid desktop:grid-cols-[minmax(0,1fr)_372px] desktop:gap-x-12 desktop:items-start">
       <div class="min-w-0 pb-12">
         <div class="py-6 pb-4">
-          <h1 class="text-[26px] font-semibold leading-tight tracking-[-0.18px] tablet:text-[28px]">
+          <h1 class="font-serif text-[26px] font-semibold leading-tight tracking-[-0.18px] tablet:text-[28px]">
             {{ t.browse.heading }}
           </h1>
           <p v-if="tab === 'spots'" class="mt-1.5 text-sm leading-relaxed text-muted">

@@ -229,7 +229,7 @@ onMounted(() => {
     <div class="desktop:grid desktop:grid-cols-[minmax(0,1fr)_372px] desktop:gap-x-12 desktop:items-start">
       <div class="min-w-0">
         <div class="py-6 pb-4">
-          <h1 class="text-[26px] font-semibold leading-tight tracking-[-0.18px] tablet:text-[28px]">
+          <h1 class="font-serif text-[26px] font-semibold leading-tight tracking-[-0.18px] tablet:text-[28px]">
             {{ t.home.heading(placeLabel) }}
           </h1>
           <p class="mt-1.5 text-sm leading-relaxed text-muted">
@@ -366,7 +366,7 @@ onMounted(() => {
 
         <section v-if="walkable.length" class="mt-8">
           <div class="mb-4">
-            <h2 class="text-[22px] font-medium leading-tight tracking-[-0.44px]">
+            <h2 class="font-serif text-[22px] font-semibold leading-tight tracking-[-0.44px]">
               {{ t.home.walkableHeadLead
               }}<em class="not-italic text-primary">{{ t.home.walkableHeadEmphasis }}</em>
             </h2>
@@ -380,7 +380,7 @@ onMounted(() => {
 
         <section v-if="rideable.length" class="mt-8 pb-12">
           <div class="mb-4">
-            <h2 class="text-[22px] font-medium leading-tight tracking-[-0.44px]">
+            <h2 class="font-serif text-[22px] font-semibold leading-tight tracking-[-0.44px]">
               {{ t.home.rideableHead }}
             </h2>
             <p class="mt-1 text-sm text-muted">
@@ -398,7 +398,7 @@ onMounted(() => {
         class="mt-8 min-w-0 pb-12 desktop:mt-0 desktop:sticky desktop:top-[96px]"
       >
         <div class="mb-4">
-          <h2 class="text-[22px] font-medium leading-tight tracking-[-0.44px]">
+          <h2 class="font-serif text-[22px] font-semibold leading-tight tracking-[-0.44px]">
             {{ t.home.popularHead }}
           </h2>
           <p class="mt-1 text-sm text-muted">{{ t.home.popularSub }}</p>

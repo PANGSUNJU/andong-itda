@@ -1,13 +1,28 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+/*
+  제목용 명조. 본문은 Pretendard로 남긴다 — 정보 밀도가 높은 화면에서 명조는
+  읽기 부담이 커진다. 제목에만 쓰면 인상은 바뀌고 가독성은 그대로다.
+
+  구글 폰트는 unicode-range로 쪼개 주므로 화면에 실제로 뜬 글자 조각만 내려온다.
+  swap이라 폰트가 늦게 와도 글자가 먼저 보인다.
+*/
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&display=swap');
 @import "tailwindcss";
 
 /*
   안동잇다 디자인 토큰
 
-  원칙 세 가지.
-  1. 흰 캔버스 위에 고전압 색은 단 하나(primary)만 존재한다.
-  2. 그림자는 한 단계만 있다. 깊이는 사진과 라운드 클리핑에서 나온다.
+  원칙 네 가지.
+  1. 한지 위에 고전압 색은 단 하나(primary)만 존재한다.
+  2. 깊이는 그림자가 아니라 헤어라인에서 나온다.
   3. 큰 타이포는 한 곳에만 쓴다 — 버스 도착까지 남은 분.
+  4. 제목은 명조, 본문과 숫자는 산세리프.
+
+  ⚠️ 바탕이 순백이 아니라 한지색이다. 회색 계열도 전부 따뜻한 쪽으로 맞춰 뒀다.
+     여기서 중성 회색을 하나라도 쓰면 그 요소만 화면에서 떠 보인다. → ADR-044
+
+  ⚠️ primary(#d9453c)는 바꾸지 않았다. 로고 자산(public/logo/)과 공유 카드가
+     이 값으로 만들어져 있어서, 여기만 고치면 화면과 로고가 다른 빨강이 된다.
 
   값을 바꾸려면 이 파일만 고친다.
   컴포넌트에서 색·라운드·간격 값을 직접 쓰지 않는다.
@@ -18,34 +33,59 @@
   --color-primary-active: #b8322a;
   --color-primary-disabled: #f5cfcc;
 
-  --color-ink: #222222;
-  --color-body: #3f3f3f;
-  --color-muted: #6a6a6a;
-  --color-muted-soft: #929292;
+  /* 먹색 계열. 순검정이 아니라 먹이 마른 색이다. */
+  --color-ink: #1f1b17;
+  --color-body: #3a3530;
+  --color-muted: #6b625a;
+  --color-muted-soft: #948c83;
 
-  --color-hairline: #dddddd;
-  --color-hairline-soft: #ebebeb;
-  --color-border-strong: #c1c1c1;
+  --color-hairline: #ddd8d0;
+  --color-hairline-soft: #ebe6de;
+  --color-border-strong: #c2bab0;
 
-  --color-surface-soft: #f7f7f7;
-  --color-surface-strong: #f2f2f2;
+  --color-surface-soft: #f5f2ec;
+  --color-surface-strong: #efebe3;
+
+  /*
+    한지. 순백(#ffffff)에서 내려온 바탕색이다.
+
+    ⚠️ 화면에 붙어 있는 면(헤더·하단 탭)은 흰색이 아니라 이 값이어야 한다.
+       바탕이 한지인데 헤더만 순백이면 스크롤할 때 경계에 흰 띠가 생긴다.
+       종이 한 장처럼 얹혀야 하는 것(검색창·시트·지도 위 알약)은 흰색으로
+       남겨 둔다 — 거기서는 흰색이 "얹힌 종이"로 읽힌다.
+  */
+  --color-paper: #fbfaf6;
 
   /* ── 라운드 ─────────────────────────────── */
-  --radius-xs: 4px;
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 32px;
+  /* 크게 둥글면 앱 화면이 된다. 도록·인쇄물 쪽으로 당긴다. */
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
 
-  /* ── 그림자 — 단 하나의 정의 ──────────────── */
+  /* ── 그림자 — 단 하나의 정의, 그리고 거의 없다 ── */
+  /*
+    카드를 띄우지 않는다. 헤어라인 한 겹과 아주 옅은 그늘만 남긴다.
+    지도 위에 뜨는 요소(마커 이름표·되돌리기 버튼)는 MapCard가 자기 값으로
+    직접 그린다 — 배경이 지도라 이 정도로는 안 보이기 때문이다.
+  */
   --shadow-float:
-    rgba(0, 0, 0, 0.02) 0 0 0 1px,
-    rgba(0, 0, 0, 0.04) 0 2px 6px 0,
-    rgba(0, 0, 0, 0.1) 0 4px 8px 0;
+    rgba(31, 27, 23, 0.06) 0 0 0 1px,
+    rgba(31, 27, 23, 0.04) 0 1px 3px 0;
 
   /* ── 타이포 ─────────────────────────────── */
   --font-sans: 'Pretendard', Inter, -apple-system, system-ui, 'Segoe UI',
     'Helvetica Neue', sans-serif;
+
+  /*
+    제목 전용. 본문·숫자에는 쓰지 않는다.
+
+    한글 명조가 없는 환경을 대비해 뒤로 내려간다. 영문 세리프를 앞에 두지 않는
+    것은, 제목 대부분이 한글이라 영문 세리프가 먼저 잡히면 한글만 산세리프로
+    떨어져 한 줄 안에서 글꼴이 갈리기 때문이다.
+  */
+  --font-serif: 'Noto Serif KR', 'Nanum Myeongjo', 'Apple SD Gothic Neo', serif;
 
   /* 버스 도착 시간 전용. 다른 곳에 쓰지 않는다. */
   --text-arrival: 64px;
@@ -67,7 +107,7 @@
   }
 
   body {
-    background: #ffffff;
+    background: var(--color-paper);
     color: var(--color-ink);
     font-family: var(--font-sans);
   }

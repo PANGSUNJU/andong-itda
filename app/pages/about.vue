@@ -27,7 +27,7 @@ usePageTitle(() => t.value.about.title)
 <template>
   <div class="mx-auto max-w-[720px] px-6 pb-12">
     <div class="py-6 pb-4">
-      <h1 class="text-[26px] font-semibold leading-tight tracking-[-0.18px] tablet:text-[28px]">
+      <h1 class="font-serif text-[26px] font-semibold leading-tight tracking-[-0.18px] tablet:text-[28px]">
         {{ t.about.heading }}
       </h1>
       <p class="mt-1.5 text-sm leading-relaxed text-muted">
@@ -36,7 +36,7 @@ usePageTitle(() => t.value.about.title)
     </div>
 
     <section class="border-t border-hairline py-8">
-      <h2 class="mb-3 text-[22px] font-medium leading-tight tracking-[-0.44px]">
+      <h2 class="mb-3 font-serif text-[22px] font-semibold leading-tight tracking-[-0.44px]">
         {{ t.about.sourcesHead }}
       </h2>
 
@@ -74,7 +74,7 @@ usePageTitle(() => t.value.about.title)
     </section>
 
     <section class="border-t border-hairline py-8">
-      <h2 class="mb-3 text-[22px] font-medium leading-tight tracking-[-0.44px]">
+      <h2 class="mb-3 font-serif text-[22px] font-semibold leading-tight tracking-[-0.44px]">
         {{ t.about.limitsHead }}
       </h2>
 
@@ -94,7 +94,7 @@ usePageTitle(() => t.value.about.title)
     </section>
 
     <section class="border-t border-hairline py-8">
-      <h2 class="mb-3 text-[22px] font-medium leading-tight tracking-[-0.44px]">
+      <h2 class="mb-3 font-serif text-[22px] font-semibold leading-tight tracking-[-0.44px]">
         {{ t.about.locationHead }}
       </h2>
 
@@ -121,7 +121,7 @@ usePageTitle(() => t.value.about.title)
     </section>
 
     <section class="border-t border-hairline py-8">
-      <h2 class="mb-3 text-[22px] font-medium leading-tight tracking-[-0.44px]">
+      <h2 class="mb-3 font-serif text-[22px] font-semibold leading-tight tracking-[-0.44px]">
         {{ t.about.privacyHead }}
       </h2>
 
@@ -143,7 +143,7 @@ usePageTitle(() => t.value.about.title)
       새 창으로 연다. 읽던 화면을 저장소로 덮어쓰지 않는다.
     -->
     <section class="border-t border-hairline py-8">
-      <h2 class="mb-3 text-[22px] font-medium leading-tight tracking-[-0.44px]">
+      <h2 class="mb-3 font-serif text-[22px] font-semibold leading-tight tracking-[-0.44px]">
         {{ t.about.sourceHead }}
       </h2>
 

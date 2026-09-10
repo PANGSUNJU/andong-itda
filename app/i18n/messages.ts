@@ -531,7 +531,7 @@ const ko = {
      */
     sourceHead: '만든 과정',
     sourceBody:
-      '화면에 보이지 않는 판단이 많아요. 어느 정류장을 왜 뒤로 미는지, 모르는 막차 시각을 왜 비워 두는지 같은 것들이에요. 그 결정을 43건의 기록으로 남겨 뒀어요.',
+      '화면에 보이지 않는 판단이 많아요. 어느 정류장을 왜 뒤로 미는지, 모르는 막차 시각을 왜 비워 두는지 같은 것들이에요. 그 결정을 44건의 기록으로 남겨 뒀어요.',
     sourceLink: '소스 코드와 결정 기록 (GitHub)',
 
     closing:
@@ -908,7 +908,7 @@ const en: Messages = {
 
     sourceHead: 'How this was built',
     sourceBody:
-      "A lot of the judgement here never shows on screen — why a stop gets pushed down the list, why we leave a last-bus time blank when we do not know it. Those decisions are written down: 43 records.",
+      "A lot of the judgement here never shows on screen — why a stop gets pushed down the list, why we leave a last-bus time blank when we do not know it. Those decisions are written down: 44 records.",
     sourceLink: 'Source code and decision records (GitHub)',
 
     closing:

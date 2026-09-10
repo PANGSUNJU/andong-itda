@@ -138,7 +138,7 @@ function when(festival: Festival): string {
           class="sticky top-0 flex items-start justify-between gap-3 border-b border-hairline-soft bg-white px-6 pb-4 pt-6"
         >
           <div class="min-w-0">
-            <h2 class="text-[22px] font-medium leading-tight tracking-[-0.44px]">
+            <h2 class="font-serif text-[22px] font-semibold leading-tight tracking-[-0.44px]">
               {{ t.festival.title }}
             </h2>
             <p class="mt-1 text-sm text-muted">

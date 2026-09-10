@@ -77,8 +77,8 @@ const t = useT()
 /** 단청 주홍. 디자인 토큰 --primary와 같은 값이다. SDK에는 CSS 변수를 넘길 수 없다. */
 const PRIMARY = '#D9453C'
 /** --color-ink · --color-muted-soft와 같은 값. 위와 같은 이유로 값을 적는다. */
-const INK = '#222222'
-const MUTED_SOFT = '#929292'
+const INK = '#1F1B17'
+const MUTED_SOFT = '#948C83'
 
 const container = ref<HTMLElement | null>(null)
 const failed = ref(false)

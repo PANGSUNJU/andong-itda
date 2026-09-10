@@ -127,17 +127,17 @@ useHead(() => ({
 
 <template>
   <div class="min-h-screen pb-20 tablet:pb-0">
-    <header class="sticky top-0 z-50 border-b border-hairline-soft bg-white">
+    <header class="sticky top-0 z-50 border-b border-hairline-soft bg-paper">
       <div class="mx-auto flex h-[72px] max-w-[1280px] items-center gap-4 px-6">
         <NuxtLink :to="localePath('/')" class="flex flex-none items-center gap-2">
           <!-- 색은 AppLogo가 토큰으로 직접 칠한다. text-* 를 얹어도 먹지 않는다. -->
           <AppLogo class="h-[30px] w-[30px]" />
           <!--
             먹이다. 공식 락업(public/logo/lockup-light.svg)이 워드마크를
-            #222222로 쓴다. 주홍으로 두면 심볼의 붉은 발자국과 글자가 함께
+            먹색으로 쓴다. 주홍으로 두면 심볼의 붉은 발자국과 글자가 함께
             붉어져 강조가 두 번 걸리고, 락업과도 어긋난다.
           -->
-          <b class="text-xl font-bold tracking-[-0.4px] text-ink">{{ t.brand }}</b>
+          <b class="font-serif text-xl font-semibold tracking-[-0.4px] text-ink">{{ t.brand }}</b>
         </NuxtLink>
 
         <nav class="ml-8 hidden gap-1 tablet:flex">
@@ -215,7 +215,7 @@ useHead(() => ({
 
     <!-- 폰 하단 탭바. 태블릿 이상에서는 상단 네비가 대신한다. -->
     <nav
-      class="fixed inset-x-0 bottom-0 z-50 flex h-16 border-t border-hairline bg-white tablet:hidden"
+      class="fixed inset-x-0 bottom-0 z-50 flex h-16 border-t border-hairline bg-paper tablet:hidden"
     >
       <NuxtLink
         v-for="item in NAV"

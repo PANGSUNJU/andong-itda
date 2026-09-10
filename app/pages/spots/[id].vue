@@ -144,7 +144,7 @@ const mapMarkers = computed(() =>
       <NuxtLink :to="localePath('/browse')" class="text-sm text-muted underline">
         {{ t.spot.back }}
       </NuxtLink>
-      <h1 class="mt-2 text-[26px] font-semibold leading-tight tracking-[-0.18px] tablet:text-[28px]">
+      <h1 class="mt-2 font-serif text-[26px] font-semibold leading-tight tracking-[-0.18px] tablet:text-[28px]">
         {{ d.name(spot) }}
       </h1>
       <!--
@@ -170,14 +170,14 @@ const mapMarkers = computed(() =>
           기계로 옮겨 지어내지 않는다 — 없는 것은 없는 대로 둔다. → ADR-030
         -->
         <section v-if="spot.description" class="pb-8">
-          <h2 class="mb-3 text-[22px] font-medium leading-tight tracking-[-0.44px]">
+          <h2 class="mb-3 font-serif text-[22px] font-semibold leading-tight tracking-[-0.44px]">
             {{ t.spot.aboutHead }}
           </h2>
           <p class="text-base leading-relaxed text-body">{{ spot.description }}</p>
         </section>
 
         <section class="border-t border-hairline py-8">
-          <h2 class="mb-3 text-[22px] font-medium leading-tight tracking-[-0.44px]">
+          <h2 class="mb-3 font-serif text-[22px] font-semibold leading-tight tracking-[-0.44px]">
             {{ t.spot.accessHead }}
           </h2>
 
@@ -251,7 +251,7 @@ const mapMarkers = computed(() =>
           왜 두 번 나오는지가 안 읽힌다. 근거가 다르면 얼굴도 달라야 한다.
         -->
         <section v-if="relatedShown.length" class="border-t border-hairline py-8">
-          <h2 class="mb-3 text-[22px] font-medium leading-tight tracking-[-0.44px]">
+          <h2 class="mb-3 font-serif text-[22px] font-semibold leading-tight tracking-[-0.44px]">
             {{ t.spot.relatedHead }}
           </h2>
 
@@ -275,7 +275,7 @@ const mapMarkers = computed(() =>
         </section>
 
         <section v-if="around.length" class="border-t border-hairline py-8">
-          <h2 class="mb-3 text-[22px] font-medium leading-tight tracking-[-0.44px]">
+          <h2 class="mb-3 font-serif text-[22px] font-semibold leading-tight tracking-[-0.44px]">
             {{ t.spot.aroundHead }}
           </h2>
           <div class="flex flex-col">

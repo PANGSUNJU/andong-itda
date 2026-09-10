@@ -126,7 +126,7 @@ const areaMarkers = computed(() =>
 <template>
   <div class="mx-auto max-w-[1080px] px-6 pb-12">
     <div class="py-6 pb-4">
-      <h1 class="text-[26px] font-semibold leading-tight tracking-[-0.18px] tablet:text-[28px]">
+      <h1 class="font-serif text-[26px] font-semibold leading-tight tracking-[-0.18px] tablet:text-[28px]">
         {{ t.walk.heading }}
       </h1>
       <p class="mt-1.5 text-sm leading-relaxed text-muted">
@@ -142,7 +142,7 @@ const areaMarkers = computed(() =>
       <div class="p-6">
         <div class="flex items-start justify-between gap-3">
           <div>
-            <h2 class="text-xl font-semibold leading-tight tracking-[-0.18px]">
+            <h2 class="font-serif text-xl font-semibold leading-tight tracking-[-0.18px]">
               {{ course.title[locale] }}
             </h2>
             <p class="mt-1 text-sm text-muted">
@@ -256,15 +256,20 @@ const areaMarkers = computed(() =>
     -->
     <section v-if="areas.length" class="mt-12">
       <div class="mb-4">
-        <h2 class="text-[22px] font-medium leading-tight tracking-[-0.44px]">
+        <h2 class="font-serif text-[22px] font-semibold leading-tight tracking-[-0.44px]">
           {{ t.walk.areasHead }}
         </h2>
         <p class="mt-1 text-sm leading-relaxed text-muted">{{ t.walk.areasSub }}</p>
       </div>
 
+      <!--
+        가로로 길고 세로로 짧은 상자에 안동시 전체(29×33km)를 담으면 세로가 먼저 막혀
+        축척이 세 단계 밀린다 — 260px에서는 세종과 동해까지 들어왔다. 데스크톱에서만
+        키워 정사각형에 가깝게 만든다. 좁은 화면은 상자도 좁아서 이미 세로가 맞는다.
+      -->
       <MapCard
         class="mb-4"
-        height="260px"
+        height="clamp(260px, 46vw, 420px)"
         :markers="areaMarkers"
         :caption="t.walk.areasMapCaption(areas.length)"
       />

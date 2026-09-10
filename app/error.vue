@@ -62,7 +62,7 @@ function retry() {
     <div class="mx-auto max-w-[680px] px-6 py-20 tablet:py-28">
       <p class="text-sm font-medium text-muted-soft">{{ t.error.code(status) }}</p>
 
-      <h1 class="mt-2 text-[26px] font-semibold leading-tight tracking-[-0.18px] tablet:text-[28px]">
+      <h1 class="mt-2 font-serif text-[26px] font-semibold leading-tight tracking-[-0.18px] tablet:text-[28px]">
         {{ title }}
       </h1>
       <p class="mt-2 text-sm leading-relaxed text-muted">{{ body }}</p>
