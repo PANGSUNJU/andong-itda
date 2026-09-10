@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import type { Spot } from '#shared/types/tour'
+import { NuxtLink } from '#components'
+
+import type { RelatedSpot, Spot } from '#shared/types/tour'
 import type { SpotBusInfo, SpotRouteInfo } from '#shared/types/static-data'
 import { nearest } from '#shared/constants/location'
 
@@ -58,6 +60,32 @@ const { data: routes } = await useFetch<SpotRouteInfo>(
 const mainRoute = computed(() => routes.value?.inbound[0])
 
 /**
+ * 함께 많이 찾는 곳 — 방문 데이터가 고른 곳
+ *
+ * 아래 "근처에 함께 볼 곳"은 **거리**로 고른다. 이건 **행동**으로 고른다.
+ * 가깝다고 같이 보는 것은 아니고, 멀어도 같이 본다. 두 질문이 다르므로
+ * 두 목록을 둔다. → ADR-042
+ *
+ * 데이터가 없으면 빈 배열이 온다(44곳 중 21곳에만 있다). 404가 아니다.
+ */
+const { data: related } = await useFetch<RelatedSpot[]>(
+  () => `/api/spot-related/${id.value}`,
+  { default: () => [] },
+)
+
+/**
+ * 상류가 준 코드를 우리 목록에서 찾는다. **이름으로 잇지 않는다** — 그 코드가
+ * 곧 우리 `id`다. 못 찾으면 링크 없이 이름만 보여준다. 호텔·식당처럼 우리가
+ * 상세를 갖지 않는 곳도 방문 데이터에는 있고, 그것도 여행자에게는 정보다.
+ */
+const relatedShown = computed(() =>
+  related.value.slice(0, 5).map((item) => ({
+    ...item,
+    spot: spots.value.find((candidate) => candidate.id === item.id),
+  })),
+)
+
+/**
  * 이 화면에는 홈 같은 30초 타이머가 없다. 열어 둔 채로 두면 도착 정보가 그대로 늙으므로
  * 갱신 시각을 적고 새로고침을 붙인다.
  * SSR에서는 시각을 만들지 않는다 — 서버 시각으로 "방금"을 찍으면 하이드레이션이 어긋난다.
@@ -83,7 +111,13 @@ const busPending = computed(() => (busError.value?.data as { data?: { pending?: 
  */
 const around = computed(() =>
   nearest(
-    spots.value.filter((candidate) => candidate.id !== id.value),
+    spots.value.filter(
+      (candidate) =>
+        candidate.id !== id.value &&
+        // 위 목록에 이미 있는 곳은 뺀다. 같은 곳이 한 화면에 두 번 나오면
+        // 두 목록이 서로 다른 일을 한다는 것이 안 읽힌다.
+        !relatedShown.value.some((item) => item.id === candidate.id),
+    ),
     spot.value!,
     { radius: 5000, limit: 4 },
   ),
@@ -207,6 +241,37 @@ const mapMarkers = computed(() =>
           >
             {{ t.spot.directions }}
           </a>
+        </section>
+
+        <!--
+          함께 많이 찾는 곳 — 방문 데이터
+
+          아래 "근처에 함께 볼 곳"과 생김새를 일부러 다르게 둔다. 저쪽은 사진과
+          거리가 붙고 이쪽은 이름과 분류만 붙는다. 둘 다 장소 목록이라 같은 모양이면
+          왜 두 번 나오는지가 안 읽힌다. 근거가 다르면 얼굴도 달라야 한다.
+        -->
+        <section v-if="relatedShown.length" class="border-t border-hairline py-8">
+          <h2 class="mb-3 text-[22px] font-medium leading-tight tracking-[-0.44px]">
+            {{ t.spot.relatedHead }}
+          </h2>
+
+          <div class="flex flex-col">
+            <component
+              :is="item.spot ? NuxtLink : 'div'"
+              v-for="item in relatedShown"
+              :key="item.id"
+              :to="item.spot ? localePath(`/spots/${item.id}`) : undefined"
+              class="flex w-full items-baseline gap-3 border-b border-hairline-soft py-2.5 last:border-b-0"
+            >
+              <!-- 우리 목록에 있으면 그 이름을 쓴다. 영문 화면에서 영문명이 붙는다. -->
+              <b class="min-w-0 flex-1 truncate text-base font-medium leading-tight">
+                {{ item.spot ? d.name(item.spot) : item.name }}
+              </b>
+              <span class="flex-none text-sm text-muted">{{ d.category(item.category) }}</span>
+            </component>
+          </div>
+
+          <p class="mt-3 text-[13px] leading-relaxed text-muted-soft">{{ t.spot.relatedNote }}</p>
         </section>
 
         <section v-if="around.length" class="border-t border-hairline py-8">

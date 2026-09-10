@@ -262,6 +262,44 @@ export interface Festival {
 }
 
 /**
+ * 연관 관광지 한 건 — `TarRlteTarService1/areaBasedList1` 응답
+ *
+ * 한국관광공사가 방문 데이터로 뽑은 "이 관광지를 찾은 사람이 함께 찾은 곳"이다.
+ * hubRank(방문 순위)와 같은 계열의 행동 데이터다.
+ */
+export interface RelatedSpotItem {
+  /** 기준 관광지 코드 — **우리 `Spot.id`와 같은 값이다** */
+  tAtsCd: string
+  tAtsNm: string
+  /** 연관 관광지 코드. 우리 목록에 있으면 그대로 링크가 된다 */
+  rlteTatsCd: string
+  rlteTatsNm: string
+  /** 중분류. 둘러보기 칩과 같은 어휘다(역사관광·문화관광·쇼핑…) */
+  rlteCtgryMclsNm: string
+  /** 연관 순위. 문자열로 온다 */
+  rlteRank: string
+  /** 연관 관광지가 속한 시군구. 안동 밖도 섞여 온다 */
+  rlteSignguCd: string
+  rlteSignguNm: string
+}
+
+/**
+ * 화면용 연관 관광지 — `/api/spot-related/[id]` 응답
+ *
+ * ⚠️ 이름으로 잇지 않는다. 상류가 주는 코드가 우리 `Spot.id`와 **같은 값**이라
+ *    이름 매칭이 아예 필요 없다. 이 프로젝트에서 이름 매칭은 늘 오탐의 원천이었다
+ *    (도산서원 ↔ 도산서원선비문화수련원, ADR-033). 여기는 그 위험이 0이다.
+ */
+export interface RelatedSpot {
+  /** 우리 `Spot.id`. 목록에 있으면 상세로 링크할 수 있다 */
+  id: string
+  name: string
+  category: string
+  /** 1이 가장 강한 연관 */
+  rank: number
+}
+
+/**
  * 관광사진 갤러리 한 건 — `PhotoGalleryService1/gallerySearchList1`
  *
  * 한국관광공사가 직접 수집한 사진이다. KorService2의 `firstimage`가 없을 때

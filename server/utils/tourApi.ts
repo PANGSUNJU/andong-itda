@@ -1,7 +1,7 @@
 // #shared 별칭이 아니라 상대경로를 쓴다. 별칭은 Nuxt만 알기 때문에
 // scripts/check-spot-match.ts를 node로 직접 돌릴 때 해석되지 않는다.
 // import type은 어차피 컴파일에서 지워지므로 별칭을 그대로 둔다.
-import { festivalQueryStartDate } from '../../shared/constants/festival.ts'
+import { festivalQueryStartDate, kstToday } from '../../shared/constants/festival.ts'
 import { distanceMeters } from '../../shared/constants/location.ts'
 import {
   CONTENT_TYPE,
@@ -20,6 +20,8 @@ import type {
   KorFestival,
   KorFestivalWithEnglish,
   KorSpot,
+  RelatedSpot,
+  RelatedSpotItem,
   Spot,
   TourApiResponse,
 } from '#shared/types/tour'
@@ -36,6 +38,7 @@ const LOCGO_HUB = 'http://apis.data.go.kr/B551011/LocgoHubTarService1/areaBasedL
 const KOR_SERVICE = 'https://apis.data.go.kr/B551011/KorService2/areaBasedList2'
 const KOR_SEARCH = 'https://apis.data.go.kr/B551011/KorService2/searchKeyword2'
 const PHOTO_GALLERY = 'https://apis.data.go.kr/B551011/PhotoGalleryService1/gallerySearchList1'
+const REL_SERVICE = 'https://apis.data.go.kr/B551011/TarRlteTarService1/areaBasedList1'
 const ENG_SERVICE = 'https://apis.data.go.kr/B551011/EngService2/areaBasedList2'
 const KOR_FESTIVAL = 'https://apis.data.go.kr/B551011/KorService2/searchFestival2'
 const ENG_FESTIVAL = 'https://apis.data.go.kr/B551011/EngService2/searchFestival2'
@@ -278,6 +281,87 @@ export async function fetchFoodPlaces(): Promise<FoodPlace[]> {
   })
 
   return items.map(toFoodPlace)
+}
+
+/**
+ * 연관 관광지 — "이 관광지를 찾은 사람이 함께 찾은 곳"
+ *
+ * 여섯 번째 관광공사 API다. hubRank와 같은 계열의 **행동 데이터**라, 거리로 고른
+ * "근처에 함께 볼 곳"이 답하지 못하는 질문에 답한다 — 가깝다고 같이 보는 것은
+ * 아니고, 멀어도 같이 본다.
+ *
+ * ⚠️ 이름으로 잇지 않는다. 상류의 `tAtsCd`·`rlteTatsCd`가 우리 `Spot.id`와
+ *    **같은 값**이라 이름 매칭이 필요 없다. 실측(2026-09-11): 안동 951건 중
+ *    264건이 우리 44곳으로 그대로 링크된다.
+ *
+ * ⚠️ 안동 밖 관광지가 섞여 온다. 걸러낸다 — 차 없이 여행하는 사람에게 옆 시군의
+ *    관광지를 "함께 찾는 곳"이라고 내밀면 갈 수단이 없다.
+ *
+ * 실측(2026-09-11): 우리 44곳 중 **21곳**에 데이터가 있고, 관광지당 중앙값 50건이다.
+ * 하회마을 → 월영교·병산서원·부용대·봉정사. 데이터가 상식과 맞는다.
+ */
+
+/** 한 관광지당 담아 두는 최대 개수. 화면은 이보다 적게 쓴다. */
+const REL_KEEP = 8
+
+/**
+ * 이번 달 데이터는 대개 아직 안 올라와 있다.
+ * 실측(2026-09-11): `202609` 0건, `202608` 951건. 달을 고정하면 언젠가 빈다.
+ */
+const REL_LOOKBACK_MONTHS = 6
+
+/** 'YYYYMM'에서 n개월 뺀다. */
+function monthsBack(ym: string, n: number): string {
+  let year = Number(ym.slice(0, 4))
+  let month = Number(ym.slice(4, 6)) - n
+  while (month <= 0) {
+    month += 12
+    year -= 1
+  }
+  return `${year}${String(month).padStart(2, '0')}`
+}
+
+export async function fetchRelatedSpots(): Promise<Record<string, RelatedSpot[]>> {
+  const thisMonth = kstToday().slice(0, 6)
+
+  for (let back = 0; back <= REL_LOOKBACK_MONTHS; back++) {
+    const baseYm = monthsBack(thisMonth, back)
+
+    const { items } = await fetchTourApi<RelatedSpotItem>(REL_SERVICE, {
+      numOfRows: 1000,
+      pageNo: 1,
+      baseYm,
+      ...LOCGO_HUB_REGION,
+    })
+
+    if (!items.length) continue
+
+    const grouped: Record<string, RelatedSpot[]> = {}
+
+    for (const item of items) {
+      // 안동 밖은 뺀다. 차 없이 갈 수 없는 곳을 "함께 찾는 곳"이라 부르지 않는다.
+      if (item.rlteSignguCd !== LOCGO_HUB_REGION.signguCd) continue
+
+      const list = (grouped[item.tAtsCd] ??= [])
+      list.push({
+        id: item.rlteTatsCd,
+        name: item.rlteTatsNm,
+        category: item.rlteCtgryMclsNm,
+        rank: Number(item.rlteRank),
+      })
+    }
+
+    for (const list of Object.values(grouped)) {
+      list.sort((a, b) => a.rank - b.rank)
+      list.splice(REL_KEEP)
+    }
+
+    return grouped
+  }
+
+  // 반년치를 훑어도 없으면 상류가 안동을 안 주는 것이다. 비워서 돌려준다.
+  console.warn('[related] 연관 관광지 데이터를 찾지 못했다. 최근 6개월 전부 0건')
+  return {}
 }
 
 /**

@@ -288,6 +288,18 @@ const ko = {
     busNoneBody: '버스 정보가 등록되지 않은 곳이에요. 현재는 인기 관광지 7곳만 안내하고 있어요.',
     directions: '카카오맵으로 길찾기',
 
+    /**
+     * 여섯 번째 관광공사 API. 거리로 고른 "근처에 함께 볼 곳"이 답하지 못하는
+     * 질문에 답한다 — 가깝다고 같이 보는 것은 아니고, 멀어도 같이 본다.
+     */
+    relatedHead: '함께 많이 찾는 곳',
+    /**
+     * 근거를 밝힌다. hubRank와 같은 방문 데이터라는 것, 그리고 **안동 안만**
+     * 보여준다는 것. 뒤엣것은 이 서비스가 차 없는 여행자를 위한 것이기 때문이다.
+     */
+    relatedNote:
+      '이곳을 찾은 사람들이 함께 찾은 곳이에요. 한국관광공사 방문 데이터 기준이고, 안동 안에 있는 곳만 보여드려요.',
+
     aroundHead: '근처에 함께 볼 곳',
 
     panelPendingTitle: '버스 안내 준비 중',
@@ -500,7 +512,7 @@ const ko = {
      */
     sourceHead: '만든 과정',
     sourceBody:
-      '화면에 보이지 않는 판단이 많아요. 어느 정류장을 왜 뒤로 미는지, 모르는 막차 시각을 왜 비워 두는지 같은 것들이에요. 그 결정을 41건의 기록으로 남겨 뒀어요.',
+      '화면에 보이지 않는 판단이 많아요. 어느 정류장을 왜 뒤로 미는지, 모르는 막차 시각을 왜 비워 두는지 같은 것들이에요. 그 결정을 42건의 기록으로 남겨 뒀어요.',
     sourceLink: '소스 코드와 결정 기록 (GitHub)',
 
     closing:
@@ -701,6 +713,10 @@ const en: Messages = {
       'No bus information is registered here. We currently cover 7 of the most visited places.',
     directions: 'Directions in KakaoMap',
 
+    relatedHead: 'Often visited together',
+    relatedNote:
+      'Places visited by the same people, from Korea Tourism Organization visit data. Only places inside Andong are shown.',
+
     aroundHead: 'Nearby places',
 
     panelPendingTitle: 'Bus info coming',
@@ -862,7 +878,7 @@ const en: Messages = {
 
     sourceHead: 'How this was built',
     sourceBody:
-      "A lot of the judgement here never shows on screen — why a stop gets pushed down the list, why we leave a last-bus time blank when we do not know it. Those decisions are written down: 41 records.",
+      "A lot of the judgement here never shows on screen — why a stop gets pushed down the list, why we leave a last-bus time blank when we do not know it. Those decisions are written down: 42 records.",
     sourceLink: 'Source code and decision records (GitHub)',
 
     closing:

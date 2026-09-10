@@ -50,6 +50,7 @@
 - 국문 관광정보 서비스 (KorService2) — 설명·이미지·주소·음식점
 - 관광사진 정보 (PhotoGalleryService1) — 위 둘이 사진을 못 준 곳의 마지막 보충
 - 영문 관광정보 서비스 (EngService2) — 관광지 영문명 (지역 조회 + 광역 검색 + 이름 재검색으로 17/44)
+- 관광지별 연관 관광지 정보 (TarRlteTarService1) — 함께 많이 찾는 곳 (44곳 중 21곳, → [ADR-042](docs/decisions.md))
 
 **안동시 공공 API**
 - 정류장 정보 / 정류장별 도착정보 / 노선 정보
@@ -104,6 +105,7 @@ node scripts/build-station-directions.ts
 | `GET /api/food` | 1일 | ✅ 28건 (찜닭6·헛제삿밥2·한식13·카페7) — 법정동 조회 (→ [ADR-039](docs/decisions.md)) |
 | `GET /api/festivals` | 목록만 1일 | ✅ 열리거나 30일 내 시작하는 축제 (→ [ADR-035](docs/decisions.md) · [ADR-041](docs/decisions.md)) |
 | `GET /api/spots/[id]` | — | 미구현 (`detailCommon2`는 검증됨. 목록에서 찾아 쓰고 있다) |
+| `GET /api/spot-related/[id]` | 1일 | ✅ 함께 많이 찾는 곳 — 44곳 중 21곳 (→ [ADR-042](docs/decisions.md)) |
 | `GET /sitemap.xml` | 1일 | ✅ 96건 = (정적 4 + 관광지 44) × 2언어, `/api/spots`에서 생성 |
 
 **좌표를 받는 라우트는 없다.** 주변 정류장·주변 관광지는 목록을 통째로 받아
@@ -181,7 +183,7 @@ node scripts/build-station-directions.ts
 
 | 문서 | 내용 |
 |---|---|
-| [docs/decisions.md](docs/decisions.md) | 설계 결정 기록 (ADR 41건) |
+| [docs/decisions.md](docs/decisions.md) | 설계 결정 기록 (ADR 42건) |
 | [docs/dev-log.md](docs/dev-log.md) | 날짜별 개발 로그 · 다음에 할 일 |
 | [docs/api-reference.md](docs/api-reference.md) | 검증된 API 명세 |
 | [PROJECT-PROMPT.md](PROJECT-PROMPT.md) | 프로젝트 구축 지시서 (초기 기준, 일부는 실측으로 갱신됨) |
