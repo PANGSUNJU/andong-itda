@@ -72,6 +72,14 @@ export default defineEventHandler(async (event): Promise<SpotBusInfo> => {
   const runTotCnt = route?.runTotCnt ?? 0
 
   /**
+   * 안동 전체가 지금 도는가 — "이 노선만 0"과 "다 멈췄다"를 가르는 신호
+   *
+   * 같은 목록을 한 번 더 훑을 뿐이라 추가 상류 호출이 없다. 이 한 줄이 없으면
+   * 화면이 새벽 6시 반에 "오늘 운행이 끝났어요"라고 말한다. → ADR-036
+   */
+  const fleetRunning = routes.some((candidate) => candidate.runTotCnt > 0)
+
+  /**
    * 영문 정류장명 — 정적 매핑에 없어 정류장 목록에서 이어 붙인다
    *
    * `/api/bus/stations`는 1일 캐시되고 홈이 어차피 부르는 목록이라 추가 비용이
@@ -138,9 +146,10 @@ export default defineEventHandler(async (event): Promise<SpotBusInfo> => {
      */
     schedule: entry.timetable,
 
-    service: { runTotCnt, isOperating: runTotCnt > 0 },
+    // fleetRunning을 함께 실어 화면이 판정의 근거를 알 수 있게 한다.
+    service: { runTotCnt, isOperating: runTotCnt > 0, fleetRunning },
 
-    status: decideStatus(arrivals.length, runTotCnt),
+    status: decideStatus(arrivals.length, runTotCnt, fleetRunning),
 
     warning: entry.timetable.warning ?? null,
     warningEn: entry.timetable.warningEn ?? null,

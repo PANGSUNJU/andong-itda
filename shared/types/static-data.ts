@@ -188,6 +188,14 @@ export interface SpotRouteInfo {
   disconnected: boolean
   /** 관광지 반경 안에서 후보로 본 정류장 수. 0이면 정류장 자체가 멀다 */
   nearbyStations: number
+  /**
+   * 안동 전체에 운행 중인 차량이 있는가.
+   *
+   * 목록의 노선이 전부 0일 때 "이 노선만 안 다닌다"와 "지금은 버스가 다니지 않는
+   * 시간이다"를 가른다. 같은 화면의 실시간 카드와 같은 신호를 봐야 두 카드가
+   * 서로 다른 말을 하지 않는다. → ADR-036
+   */
+  fleetRunning: boolean
 }
 
 /**
@@ -230,6 +238,13 @@ export interface SpotBusInfo {
     runTotCnt: number
     /** runTotCnt > 0 */
     isOperating: boolean
+    /**
+     * 안동 **전체**에 운행 중인 차량이 있는가.
+     *
+     * 이 노선이 0일 때 "아직 안 다닌다"와 "다 끝났다"를 가르는 유일한 근거다.
+     * 상류가 첫차·막차를 주지 않아(ADR-016) 시계로는 알 수 없다. → ADR-036
+     */
+    fleetRunning: boolean
   }
   /** 'arriving' | 'waiting' | 'closed' */
   status: string

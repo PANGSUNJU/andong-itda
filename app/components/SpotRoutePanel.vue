@@ -22,10 +22,23 @@ const props = defineProps<{ info: SpotRouteInfo }>()
 const t = useT()
 const d = useDisplay()
 
-/** 하나라도 돌고 있으면 "운행 중"이다. 전부 0이면 지금은 차가 없다. */
+/** 하나라도 돌고 있으면 "운행 중"이다. */
 const anyRunning = computed(() =>
   [...props.info.inbound, ...props.info.outbound].some((route) => route.runTotCnt > 0),
 )
+
+/**
+ * 전부 0일 때 뜻이 갈린다 — 이 노선만 안 도는가, 안동 전체가 멈췄는가.
+ *
+ * 옆에 뜨는 실시간 카드와 같은 신호(`fleetRunning`)를 본다. 다른 근거를 쓰면
+ * 같은 화면의 두 카드가 서로 다른 말을 하는 날이 온다. → ADR-036
+ */
+const badge = computed(() => {
+  if (anyRunning.value) return { text: t.value.spotRoutes.running, live: true }
+  return props.info.fleetRunning
+    ? { text: t.value.spotRoutes.idleRoute, live: false }
+    : { text: t.value.spotRoutes.offHours, live: false }
+})
 
 const hasRoutes = computed(() => props.info.inbound.length > 0 || props.info.outbound.length > 0)
 
@@ -44,9 +57,9 @@ const outboundNums = computed(() => [...new Set(props.info.outbound.map((r) => r
       <small
         v-if="hasRoutes"
         class="flex-none rounded-full px-2.5 py-1 text-xs font-medium"
-        :class="anyRunning ? 'bg-primary/10 text-primary' : 'bg-surface-soft text-muted'"
+        :class="badge.live ? 'bg-primary/10 text-primary' : 'bg-surface-soft text-muted'"
       >
-        {{ anyRunning ? t.spotRoutes.running : t.spotRoutes.idle }}
+        {{ badge.text }}
       </small>
     </div>
 

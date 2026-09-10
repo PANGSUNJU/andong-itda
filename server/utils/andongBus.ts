@@ -58,17 +58,31 @@ export function byPredictTm(
 }
 
 /**
- * 운행 상태 판정 — 도착정보와 runTotCnt의 결합
+ * 운행 상태 판정 — 도착정보 · 이 노선의 차량 수 · 안동 전체의 차량 수
  *
- * 도착정보가 빈 배열인 이유는 두 가지고, 여행자에게 주는 의미가 정반대다.
- *   runTotCnt > 0 → 차는 돌고 있는데 아직 접근 중인 차가 없다 (기다리면 온다)
- *   runTotCnt = 0 → 금일 운행이 끝났거나 미운행일이다 (기다려도 안 온다)
- * 이 둘을 구분하는 유일한 근거가 runTotCnt다. 섞으면 여행자를
- * 오지 않는 버스 앞에 세워두게 된다. → ADR-015
+ * 도착정보가 빈 배열인 이유는 여럿이고, 여행자에게 주는 의미가 서로 반대다.
+ *   이 노선 runTotCnt > 0  → 차는 돌고 있는데 아직 접근 중인 차가 없다 (기다리면 온다)
+ *   이 노선 0, 전체 > 0     → 이 노선만 지금 안 다닌다 (첫차 전이거나 배차가 아주 길다)
+ *   이 노선 0, 전체도 0     → 지금은 시내버스가 다니지 않는 시간이다 (기다려도 안 온다)
+ *
+ * ⚠️ 세 번째 인자가 없던 시절 이 함수는 뒤의 둘을 `closed`로 뭉쳤고, 화면은 그것을
+ *    "오늘 운행이 끝났어요"라고 옮겼다. 새벽에 그건 사실과 **정반대**다.
+ *    실측(2026-09-10 06:36): 전체 58개 노선 63대 운행 중, 월영교 112번만 0대
+ *    (첫차 08:25). 안동시 API가 첫차·막차를 주지 않으므로(stTm·edTm 전부 null,
+ *    ADR-016) 시계로 "첫차 전"을 추정하지 않는다. 대신 **전체가 도는지**를 본다 —
+ *    그건 상류가 실제로 주는 값이다. → ADR-036
+ *
+ * `fleetRunning`은 `/api/bus/routes`(1분 캐시)의 전 노선 runTotCnt 합이 0보다
+ * 큰지다. 호출부가 그 목록을 이미 받아 두므로 추가 상류 호출이 없다.
  *
  * 회귀 검증: `node scripts/check-bus-logic.ts`
  */
-export function decideStatus(arrivalCount: number, runTotCnt: number): ServiceStatus {
+export function decideStatus(
+  arrivalCount: number,
+  runTotCnt: number,
+  fleetRunning: boolean,
+): ServiceStatus {
   if (arrivalCount > 0) return 'arriving'
-  return runTotCnt > 0 ? 'waiting' : 'closed'
+  if (runTotCnt > 0) return 'waiting'
+  return fleetRunning ? 'routeIdle' : 'offHours'
 }

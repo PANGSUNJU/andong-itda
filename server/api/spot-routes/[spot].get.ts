@@ -17,8 +17,13 @@ import type { Spot } from '#shared/types/tour'
  *    코드가 없다"가 감사 한 줄로 증명되는데 그 성질을 잃는다. 관광지 좌표는
  *    공개 데이터이므로 서버가 목록에서 직접 찾는다. → ADR-024
  *
- * 1시간 캐시한다. 노선 구성은 실시간이 아니지만 `runTotCnt`(운행 중 차량 수)가
- * 섞여 있어 하루는 길다. 실시간이 필요한 화면은 `/api/spot-bus`가 맡는다.
+ * ⚠️ **1분 캐시다.** 처음에 1시간으로 뒀는데 이 응답에서 시시각각 바뀌는 값이
+ *    `runTotCnt`(운행 중 차량 수)라 배지가 최대 1시간 묵는다. 월영교 첫차가
+ *    08:25에 나가도 화면은 "운행 중인 차량이 없어요"를 계속 들고 있었다.
+ *    `/api/bus/routes`가 1분 캐시이므로 그 수명에 맞춘다.
+ *
+ *    재계산은 싸다 — 역색인은 모듈 스코프에 한 번 만들고(`spotRoutes.ts`),
+ *    내부 `$fetch` 둘은 각자의 캐시(정류장 1일 · 노선 1분)를 그대로 탄다.
  */
 const cachedRoutes = defineCachedFunction(
   async (name: string): Promise<SpotRouteInfo> => {
@@ -35,7 +40,7 @@ const cachedRoutes = defineCachedFunction(
     return await resolveSpotRoutes(spot)
   },
   {
-    maxAge: 60 * 60, // 1시간
+    maxAge: 60, // 1분 — runTotCnt의 수명에 맞춘다
     name: 'spot-routes',
     getKey: (name: string) => name,
   },

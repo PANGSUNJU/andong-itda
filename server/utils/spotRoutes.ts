@@ -138,5 +138,7 @@ export async function resolveSpotRoutes(spot: Spot): Promise<SpotRouteInfo> {
     // 노선은 지나는데 그 노선이 전부 시내와 안 닿는 상태. 빈 목록과 뜻이 다르다.
     disconnected: touched > 0 && groupedIn.length === 0 && groupedOut.length === 0,
     nearbyStations: near.length,
+    // 이미 받아 둔 목록을 한 번 더 훑을 뿐이다. 추가 상류 호출이 없다.
+    fleetRunning: routes.some((candidate) => candidate.runTotCnt > 0),
   }
 }

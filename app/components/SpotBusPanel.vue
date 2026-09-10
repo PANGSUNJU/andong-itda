@@ -47,23 +47,28 @@ const nextSameRoute = computed(() =>
     : undefined,
 )
 
-/** 화면 문구는 status에서만 갈린다. */
+/**
+ * 화면 문구는 status에서만 갈린다.
+ *
+ * ⚠️ `default:`로 뭉치지 않는다. 예전에는 예상 밖 값이나 undefined까지 전부
+ *    "오늘 이 노선 운행이 끝났어요"(빨간 경고)로 떨어졌다. 모르는 상태에서
+ *    가장 센 문장을 고르는 것이 가장 나쁜 기본값이다. 갈래를 전부 적고,
+ *    모르는 값은 가장 약한 쪽으로 보낸다. → ADR-036
+ */
 const statusText = computed(() => {
+  const bus = t.value.bus
+
   switch (props.info.status) {
     case 'arriving':
       return null
     case 'waiting':
-      return {
-        title: t.value.bus.waitingTitle,
-        body: t.value.bus.waitingBody,
-        tone: 'muted' as const,
-      }
+      return { title: bus.waitingTitle, body: bus.waitingBody, tone: 'muted' as const }
+    // 안동 전체가 멈춘 시간대. 유일하게 경고 톤을 쓸 수 있는 자리다.
+    case 'offHours':
+      return { title: bus.offHoursTitle, body: bus.offHoursBody, tone: 'warn' as const }
+    // 이 노선만 안 도는 상태. 모르는 값도 여기로 온다.
     default:
-      return {
-        title: t.value.bus.closedTitle,
-        body: t.value.bus.closedBody,
-        tone: 'warn' as const,
-      }
+      return { title: bus.routeIdleTitle, body: bus.routeIdleBody, tone: 'muted' as const }
   }
 })
 

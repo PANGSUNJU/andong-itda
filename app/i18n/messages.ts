@@ -294,8 +294,12 @@ const ko = {
     /** 내려서 걸어야 하는 거리. 30m 미만이면 formatDistance가 "바로 앞"으로 답한다. */
     thenWalk: (distance: string) => `내려서 ${distance}`,
     running: '운행 중',
-    /** 전 노선의 운행 차량이 0일 때. 밤에 열어본 사람에게 필요한 문장이다. */
-    idle: '지금 운행 중인 차량이 없어요',
+    /**
+     * 목록의 노선이 전부 0일 때. 안동 전체가 도는지에 따라 뜻이 갈린다 —
+     * 실시간 카드와 같은 신호를 봐야 두 카드가 서로 다른 말을 하지 않는다.
+     */
+    idleRoute: '이 노선은 지금 차가 없어요',
+    offHours: '지금은 버스가 다니지 않는 시간',
     more: (count: number) => `외 ${count}개 노선`,
 
     disconnectedTitle: '한 번에 가는 버스가 없어요',
@@ -340,8 +344,27 @@ const ko = {
 
     waitingTitle: '접근 중인 버스가 없어요',
     waitingBody: '노선은 운행 중이에요. 배차 간격이 길어 기다리면 옵니다.',
-    closedTitle: '오늘 이 노선 운행이 끝났어요',
-    closedBody: '아래 시간표에서 첫차 시각을 확인하세요.',
+    /**
+     * ⚠️ 이 자리에 "오늘 이 노선 운행이 끝났어요"가 있었다. 새벽 6시 반 월영교에서
+     *    그 문장은 사실과 **정반대**였다(첫차 08:25). 문구가 시각을 주장하지
+     *    않게 바꿨다 — "다니지 않는 시간"은 새벽에도 심야에도 참이다. → ADR-036
+     */
+    offHoursTitle: '지금은 버스가 다니지 않는 시간이에요',
+    offHoursBody: '아래 시간표에서 첫차 시각을 확인하세요.',
+
+    /**
+     * 이 노선만 0이고 다른 노선은 도는 상태.
+     *
+     * 새벽만의 이야기가 아니다. 실측(2026-09-10 **12:42**): 월영교 112번은 하루
+     * 7회라 점심때도 노선 위에 차가 한 대도 없다. 옛 문구는 그 시각에
+     * "오늘 이 노선 운행이 끝났어요"라고 말하고 있었다.
+     *
+     * `waiting`과 다른 점은 차량 수다 — 저쪽은 돌고 있는데 아직 안 온 것이고,
+     * 이쪽은 노선 위에 아예 없다. 그래서 "기다리면 옵니다"라고 말할 수 없다.
+     * 첫차가 아니라 **운행 시각**을 가리킨다. 낮에 "첫차를 확인하세요"는 어긋난다.
+     */
+    routeIdleTitle: '이 노선은 지금 운행 중인 차가 없어요',
+    routeIdleBody: '다른 노선은 다니고 있어요. 아래 시간표에서 운행 시각을 확인하세요.',
 
     departsFrom: (from: string) => `${from} 출발`,
     firstLast: (first: string, last: string) => `첫차 ${first} · 막차 ${last}`,
@@ -661,7 +684,8 @@ const en: Messages = {
       `${stops} ${stops === 1 ? 'stop' : 'stops'} · ${distance}`,
     thenWalk: (distance: string) => `then ${distance} on foot`,
     running: 'Running now',
-    idle: 'No buses are running right now',
+    idleRoute: 'No buses on this route now',
+    offHours: 'Buses are not running at this hour',
     more: (count: number) => `+${count} more ${count === 1 ? 'route' : 'routes'}`,
 
     disconnectedTitle: 'No single bus goes there',
@@ -700,8 +724,12 @@ const en: Messages = {
 
     waitingTitle: 'No bus approaching yet',
     waitingBody: 'The route is running. The interval is long, so one will come if you wait.',
-    closedTitle: "This route is done for today",
-    closedBody: 'Check the first departure in the timetable below.',
+    offHoursTitle: 'Buses are not running at this hour',
+    offHoursBody: 'Check the first departure in the timetable below.',
+
+    routeIdleTitle: 'No buses on this route right now',
+    routeIdleBody:
+      'Other routes are running. Check the timetable below for departure times.',
 
     departsFrom: (from: string) => `Departs ${from}`,
     firstLast: (first: string, last: string) => `First ${first} · Last ${last}`,

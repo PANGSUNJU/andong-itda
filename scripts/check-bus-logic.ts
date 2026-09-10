@@ -27,13 +27,25 @@ assert.deepEqual(order([null, 3, null, 1]), [1, 3, null, null]) // null은 항�
 assert.deepEqual(order([null, null]), [null, null])
 assert.deepEqual(order([]), [])
 
-// 도착정보가 있으면 runTotCnt가 무엇이든 arriving이다.
-assert.equal(decideStatus(1, 1), 'arriving')
-assert.equal(decideStatus(2, 0), 'arriving')
-// 빈 배열의 의미는 runTotCnt가 가른다. 이 두 줄이 뒤집히면 여행자가
-// 오지 않는 버스를 기다리거나, 오는 버스를 두고 돌아간다.
-assert.equal(decideStatus(0, 4), 'waiting')
-assert.equal(decideStatus(0, 0), 'closed')
+// 도착정보가 있으면 나머지가 무엇이든 arriving이다.
+assert.equal(decideStatus(1, 1, true), 'arriving')
+assert.equal(decideStatus(2, 0, false), 'arriving')
+
+// 이 노선에 차가 돌면 전체와 무관하게 기다리면 온다.
+assert.equal(decideStatus(0, 4, true), 'waiting')
+
+/**
+ * ⚠️ 이 두 줄이 이 파일에서 가장 비싼 회귀다.
+ *
+ * 예전에는 아래 둘이 모두 'closed'였고 화면은 그것을 "오늘 이 노선 운행이
+ * 끝났어요"라고 옮겼다. 실측(2026-09-10 06:36): 안동 전체 58개 노선 63대가
+ * 운행 중인데 월영교 112번만 0대였다 — 첫차가 08:25이기 때문이다.
+ * 그 시각에 "끝났어요"는 부정확한 게 아니라 **정반대**다.
+ *
+ * 뒤집히면 아침에 온 여행자가 오늘 그 관광지를 포기한다.
+ */
+assert.equal(decideStatus(0, 0, true), 'routeIdle') // 이 노선만 0 — 전체는 돈다
+assert.equal(decideStatus(0, 0, false), 'offHours') // 안동 전체가 멈춘 시간대
 
 /**
  * 방면 — 안동터미널 모양을 그대로 줄인 것이다.
@@ -172,5 +184,5 @@ const kept = groupByNum([
 assert.deepEqual(kept.map((r) => r.routeNum), ['610', '611'])
 
 console.log(
-  'ok — byPredictTm (오름차순, null 후순위) · decideStatus (arriving/waiting/closed) · deriveDirections (같은 이름 건너뛰기, 기·종점 전용) · formatDirection (via 우선, routeNm 폴백, 없으면 빈 문자열) · busMinutes (실제 시간표 두 건 대비 ±10분) · anchors (들어오는/나가는·순환) · groupByNum (덜 걷는 쪽 대표, 먼 노선 제외)',
+  'ok — byPredictTm (오름차순, null 후순위) · decideStatus (arriving/waiting/routeIdle/offHours) · deriveDirections (같은 이름 건너뛰기, 기·종점 전용) · formatDirection (via 우선, routeNm 폴백, 없으면 빈 문자열) · busMinutes (실제 시간표 두 건 대비 ±10분) · anchors (들어오는/나가는·순환) · groupByNum (덜 걷는 쪽 대표, 먼 노선 제외)',
 )
