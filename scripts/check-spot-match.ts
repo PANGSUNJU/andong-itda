@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict'
 
 import { distanceMeters, nearest } from '../shared/constants/location.ts'
+import { clusterPlaces, spanOf } from '../server/utils/walkAreas.ts'
 import {
   foodCategoryOf,
   keywordVariants,
@@ -210,6 +211,37 @@ assert.equal(foodCategoryOf(food('경상도추어탕', '', 'FD01')), '한식')
 assert.equal(foodCategoryOf(food('맘모스베이커리', 'A05020900', 'FD05')), '카페')
 assert.equal(foodCategoryOf(food('농가맛집 뜰', 'A05020100', 'FD01')), '한식')
 
+/* 걸어서 이어지는 동네 — ADR-043 */
+
+/** 위도 1도 ≒ 111km. 미터를 대충 위도로 바꿔 픽스처를 만든다. */
+const at = (name: string, north: number, east = 0) => ({
+  name,
+  lat: 36.56 + north / 111_320,
+  lng: 128.72 + east / 90_000,
+})
+
+/**
+ * A–B가 이어지고 B–C가 이어지면 A–C가 멀어도 한 묶음이다.
+ * 걸어서 오가는 동네가 실제로 그런 모양이라 연결 요소로 묶는다.
+ */
+const chain = clusterPlaces([at('A', 0), at('B', 700), at('C', 1400)], 800, 3)
+assert.equal(chain.length, 1)
+assert.equal(chain[0]!.length, 3)
+
+// 800m를 넘으면 끊긴다. 끊긴 조각이 3곳 미만이면 아예 버린다.
+const broken = clusterPlaces([at('A', 0), at('B', 700), at('C', 3000)], 800, 3)
+assert.equal(broken.length, 0)
+
+// 3곳 미만은 "동네"가 아니다. 둘은 그냥 옆집이다.
+assert.equal(clusterPlaces([at('A', 0), at('B', 100)], 800, 3).length, 0)
+
+/**
+ * 폭은 **가장 먼 두 지점** 사이다. 이어진 사슬의 폭이 연결 거리보다 크다는 것이
+ * 이 값의 존재 이유다 — 16곳짜리 시내 묶음은 폭이 2.7km라 한 번에 도는 곳이 아니다.
+ */
+const span = spanOf([at('A', 0), at('B', 700), at('C', 1400)])
+assert.ok(Math.abs(span - 1400) < 20, `폭 ${span}m`)
+
 console.log(
-  'ok — normalizeSpotName · nameSimilarity · distanceMeters · nearest(거리순·반경·개수) · matchKorSpot(좌표 1순위) · pickByName(이름 1순위) · keywordVariants · noiseReason · foodCategoryOf',
+  'ok — normalizeSpotName · nameSimilarity · distanceMeters · nearest(거리순·반경·개수) · matchKorSpot(좌표 1순위) · pickByName(이름 1순위) · keywordVariants · noiseReason · foodCategoryOf · clusterPlaces(연결 요소·최소 개수) · spanOf',
 )

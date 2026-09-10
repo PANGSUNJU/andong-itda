@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { SpotBusInfo, SpotRouteInfo } from '#shared/types/static-data'
+import type { WalkArea } from '#shared/types/tour'
 import { COURSES, type Course } from '~/data/courses'
 
 /**
@@ -93,6 +94,33 @@ function endWarning(course: Course) {
   const info = bus.value.ends[course.end]
   return info ? d.pick(info.warning, info.warningEn) : null
 }
+
+/**
+ * 걸어서 이어지는 동네 — 좌표가 지지하는 묶음
+ *
+ * 위의 코스 2개는 손으로 짠 것이라 순서와 소요 시간을 말한다. 이쪽은 안 한다 —
+ * 좌표가 말하는 것은 "이것들이 가깝다"까지다. 두 목록을 나란히 두되 그 차이가
+ * 문구와 생김새에서 읽히게 한다. → ADR-043
+ */
+const { data: areas } = await useFetch<WalkArea[]>('/api/walk-areas', { default: () => [] })
+
+/** 카드에 이름을 늘어놓을 개수. 나머지는 "외 N곳"으로 접는다. */
+const AREA_NAMES_SHOWN = 6
+
+/**
+ * 지도는 **하나만** 둔다.
+ *
+ * 묶음마다 지도를 넣으면 카카오맵 인스턴스가 12개가 되고 화면이 그만큼 무거워진다.
+ * 묶음의 중심을 점 하나로 찍으면 "안동 어디에 흩어져 있는가"라는, 이 목록에서
+ * 지도가 답해야 할 유일한 질문에 답이 된다.
+ */
+const areaMarkers = computed(() =>
+  areas.value.map((area) => ({
+    name: area.anchor,
+    lat: area.places.reduce((sum, place) => sum + place.lat, 0) / area.places.length,
+    lng: area.places.reduce((sum, place) => sum + place.lng, 0) / area.places.length,
+  })),
+)
 </script>
 
 <template>
@@ -210,13 +238,73 @@ function endWarning(course: Course) {
     </article>
 
     <!--
-      출처를 밝힌다. 다른 화면은 공공데이터를 그대로 보여주는데 이 화면만
-      우리가 만든 것이라, 같은 얼굴로 두면 어디서 온 정보인지 알 수 없다.
+      출처를 밝힌다. 위의 코스 2개만 우리가 만든 것이라, 같은 얼굴로 두면
+      어디서 온 정보인지 알 수 없다. 아래 "동네"는 공공데이터 좌표에서 나온다.
       두루누비 API는 코리아둘레길 144코스뿐이라 내륙인 안동이 없다. → ADR-008
     -->
     <p class="text-[13px] leading-relaxed text-muted">
       {{ t.walk.noticeConstruction }}<br />
       {{ t.walk.noticeSource }}
     </p>
+
+    <!--
+      걸어서 이어지는 동네 — 코스가 아니다
+
+      위의 코스와 생김새를 일부러 다르게 뒀다. 저쪽은 점과 선으로 순서를 그리고
+      이쪽은 이름을 늘어놓기만 한다. 순서를 주장하지 않는다는 사실이 화면에서
+      읽혀야 하기 때문이다. → ADR-043
+    -->
+    <section v-if="areas.length" class="mt-12">
+      <div class="mb-4">
+        <h2 class="text-[22px] font-medium leading-tight tracking-[-0.44px]">
+          {{ t.walk.areasHead }}
+        </h2>
+        <p class="mt-1 text-sm leading-relaxed text-muted">{{ t.walk.areasSub }}</p>
+      </div>
+
+      <MapCard
+        class="mb-4"
+        height="260px"
+        :markers="areaMarkers"
+        :caption="t.walk.areasMapCaption(areas.length)"
+      />
+
+      <div class="grid gap-3 tablet:grid-cols-2">
+        <article
+          v-for="area in areas"
+          :key="area.id"
+          class="rounded-md border border-hairline p-5"
+        >
+          <h3 class="text-base font-semibold leading-tight">{{ area.anchor }}</h3>
+          <p class="mt-1 text-[13px] text-muted">
+            {{ t.walk.areaSummary(area.places.length, formatDistance(area.spanMeters, d.locale.value)) }}
+          </p>
+
+          <!--
+            지점 이름은 상류가 준 국문 그대로다. 확인하지 못한 영문명을 지어내지
+            않는다 — 현장 표지판이 국문이다. → ADR-030
+          -->
+          <p class="mt-3 text-sm leading-relaxed text-body">
+            {{ area.places.slice(0, AREA_NAMES_SHOWN).map((place) => place.name).join(' · ') }}
+            <span v-if="area.places.length > AREA_NAMES_SHOWN" class="text-muted">
+              {{ t.walk.areaMore(area.places.length - AREA_NAMES_SHOWN) }}
+            </span>
+          </p>
+
+          <!-- 어떻게 가는가. 이게 없으면 이 목록은 그냥 지명 나열이다. -->
+          <p v-if="area.station" class="mt-3 border-t border-hairline-soft pt-3 text-[13px] text-muted">
+            {{
+              t.walk.areaStation(
+                d.stationName({ stationNm: area.station.stationNm, nameEn: area.station.nameEn }),
+                formatDistance(area.station.distance, d.locale.value),
+                area.station.walkMinutes,
+              )
+            }}
+          </p>
+        </article>
+      </div>
+
+      <p class="mt-4 text-[13px] leading-relaxed text-muted-soft">{{ t.walk.areasNote }}</p>
+    </section>
   </div>
 </template>

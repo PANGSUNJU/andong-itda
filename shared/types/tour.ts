@@ -262,6 +262,54 @@ export interface Festival {
 }
 
 /**
+ * 걷는 길 묶음의 한 지점
+ *
+ * 관광지(12)와 문화시설(14) 133곳이 재료다. 우리 44곳 목록은 LocgoHub 인기 순위가
+ * 붙은 것만 남긴 것이라 벽화마을·전탑·서원 같은 작은 곳이 통째로 빠져 있었다.
+ * 걷는 길에는 오히려 그런 곳이 필요하다. → ADR-043
+ */
+export interface WalkPlace {
+  name: string
+  lat: number
+  lng: number
+  imageUrl?: string
+}
+
+/**
+ * 걸어서 이어지는 동네 — `/api/walk-areas` 응답
+ *
+ * ⚠️ **코스가 아니다.** 좌표가 말하는 것은 "이것들이 가깝다"까지이고 순서와
+ *    소요 시간은 말하지 않는다. 직선거리로 순서를 정하면 실제 보행로와 어긋나는데,
+ *    그건 이 프로젝트가 안 하기로 한 종류의 추정이다(ADR-016).
+ *
+ *    손으로 짠 코스(`app/data/courses.ts`)는 순서를 주장하고, 이쪽은 안 한다.
+ *    화면도 그 차이가 보이게 나눠 둔다.
+ */
+export interface WalkArea {
+  /** 화면 키. 묶음 안 첫 지점의 이름이다 */
+  id: string
+  /**
+   * 묶음 이름의 기준이 되는 곳.
+   *
+   * 안에서 방문 순위가 가장 높은 곳을 쓴다(우리 44곳과 대조). 없으면 가장 가까운
+   * 정류장 이름을 쓴다. 이름을 지어내지 않고 안에 있는 것을 가리킨다.
+   */
+  anchor: string
+  places: WalkPlace[]
+  /** 묶음 안 가장 먼 두 지점 사이 거리(m) */
+  spanMeters: number
+  /** 묶음에서 가장 가까운 정류장. 없으면 null */
+  station: {
+    stationId: number
+    stationNm: string
+    nameEn?: string
+    /** 묶음의 가장 가까운 지점까지 직선거리(m) */
+    distance: number
+    walkMinutes: number
+  } | null
+}
+
+/**
  * 연관 관광지 한 건 — `TarRlteTarService1/areaBasedList1` 응답
  *
  * 한국관광공사가 방문 데이터로 뽑은 "이 관광지를 찾은 사람이 함께 찾은 곳"이다.

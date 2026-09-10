@@ -106,6 +106,7 @@ node scripts/build-station-directions.ts
 | `GET /api/festivals` | 목록만 1일 | ✅ 열리거나 30일 내 시작하는 축제 (→ [ADR-035](docs/decisions.md) · [ADR-041](docs/decisions.md)) |
 | `GET /api/spots/[id]` | — | 미구현 (`detailCommon2`는 검증됨. 목록에서 찾아 쓰고 있다) |
 | `GET /api/spot-related/[id]` | 1일 | ✅ 함께 많이 찾는 곳 — 44곳 중 21곳 (→ [ADR-042](docs/decisions.md)) |
+| `GET /api/walk-areas` | 1일 | ✅ 걸어서 이어지는 동네 12곳 (→ [ADR-043](docs/decisions.md)) |
 | `GET /sitemap.xml` | 1일 | ✅ 96건 = (정적 4 + 관광지 44) × 2언어, `/api/spots`에서 생성 |
 
 **좌표를 받는 라우트는 없다.** 주변 정류장·주변 관광지는 목록을 통째로 받아
@@ -119,7 +120,7 @@ node scripts/build-station-directions.ts
 | `/` 지금 여기 | ✅ 위치 기반 정류장·도착·도보권/버스권 관광지·인기 순위 |
 | `/browse` 둘러보기 | ✅ 관광지 44곳 검색·분류·정렬 / 식도락 28곳 (분류 → [ADR-023](docs/decisions.md)) |
 | `/spots/[id]` 상세 | ✅ 관광 정보 + 버스 안내 한 화면. **노선 안내 44곳 전부**, 실시간 도착은 확인된 7곳 (→ [ADR-036](docs/decisions.md)) |
-| `/walk` 걷는 길 | ✅ 코스 2개 + **갈 때·올 때 노선과 막차 경고** (→ [ADR-038](docs/decisions.md)) |
+| `/walk` 걷는 길 | ✅ 코스 2개(갈 때·올 때 노선·막차 경고) + **걸어서 이어지는 동네 12곳** (→ [ADR-038](docs/decisions.md) · [ADR-043](docs/decisions.md)) |
 | 오류 화면 | ✅ `app/error.vue` — 없는 관광지와 없는 주소를 갈라 말한다 |
 | `/en/…` 영문 | ✅ 위 네 화면의 영문 주소 (→ [ADR-031](docs/decisions.md)) |
 | 축제 (헤더 아이콘) | ✅ **열릴 때만 나타난다.** 누르면 기간·장소·길찾기 (→ [ADR-035](docs/decisions.md) · [ADR-041](docs/decisions.md)) |
@@ -183,7 +184,7 @@ node scripts/build-station-directions.ts
 
 | 문서 | 내용 |
 |---|---|
-| [docs/decisions.md](docs/decisions.md) | 설계 결정 기록 (ADR 42건) |
+| [docs/decisions.md](docs/decisions.md) | 설계 결정 기록 (ADR 43건) |
 | [docs/dev-log.md](docs/dev-log.md) | 날짜별 개발 로그 · 다음에 할 일 |
 | [docs/api-reference.md](docs/api-reference.md) | 검증된 API 명세 |
 | [PROJECT-PROMPT.md](PROJECT-PROMPT.md) | 프로젝트 구축 지시서 (초기 기준, 일부는 실측으로 갱신됨) |

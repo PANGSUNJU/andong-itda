@@ -217,6 +217,25 @@ const ko = {
     /** 이 서비스에서 가장 위험한 실패가 "갈 수는 있는데 못 돌아오는" 안내다. → ADR-016 */
     returnUnknown: '돌아오는 편을 찾지 못했어요. 출발 전에 꼭 확인하세요',
 
+    /**
+     * 걸어서 이어지는 동네 — 좌표가 지지하는 묶음
+     *
+     * ⚠️ 위의 코스 2개와 **다른 것**이라는 사실이 문구에서 읽혀야 한다.
+     *    저쪽은 순서와 소요 시간을 말하고 이쪽은 안 한다. 그 차이를 숨기면
+     *    "왜 어떤 건 순서가 있고 어떤 건 없나"가 결함으로 읽힌다. → ADR-043
+     */
+    areasHead: '걸어서 이어지는 동네',
+    areasSub: '관광지와 문화시설 133곳의 좌표를 이어, 걸어서 오갈 수 있는 묶음을 찾았어요',
+    /** "16곳 · 최대 폭 2.7km" — 폭이 크면 한 번에 도는 곳이 아니라는 뜻이다 */
+    areaSummary: (count: number, span: string) => `${count}곳 · 최대 폭 ${span}`,
+    areaStation: (station: string, distance: string, minutes: number) =>
+      `${station}에서 ${distance} · 걸어서 약 ${minutes}분`,
+    areaMore: (count: number) => `외 ${count}곳`,
+    areasMapCaption: (count: number) => `걸어서 이어지는 동네 ${count}곳`,
+    /** 근거를 밝힌다. 순서를 정하지 않았다는 것이 이 한 줄의 핵심이다. */
+    areasNote:
+      '좌표로 이어 본 묶음이에요. 순서와 소요 시간은 정하지 않았어요 — 실제 보행로는 직선거리와 달라요.',
+
     noticeConstruction: '낙강물길공원은 2028년까지 공사 중이라 코스에서 뺐어요.',
     noticeSource:
       '이 코스는 공공데이터에 없어서 저희가 직접 짰어요. 다른 정보와 달리 공식 자료가 아니에요.',
@@ -512,7 +531,7 @@ const ko = {
      */
     sourceHead: '만든 과정',
     sourceBody:
-      '화면에 보이지 않는 판단이 많아요. 어느 정류장을 왜 뒤로 미는지, 모르는 막차 시각을 왜 비워 두는지 같은 것들이에요. 그 결정을 42건의 기록으로 남겨 뒀어요.',
+      '화면에 보이지 않는 판단이 많아요. 어느 정류장을 왜 뒤로 미는지, 모르는 막차 시각을 왜 비워 두는지 같은 것들이에요. 그 결정을 43건의 기록으로 남겨 뒀어요.',
     sourceLink: '소스 코드와 결정 기록 (GitHub)',
 
     closing:
@@ -656,6 +675,17 @@ const en: Messages = {
     backFrom: (place: string) => `From ${place}`,
     startUnknown: 'We could not find a single bus to the start',
     returnUnknown: 'We could not find a way back. Check before you set out',
+
+    areasHead: 'Neighbourhoods you can walk',
+    areasSub:
+      'We linked the coordinates of 133 attractions and cultural venues to find clusters you can cover on foot',
+    areaSummary: (count: number, span: string) => `${count} places · up to ${span} across`,
+    areaStation: (station: string, distance: string, minutes: number) =>
+      `${distance} from ${station} · about ${minutes} min walk`,
+    areaMore: (count: number) => `+${count} more`,
+    areasMapCaption: (count: number) => `${count} walkable neighbourhoods`,
+    areasNote:
+      'These clusters come from coordinates. We did not set an order or a duration — real footpaths differ from straight lines.',
 
     noticeConstruction:
       'Nakgang Water Trail Park is under construction until 2028, so we left it out.',
@@ -878,7 +908,7 @@ const en: Messages = {
 
     sourceHead: 'How this was built',
     sourceBody:
-      "A lot of the judgement here never shows on screen — why a stop gets pushed down the list, why we leave a last-bus time blank when we do not know it. Those decisions are written down: 42 records.",
+      "A lot of the judgement here never shows on screen — why a stop gets pushed down the list, why we leave a last-bus time blank when we do not know it. Those decisions are written down: 43 records.",
     sourceLink: 'Source code and decision records (GitHub)',
 
     closing:
