@@ -44,7 +44,7 @@ Vercel 배포
 TOUR_API_KEY=
 
 # 카카오맵 JavaScript 키 (클라이언트 노출됨, 도메인 제한 필수)
-NUXT_PUBLIC_KAKAO_MAP_KEY=
+KAKAO_MAP_KEY=
 ```
 
 `.env.example`을 함께 만들고 `.env`는 `.gitignore`에 넣는다.
@@ -54,7 +54,7 @@ NUXT_PUBLIC_KAKAO_MAP_KEY=
 runtimeConfig: {
   tourApiKey: process.env.TOUR_API_KEY,        // 서버 전용
   public: {
-    kakaoMapKey: process.env.NUXT_PUBLIC_KAKAO_MAP_KEY,
+    kakaoMapKey: process.env.KAKAO_MAP_KEY,
   },
 }
 ```

@@ -54,7 +54,7 @@ export default defineNuxtConfig({
     tourApiKey: process.env.TOUR_API_KEY,
 
     public: {
-      kakaoMapKey: process.env.NUXT_PUBLIC_KAKAO_MAP_KEY,
+      kakaoMapKey: process.env.KAKAO_MAP_KEY,
     },
   },
 
