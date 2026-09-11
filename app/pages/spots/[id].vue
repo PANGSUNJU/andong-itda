@@ -71,6 +71,51 @@ const { data: guide } = await useFetch<SpotGuide>(() => `/api/spot-guide/${id.va
 })
 
 /**
+ * 이런 곳이에요 — 영문이 있으면 영문, 없으면 국문
+ *
+ * 이 값도 `/api/spot-guide`가 싣고 온다. 이용 안내를 받으려고 부르던
+ * `detailCommon2` 응답 안에 이미 있던 것이라 추가 호출이 없다.
+ */
+const overview = computed(() => d.pick(guide.value.overview, guide.value.overviewEn))
+
+const overviewOpen = ref(false)
+const overviewEl = ref<HTMLElement | null>(null)
+
+/**
+ * "더 보기"를 붙일지는 **글자 수로 정하지 않는다**
+ *
+ * 처음엔 130자로 끊었는데, 그 숫자는 화면 폭에 매인 값이다. 데스크톱에서 세 줄인
+ * 119자짜리 설명(송강미술관)이 휴대폰에서는 여섯 줄이라, 잘려 있는데 펼칠 버튼이
+ * 없는 화면이 나온다. 실제로 잘렸는지를 재는 것이 유일하게 맞는 기준이다.
+ *
+ * 서버에서는 잴 수 없으므로 버튼은 마운트 이후에 나타난다. 그래도 되는 이유는
+ * 접힌 본문이 이미 화면에 있기 때문이다 — 늦게 오는 것은 더 읽을 수단뿐이다.
+ */
+const overviewClipped = ref(false)
+
+function measureOverview() {
+  const el = overviewEl.value
+  // 펼친 상태에서는 잴 수 없다(높이가 같아진다). 그때는 "접기"가 있어야 하므로 건드리지 않는다.
+  if (!el || overviewOpen.value) return
+  overviewClipped.value = el.scrollHeight > el.clientHeight + 1
+}
+
+onMounted(() => {
+  measureOverview()
+  // 화면을 돌리거나 창을 줄이면 줄 수가 바뀐다. 그때 버튼이 사라지거나 나타나야 한다.
+  window.addEventListener('resize', measureOverview)
+})
+
+onUnmounted(() => window.removeEventListener('resize', measureOverview))
+
+/** 관광지를 옮겨 다니면 접힌 상태로 돌아간다. 앞 장에서 펼친 것이 따라오면 안 된다. */
+watch(overview, async () => {
+  overviewOpen.value = false
+  await nextTick()
+  measureOverview()
+})
+
+/**
  * 화면에 그릴 줄만 남긴다.
  *
  * 영문 값이 있으면 영문, 없으면 국문이 그대로 나간다(`d.pick`). 상류가 영문으로
@@ -198,14 +243,38 @@ const mapMarkers = computed(() =>
     <div class="mt-8 desktop:grid desktop:grid-cols-[minmax(0,1fr)_372px] desktop:gap-x-12 desktop:items-start">
       <div class="min-w-0 pb-12">
         <!--
-          설명은 상류(한국관광공사)가 국문으로만 준다. 영문 화면에서도 국문 그대로다.
-          기계로 옮겨 지어내지 않는다 — 없는 것은 없는 대로 둔다. → ADR-030
+          이런 곳이에요 — `detailCommon2`의 overview
+
+          ⚠️ 접어 둔다. 평균 524자, 최장 1250자다. 펼친 채로 두면 좁은 화면에서
+             **가는 방법이 한 화면 아래로 밀린다.** 이 서비스에서 먼저 보여야 하는
+             것은 교통이다(ADR-012). 설명은 읽고 싶은 사람이 펼친다. → ADR-047
+
+          영문이 없으면 국문이 그대로 나간다. 기계로 옮겨 지어내지 않는다. → ADR-030
         -->
-        <section v-if="spot.description" class="pb-8">
+        <section v-if="overview" class="pb-8">
           <h2 class="mb-3 font-serif text-[22px] font-semibold leading-tight tracking-[-0.44px]">
             {{ t.spot.aboutHead }}
           </h2>
-          <p class="text-base leading-relaxed text-body">{{ spot.description }}</p>
+          <!-- 상류가 <br>로 문단을 가른다. 묵계서원은 7문단이다. 그 구분을 살린다. -->
+          <p
+            ref="overviewEl"
+            class="whitespace-pre-line text-base leading-relaxed text-body"
+            :class="overviewOpen ? '' : 'line-clamp-3'"
+          >
+            {{ overview }}
+          </p>
+          <!--
+            실제로 잘렸을 때만 붙인다. 세 줄 안에 끝나는 글에 "더 보기"가 있으면
+            눌러도 아무 일이 없는 것처럼 보인다.
+          -->
+          <button
+            v-if="overviewClipped || overviewOpen"
+            type="button"
+            class="mt-2 text-sm font-medium text-muted underline"
+            @click="overviewOpen = !overviewOpen"
+          >
+            {{ overviewOpen ? t.spot.aboutLess : t.spot.aboutMore }}
+          </button>
         </section>
 
         <section class="border-t border-hairline py-8">

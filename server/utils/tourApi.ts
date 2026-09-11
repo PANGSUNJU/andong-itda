@@ -46,6 +46,7 @@ const ENG_FESTIVAL = 'https://apis.data.go.kr/B551011/EngService2/searchFestival
 const KOR_DETAIL_COMMON = 'https://apis.data.go.kr/B551011/KorService2/detailCommon2'
 const KOR_DETAIL_INTRO = 'https://apis.data.go.kr/B551011/KorService2/detailIntro2'
 const ENG_DETAIL_INTRO = 'https://apis.data.go.kr/B551011/EngService2/detailIntro2'
+const ENG_DETAIL_COMMON = 'https://apis.data.go.kr/B551011/EngService2/detailCommon2'
 
 /**
  * 인증키 정규화
@@ -1028,7 +1029,7 @@ const INTRO_KEYS = {
  * 줄바꿈은 살린다 — 하절기/동절기가 한 줄에 붙으면 읽을 수 없다. 대신 빈 줄은
  * 걷어낸다. 상류가 `<br><br>`을 자주 쓴다.
  */
-function cleanIntro(value: unknown): string {
+function cleanText(value: unknown): string {
   return String(value ?? '')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<[^>]*>/g, ' ')
@@ -1038,19 +1039,31 @@ function cleanIntro(value: unknown): string {
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/g, "'")
-    /**
-     * 계절 머리표 앞에서 줄을 나눈다.
-     *
-     * 상류가 구분자 없이 붙여 준다 — 하회마을 실측값이 이렇다.
-     *   `[하절기(4월~9월)]- 09:00~18:00 - 입장 마감 17:30[동절기(10월~3월)]- 09:00~17:00`
-     * 두 시간표가 한 문장이 되어 읽을 수 없다. 글자는 하나도 바꾸지 않고 줄만 나눈다.
-     */
-    .replace(/(?<=\S)\[/g, '\n[')
     .split('\n')
     .map((line) => line.replace(/[^\S\n]+/g, ' ').trim())
     .filter(Boolean)
     .join('\n')
     .trim()
+}
+
+/**
+ * 이용 안내 값 전용 — 계절 머리표 앞에서 한 번 더 줄을 나눈다
+ *
+ * 상류가 구분자 없이 붙여 준다. 하회마을 실측값이 이렇다.
+ *   `[하절기(4월~9월)]- 09:00~18:00 - 입장 마감 17:30[동절기(10월~3월)]- 09:00~17:00`
+ * 두 시간표가 한 문장이 되어 읽을 수 없다. 글자는 하나도 바꾸지 않고 줄만 나눈다.
+ *
+ * ⚠️ **설명(`overview`)에는 쓰지 않는다.** 저쪽은 산문이라 "[국보 132호]" 같은
+ *    대괄호가 문장 한가운데 올 수 있고, 그때 줄을 나누면 문장이 끊긴다.
+ *    오늘 44곳에서는 한 건도 안 걸렸지만, 안 걸린다는 것과 안전하다는 것은 다르다.
+ */
+function cleanIntro(value: unknown): string {
+  return cleanText(value)
+    .replace(/(?<=\S)\[/g, '\n[')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join('\n')
 }
 
 /** 후보 이름 중 비어 있지 않은 첫 값. 없으면 undefined — 빈 문자열을 남기지 않는다. */
@@ -1078,17 +1091,29 @@ async function korGuide(spot: Spot): Promise<SpotGuide> {
 
   // 타입 코드를 모르면 detailIntro2를 부를 수 없다. 목록에는 그 값이 없어서 한 번 더 묻는다.
   const common = await fetchTourApi<unknown>(KOR_DETAIL_COMMON, { contentId: spot.contentId })
-  const contentTypeId = String(firstItem(common.items)?.contenttypeid ?? '')
-  if (!contentTypeId) return {}
+  const header = firstItem(common.items)
+
+  /**
+   * 설명은 **이 응답 안에 이미 들어 있다.**
+   *
+   * 타입 코드를 얻으려고 부른 조회인데, 같은 본문에 `overview`가 실려 온다.
+   * 그동안 그걸 버리고 있었다 — 상세 화면의 "이런 곳이에요"가 한 번도 뜬 적이
+   * 없던 이유다. 추가 호출 없이 35곳의 설명이 붙는다. → ADR-047
+   */
+  const overview = optional('overview', cleanText(header?.overview) || undefined)
+
+  const contentTypeId = String(header?.contenttypeid ?? '')
+  if (!contentTypeId) return overview
 
   const intro = await fetchTourApi<unknown>(KOR_DETAIL_INTRO, {
     contentId: spot.contentId,
     contentTypeId,
   })
   const item = firstItem(intro.items)
-  if (!item) return {}
+  if (!item) return overview
 
   return {
+    ...overview,
     ...optional('useTime', pickIntro(item, INTRO_KEYS.useTime)),
     ...optional('restDate', pickIntro(item, INTRO_KEYS.restDate)),
     ...optional('parking', pickIntro(item, INTRO_KEYS.parking)),
@@ -1119,18 +1144,34 @@ async function engGuide(spot: Spot): Promise<SpotGuide> {
    */
   if (!record?.contentId || !record.contentTypeId) return {}
 
-  const intro = await fetchTourApi<unknown>(ENG_DETAIL_INTRO, {
-    contentId: record.contentId,
-    contentTypeId: record.contentTypeId,
-  })
-  const item = firstItem(intro.items)
-  if (!item) return {}
+  /**
+   * 국문과 달리 여기서는 `detailCommon2`를 **설명 때문에** 부른다. 타입 코드는
+   * 목록에서 이미 받았으므로 필요 없는데, 영문 설명이 거기 있다. 실측 표본
+   * 20건이 전부 있었다 — 영문 화면에서 가장 크게 비어 있던 자리다.
+   *
+   * 둘을 동시에 묻는다. 설명이 없어도 이용 안내는 붙어야 한다.
+   */
+  const [intro, common] = await Promise.all([
+    fetchTourApi<unknown>(ENG_DETAIL_INTRO, {
+      contentId: record.contentId,
+      contentTypeId: record.contentTypeId,
+    }).catch(() => null),
+    fetchTourApi<unknown>(ENG_DETAIL_COMMON, { contentId: record.contentId }).catch(() => null),
+  ])
+
+  const item = intro ? firstItem(intro.items) : null
+  const header = common ? firstItem(common.items) : null
 
   return {
-    ...optional('useTimeEn', pickIntro(item, INTRO_KEYS.useTime)),
-    ...optional('restDateEn', pickIntro(item, INTRO_KEYS.restDate)),
-    ...optional('parkingEn', pickIntro(item, INTRO_KEYS.parking)),
-    ...optional('feeEn', pickIntro(item, INTRO_KEYS.fee)),
+    ...optional('overviewEn', cleanText(header?.overview) || undefined),
+    ...(item
+      ? {
+          ...optional('useTimeEn', pickIntro(item, INTRO_KEYS.useTime)),
+          ...optional('restDateEn', pickIntro(item, INTRO_KEYS.restDate)),
+          ...optional('parkingEn', pickIntro(item, INTRO_KEYS.parking)),
+          ...optional('feeEn', pickIntro(item, INTRO_KEYS.fee)),
+        }
+      : {}),
   }
 }
 

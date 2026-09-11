@@ -104,7 +104,7 @@ node scripts/build-station-directions.ts
 | `GET /api/spots` | 1일 | ✅ 44건 (숙박·노이즈 제외, 이미지 35/44) |
 | `GET /api/food` | 1일 | ✅ 28건 (찜닭6·헛제삿밥2·한식13·카페7) — 법정동 조회 (→ [ADR-039](docs/decisions.md)) |
 | `GET /api/festivals` | 목록만 1일 | ✅ 열리거나 30일 내 시작하는 축제 (→ [ADR-035](docs/decisions.md) · [ADR-041](docs/decisions.md)) |
-| `GET /api/spot-guide/[id]` | 1일 | ✅ 이용 안내 — 국문 34/44 · 영문 13/44 (`detailIntro2`, → [ADR-046](docs/decisions.md)) |
+| `GET /api/spot-guide/[id]` | 1일 | ✅ 설명 + 이용 안내 — 설명 국문 35/영문 17 · 이용 안내 국문 34/영문 13 (`detailCommon2`·`detailIntro2`, → [ADR-046](docs/decisions.md) · [ADR-047](docs/decisions.md)) |
 | `GET /api/spot-related/[id]` | 1일 | ✅ 함께 많이 찾는 곳 — 44곳 중 21곳 (→ [ADR-042](docs/decisions.md)) |
 | `GET /api/walk-areas` | 1일 | ✅ 걸어서 이어지는 동네 12곳 (→ [ADR-043](docs/decisions.md)) |
 | `GET /sitemap.xml` | 1일 | ✅ 96건 = (정적 4 + 관광지 44) × 2언어, `/api/spots`에서 생성 |
@@ -119,7 +119,7 @@ node scripts/build-station-directions.ts
 |---|---|
 | `/` 지금 여기 | ✅ 위치 기반 정류장·도착·도보권/버스권 관광지·인기 순위 |
 | `/browse` 둘러보기 | ✅ 관광지 44곳 검색·분류·정렬 / 식도락 28곳 (분류 → [ADR-023](docs/decisions.md)) |
-| `/spots/[id]` 상세 | ✅ 관광 정보 + 버스 안내 + **이용 안내**(운영시간·휴무일·주차·문의) 한 화면. 노선 안내 44곳 전부, 실시간 도착은 확인된 7곳 (→ [ADR-036](docs/decisions.md) · [ADR-046](docs/decisions.md)) |
+| `/spots/[id]` 상세 | ✅ 관광 정보(**설명**·사진) + 버스 안내 + **이용 안내**(운영시간·휴무일·주차·문의) 한 화면. 노선 안내 44곳 전부, 실시간 도착은 확인된 7곳 (→ [ADR-036](docs/decisions.md) · [ADR-046](docs/decisions.md)) |
 | `/walk` 걷는 길 | ✅ 코스 2개(갈 때·올 때 노선·막차 경고) + **걸어서 이어지는 동네 12곳** (→ [ADR-038](docs/decisions.md) · [ADR-043](docs/decisions.md)) |
 | 오류 화면 | ✅ `app/error.vue` — 없는 관광지와 없는 주소를 갈라 말한다 |
 | `/en/…` 영문 | ✅ 위 네 화면의 영문 주소 (→ [ADR-031](docs/decisions.md)) |
@@ -138,7 +138,8 @@ node scripts/build-station-directions.ts
 
 이름은 다르다. **영문이 있으면 영문, 없으면 국문 그대로** 둔다(관광지 17/44, 정류장
 2105/2105). 로마자로 지어내지 않는다 — 현장 간판이 국문이라 지어낸 이름으로는 길을
-물을 수 없다. 주소와 관광지 설명은 상류에 영문이 없어 국문으로 남는다.
+물을 수 없다. 설명과 이용 안내도 같은 규칙이다 — 상류에 있으면 영문(설명 17곳 ·
+이용 안내 13곳), 없으면 국문이 그대로 나간다. 주소만은 상류에 영문이 아예 없다.
 한 화면에는 한 언어만 둔다. 반대편 언어를 나란히 붙이지 않는다.
 → [ADR-030](docs/decisions.md) · [ADR-031](docs/decisions.md) ·
 [ADR-032](docs/decisions.md) · [ADR-033](docs/decisions.md)
@@ -184,7 +185,7 @@ node scripts/build-station-directions.ts
 
 | 문서 | 내용 |
 |---|---|
-| [docs/decisions.md](docs/decisions.md) | 설계 결정 기록 (ADR 46건) |
+| [docs/decisions.md](docs/decisions.md) | 설계 결정 기록 (ADR 47건) |
 | [docs/dev-log.md](docs/dev-log.md) | 날짜별 개발 로그 · 다음에 할 일 |
 | [docs/api-reference.md](docs/api-reference.md) | 검증된 API 명세 |
 | [PROJECT-PROMPT.md](PROJECT-PROMPT.md) | 프로젝트 구축 지시서 (초기 기준, 일부는 실측으로 갱신됨) |

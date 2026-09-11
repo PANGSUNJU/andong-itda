@@ -290,6 +290,9 @@ const ko = {
     rankLine: (rank: number) => `${rank}번째로 많이 찾는 곳`,
 
     aboutHead: '이런 곳이에요',
+    /** 설명이 길다(평균 524자). 접어 두고 펼치게 한다. → ADR-047 */
+    aboutMore: '더 보기',
+    aboutLess: '접기',
     accessHead: '가는 방법',
     /** 정류장 이름을 <b>로 감싸므로 앞뒤를 나눠 둔다. */
     getOffBefore: '',
@@ -551,7 +554,7 @@ const ko = {
      */
     sourceHead: '만든 과정',
     sourceBody:
-      '화면에 보이지 않는 판단이 많아요. 어느 정류장을 왜 뒤로 미는지, 모르는 막차 시각을 왜 비워 두는지 같은 것들이에요. 그 결정을 46건의 기록으로 남겨 뒀어요.',
+      '화면에 보이지 않는 판단이 많아요. 어느 정류장을 왜 뒤로 미는지, 모르는 막차 시각을 왜 비워 두는지 같은 것들이에요. 그 결정을 47건의 기록으로 남겨 뒀어요.',
     sourceLink: '소스 코드와 결정 기록 (GitHub)',
 
     closing:
@@ -747,6 +750,8 @@ const en: Messages = {
     rankLine: (rank: number) => `#${rank} most visited`,
 
     aboutHead: 'About this place',
+    aboutMore: 'Read more',
+    aboutLess: 'Show less',
     accessHead: 'Getting there',
     getOffBefore: 'Get off at ',
     rideAnd: ' takes you there — get off at ',
@@ -937,7 +942,7 @@ const en: Messages = {
 
     sourceHead: 'How this was built',
     sourceBody:
-      "A lot of the judgement here never shows on screen — why a stop gets pushed down the list, why we leave a last-bus time blank when we do not know it. Those decisions are written down: 46 records.",
+      "A lot of the judgement here never shows on screen — why a stop gets pushed down the list, why we leave a last-bus time blank when we do not know it. Those decisions are written down: 47 records.",
     sourceLink: 'Source code and decision records (GitHub)',
 
     closing:

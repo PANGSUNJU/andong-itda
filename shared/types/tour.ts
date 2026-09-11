@@ -113,7 +113,14 @@ export interface Spot {
   lng: number
   /** KorService2에서 병합. 없을 수 있다. */
   address?: string
-  description?: string
+  /**
+   * ⚠️ 설명(`overview`)은 여기 없다. 목록 조회에 그 값이 없어서, 44곳 전부를
+   *    채우려면 상세 조회를 44번 해야 한다. `SpotGuide`가 한 곳씩 받아 온다.
+   *
+   *    예전에는 `description?: string`이 여기 선언돼 있었는데 **한 번도 채워진
+   *    적이 없었다.** 상세 화면에 그리는 코드까지 있었으므로 화면은 늘 그 자리를
+   *    건너뛰었다. 채우는 곳 없는 필드는 데이터에 대한 거짓말이라 지웠다. → ADR-047
+   */
   imageUrl?: string
   contentId?: string
   /** 현재 위치로부터의 직선거리(m). 계산해서 채운다. */
@@ -388,6 +395,15 @@ export interface GalleryPhoto {
  * ⚠️ `tel`에는 영문 짝이 없다. 전화번호는 언어를 타지 않는다.
  */
 export interface SpotGuide {
+  /**
+   * 관광지 설명 — `detailCommon2`의 `overview`
+   *
+   * 이용 안내를 받으려고 이미 부르고 있던 응답 안에 들어 있었다. 추가 호출이
+   * 없다. 실측(2026-09-11): `contentId`가 있는 35곳 **전부**에 있고 평균 524자,
+   * 최장 1250자다.
+   */
+  overview?: string
+  overviewEn?: string
   useTime?: string
   useTimeEn?: string
   restDate?: string
