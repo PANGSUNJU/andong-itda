@@ -19,9 +19,9 @@
 
 | 활용신청 | 캡처 | 화면에서 확인되는 것 |
 |---|---|---|
-| **국문 관광정보 서비스_GW**<br>(KorService2) | `02`, `03`, `07` | 관광지 44곳의 사진·분류·주소(`areaBasedList2`), 운영시간·휴무일·주차·문의(`detailIntro2`), 축제 기간·장소(`searchFestival2`) |
+| **국문 관광정보 서비스_GW**<br>(KorService2) | `02`, `03`, `07` | 관광지 44곳의 사진·분류·주소(`areaBasedList2`), 설명(`detailCommon2`의 overview), 운영시간·휴무일·주차·문의(`detailIntro2`), 축제 기간·장소(`searchFestival2`) |
 | **기초지자체 중심 관광지 정보**<br>(LocgoHubTarService1) | `01`, `02` | "안동에서 많이 찾는 곳" 방문 기반 순위, 목록의 인기순 정렬과 순위 배지 |
-| **영문 관광정보서비스_GW**<br>(EngService2) | `05` | 영문 관광지명(Andong Hahoe Village), 영문 이용 안내(`detailIntro2`) |
+| **영문 관광정보서비스_GW**<br>(EngService2) | `05` | 영문 관광지명(Andong Hahoe Village), 영문 설명(`detailCommon2`), 영문 이용 안내(`detailIntro2`) |
 | **관광지별 연관 관광지 정보**<br>(TarRlteTarService1) | `04` | "함께 많이 찾는 곳" — 거리가 아니라 방문 행동으로 고른 목록 |
 | **관광사진 정보_GW**<br>(PhotoGalleryService1) | `06` | 부용대 대표 사진. 국문 관광정보에 사진이 없던 곳을 이 API가 채웠다 |
 
@@ -33,7 +33,7 @@
 |---|---|
 | `01-locgohub-인기순위-실시간버스.jpg` | 홈 — 방문 순위 + 실시간 버스 도착 |
 | `02-korservice2-관광지목록-사진분류.jpg` | 둘러보기 — 관광지 44곳 |
-| `03-korservice2-detailIntro2-이용안내.jpg` | 관광지 상세 — 사진·가는 방법·이용 안내 |
+| `03-korservice2-detailIntro2-이용안내.jpg` | 관광지 상세 — 사진·설명·가는 방법·이용 안내 |
 | `04-tarrltetar-함께많이찾는곳.jpg` | 관광지 상세 — 함께 많이 찾는 곳 |
 | `05-engservice2-영문화면.jpg` | 영문 상세(`/en/spots/…`) |
 | `06-photogallery-부용대사진.jpg` | 부용대 상세 — 관광사진 API가 채운 대표 사진 |
@@ -45,6 +45,7 @@
 ```
 관광지        44곳   (기초지자체 중심 관광지 + 국문 관광정보 병합)
 음식점        28곳   (국문 관광정보, 법정동 코드 조회)
+설명          국문 35곳 · 영문 17곳
 이용 안내     국문 34곳 · 영문 13곳
 연관 관광지   21곳
 영문명        17곳
