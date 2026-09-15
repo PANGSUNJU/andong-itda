@@ -20,7 +20,7 @@ const localePath = useLocalePath()
 
 usePageTitle(() => t.value.home.title)
 
-const { location, locating, locate } = useLocation()
+const { location, locating, locate, me } = useLocation()
 
 /** 위치 상태는 키만 들고 있다. 문구는 지금 언어로 여기서 만든다. → `useLocation` */
 const placeLabel = computed(() => t.value.location[location.value.label])
@@ -355,7 +355,7 @@ onMounted(() => {
           class="mt-4"
           height="220px"
           :center="coords"
-          mark-center
+          :me="me"
           :radius-m="mapMode === 'ride' ? WALKABLE_M : undefined"
           :markers="mapMarkers"
           :caption="mapCaption"

@@ -17,6 +17,18 @@ import type { FoodPlace, Spot } from '#shared/types/tour'
 const t = useT()
 const d = useDisplay()
 
+/**
+ * 내 위치 점 — 홈에서 이미 잡아 둔 좌표만 다시 쓴다
+ *
+ * ⚠️ `locate()`를 부르지 않는다. **빠뜨린 게 아니라 결정이다.** 여기서 부르면
+ *    지금까지 홈에서만 뜨던 위치 권한 팝업이 이 화면에서도 뜬다. 권한을 묻는
+ *    자리는 하나로 둔다. `useState('location')`은 라우트 이동으로 초기화되지
+ *    않으므로(→ ADR-031) 홈을 거쳐 왔다면 값이 그대로 있다.
+ *
+ * 그래서 이 화면으로 새로고침해 직행하면 점이 안 나온다. 받아들인 동작이다.
+ */
+const { me } = useLocation()
+
 usePageTitle(() => t.value.browse.title)
 
 // 두 목록은 서로를 기다릴 이유가 없다. 순차로 await하면 SSR에서 왕복이 두 번 쌓인다.
@@ -262,7 +274,7 @@ const mapCaption = computed(() =>
       </div>
 
       <aside class="mt-8 min-w-0 pb-12 desktop:mt-0 desktop:sticky desktop:top-[96px]">
-        <MapCard height="340px" :markers="mapMarkers" :caption="mapCaption" />
+        <MapCard height="340px" :markers="mapMarkers" :caption="mapCaption" :me="me" />
       </aside>
     </div>
   </div>

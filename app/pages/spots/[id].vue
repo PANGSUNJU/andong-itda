@@ -3,7 +3,7 @@ import { NuxtLink } from '#components'
 
 import type { RelatedSpot, Spot, SpotGuide } from '#shared/types/tour'
 import type { SpotBusInfo, SpotRouteInfo } from '#shared/types/static-data'
-import { nearest } from '#shared/constants/location'
+import { MAP_MIN_SPAN_M, distanceMeters, nearest } from '#shared/constants/location'
 
 /**
  * 관광지 상세 — 관광 정보와 버스 안내를 한 화면에 둔다
@@ -21,9 +21,48 @@ const t = useT()
 const d = useDisplay()
 const localePath = useLocalePath()
 
+/**
+ * 내 위치 점 — 홈에서 이미 잡아 둔 좌표만 다시 쓴다
+ *
+ * ⚠️ `locate()`를 부르지 않는다. **빠뜨린 게 아니라 결정이다.** 여기서 부르면
+ *    지금까지 홈에서만 뜨던 위치 권한 팝업이 이 화면에서도 뜬다. 권한을 묻는
+ *    자리는 하나로 둔다. `useState('location')`은 라우트 이동으로 초기화되지
+ *    않으므로(→ ADR-031) 홈을 거쳐 왔다면 값이 그대로 있다.
+ *
+ * 그래서 이 화면으로 새로고침해 직행하면 점이 안 나온다. 받아들인 동작이다.
+ */
+const { me: located } = useLocation()
+
 const { data: spots } = await useFetch<Spot[]>('/api/spots', { default: () => [] })
 
 const spot = computed(() => spots.value.find((candidate) => candidate.id === id.value))
+
+/**
+ * 이 지도에 "나"를 찍을지 — 도보권 안일 때만이다
+ *
+ * ⚠️ 다른 지도와 달리 거리로 한 번 더 거른다. 이 지도는 관광지 하나와 그 주변만
+ *    담아 화면이 좁다(홈·둘러보기·걷는 길은 안동을 통째로 덮어서 안동 안이면
+ *    대개 화면에 들어온다). 여기서는 안동 안이어도 멀면 점이 **화면 밖에** 그려져
+ *    보이지 않는데, 캡션의 "빨간 점이 내 위치예요"는 그대로 떠서 없는 점을 가리킨다.
+ *
+ * ⚠️ **문턱은 도보권(2km)이 아니라 지도의 최소 반경이다.** 2km로 뒀다가 실측에서
+ *    걸렸다 — 중앙신시장(693m)은 범례가 뜨는데 점은 화면 밖이었다. 이 지도는
+ *    관광지와 그 주변만 담아 `MAP_MIN_SPAN_M`(600m 폭)까지 좁아지므로, 보이는
+ *    반경은 300m다. 거리를 늘려가며 재니 300m는 보이고 400m부터 사라졌다.
+ *
+ * 최소 폭에서 끌어오므로 **덜 보여주는 쪽으로 틀린다.** 주변 관광지가 넓게 퍼져
+ * 지도가 이보다 넓어진 경우 보일 점을 접는다. 그 반대 — 없는 점을 가리키는 범례 —
+ * 보다 낫다.
+ *
+ * 화면 범위가 아니라 거리로 판정한다. 지도에 bounds를 물으면 다 그려진 뒤라야
+ * 답이 나와서, 그 사이 캡션이 한 번 깜빡였다 사라진다.
+ */
+const VISIBLE_M = MAP_MIN_SPAN_M / 2
+const me = computed(() => {
+  if (!located.value || !spot.value) return null
+  const away = distanceMeters(located.value.lat, located.value.lng, spot.value.lat, spot.value.lng)
+  return away <= VISIBLE_M ? located.value : null
+})
 
 if (!spot.value) {
   throw createError({ statusCode: 404, statusMessage: t.value.spot.notFound, fatal: true })
@@ -460,6 +499,7 @@ const mapMarkers = computed(() =>
           :center="{ lat: spot.lat, lng: spot.lng }"
           :markers="mapMarkers"
           :caption="t.spot.mapCaption(d.name(spot))"
+          :me="me"
         />
       </aside>
     </div>

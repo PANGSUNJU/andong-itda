@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ANDONG_ORIGIN } from '#shared/constants/location'
+import { ANDONG_ORIGIN, MAP_MIN_SPAN_M } from '#shared/constants/location'
 import type { KakaoMaps } from '~/composables/useKakaoMap'
 
 /**
@@ -48,12 +48,17 @@ const props = defineProps<{
    */
   radiusM?: number
   /**
-   * 중심에 "나" 점을 찍을지.
+   * "나" 점을 찍을 좌표. 안동 안에서 위치가 잡혔을 때만 값이 온다. → `useLocation().me`
    *
-   * 원과 떼어 놨다. 원은 반경을 말하고 이 점은 위치를 말하는데, 둘을 한 조건에
-   * 묶어 두면 원을 끄는 순간 내가 어디 서 있는지도 함께 사라진다.
+   * ⚠️ `center`와 별개다. 예전에는 `markCenter` 불리언으로 **중심에** 찍었는데,
+   *    `center`가 화면마다 다른 것을 가리킨다 — 홈에서는 "나"지만 상세에서는
+   *    **관광지**다. 그 화면에서 켜면 관광지 위에 내 점이 찍힌다.
+   *
+   * ⚠️ 이 좌표는 `fit()`에 들어가지 않는다. 화면 범위를 내 쪽으로 당기면 카카오로
+   *    나가는 타일 요청이 내 위치를 드러낸다. 그리기만 하고 화면은 안 옮긴다.
+   *    멀리 있으면 점이 화면 밖이라 안 보이는데, 그게 의도한 동작이다. → `fit`
    */
-  markCenter?: boolean
+  me?: { lat: number; lng: number } | null
   /**
    * 이름을 지도에 인쇄할지. 기본은 인쇄한다.
    *
@@ -152,14 +157,6 @@ const validMarkers = computed(() =>
   (props.markers ?? []).filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng)),
 )
 
-/**
- * 화면이 이보다 좁아지지는 않게 하는 폭(m)
- *
- * 정류장 다섯 곳이 300m 안에 모여 있으면 그 300m에 딱 맞춰 확대된다. 건물 단위라
- * 어느 동네인지가 화면에서 사라진다. 최소 폭을 둬서 동 이름과 큰길이 함께 남게 한다.
- */
-const MIN_SPAN_M = 600
-
 /** 위도 1도의 길이(m). 경도는 위도에 따라 줄어들므로 cos를 곱해 쓴다. */
 const METERS_PER_DEGREE = 111_320
 
@@ -172,7 +169,7 @@ function ensureMinSpan(bounds: KakaoMaps) {
   const lat = (sw.getLat() + ne.getLat()) / 2
   const lng = (sw.getLng() + ne.getLng()) / 2
 
-  const halfLat = MIN_SPAN_M / 2 / METERS_PER_DEGREE
+  const halfLat = MAP_MIN_SPAN_M / 2 / METERS_PER_DEGREE
   const halfLng = halfLat / Math.cos((lat * Math.PI) / 180)
 
   bounds.extend(new sdk.LatLng(lat - halfLat, lng - halfLng))
@@ -192,6 +189,15 @@ function ensureMinSpan(bounds: KakaoMaps) {
  *
  * 원이 있으면(홈의 "버스로") 그때는 원까지 함께 담는다. 그 화면은 원보다 넓어서
  * 원이 작게 찍히고, 그 작음이 "걸어서는 여기까지"라는 뜻이 된다.
+ */
+/**
+ * 보여줄 것이 다 들어오는 화면으로 맞춘다.
+ *
+ * ⚠️ **`props.me`는 여기 들어오지 않는다.** 뺀 게 아니라 안 넣는 것이다.
+ *    카카오가 보는 것은 타일 요청이고 타일 요청을 정하는 것은 이 함수가 만드는
+ *    화면 범위뿐이다. 내 좌표를 bounds에 넣는 순간 화면이 내 쪽으로 당겨져
+ *    타일 요청이 내 위치를 드러낸다. 지금은 위치를 잡든 못 잡든 요청이 같다.
+ *    → ADR-013·ADR-024
  */
 function fit() {
   if (!map || !sdk) return
@@ -321,33 +327,34 @@ function draw(maps: KakaoMaps) {
   }
 
   /**
-   * "나"와, 요청이 있으면 반경 원
+   * 반경 원과 "나" 점
    *
-   * 중심은 "나"라는 뜻이므로 마커가 아니라 점으로 그린다. 마커를 쓰면
-   * 관광지 마커들과 같은 모양이 되어 어느 것이 나인지 알 수 없다.
+   * 둘을 갈라 놨다. 한 조건에 묶여 있었는데, 원은 `center`의 반경을 말하고 점은
+   * **내가 선 자리**를 말한다. 홈에서만 그 둘이 같은 점이었을 뿐이다.
    *
    * 원은 `radiusM`을 받은 화면에만 그린다. 반경보다 좁게 확대하는 화면에서는
    * 호가 화면 밖으로 나가 분홍색 배경만 남는다. → `radiusM` 프롭의 경고
+   *
+   * "나"는 마커가 아니라 점이다. 마커를 쓰면 관광지 마커들과 같은 모양이 되어
+   * 어느 것이 나인지 알 수 없다.
    */
-  if (props.center && (props.radiusM || props.markCenter)) {
-    const origin = new maps.LatLng(props.center.lat, props.center.lng)
+  if (props.center && props.radiusM) {
+    circle = new maps.Circle({
+      center: new maps.LatLng(props.center.lat, props.center.lng),
+      radius: props.radiusM,
+      strokeWeight: 2,
+      strokeColor: PRIMARY,
+      strokeOpacity: 0.5,
+      fillColor: PRIMARY,
+      fillOpacity: 0.06,
+    })
+    circle.setMap(map)
+    overlays.push(circle)
+  }
 
-    if (props.radiusM) {
-      circle = new maps.Circle({
-        center: origin,
-        radius: props.radiusM,
-        strokeWeight: 2,
-        strokeColor: PRIMARY,
-        strokeOpacity: 0.5,
-        fillColor: PRIMARY,
-        fillOpacity: 0.06,
-      })
-      circle.setMap(map)
-      overlays.push(circle)
-    }
-
+  if (props.me) {
     const dot = new maps.CustomOverlay({
-      position: origin,
+      position: new maps.LatLng(props.me.lat, props.me.lng),
       zIndex: 3,
       content: `<span style="display:block;width:12px;height:12px;border-radius:9999px;background:${PRIMARY};box-shadow:0 0 0 3px rgba(217,69,60,.25)"></span>`,
     })
@@ -382,7 +389,12 @@ onMounted(async () => {
     draw(maps)
 
     // 마운트 이후에 좌표가 바뀌는 화면이 있다. 위치 권한 응답과 목록 필터가 그렇다.
-    watch(() => [props.center, props.markers, props.radiusM], () => draw(maps), { deep: true })
+    // ⚠️ me가 빠지면 점이 영영 안 뜬다. center·radiusM과 달리 혼자 바뀌기 때문이다.
+    watch(
+      () => [props.center, props.markers, props.radiusM, props.me],
+      () => draw(maps),
+      { deep: true },
+    )
   } catch {
     // 원인은 콘솔에 남는다. 화면에는 "안 된다"만 말한다.
     failed.value = true
@@ -439,7 +451,13 @@ onUnmounted(() => {
       카드 밖에 두면 무엇을 바꾸는 버튼인지 멀어진다. 홈의 "걸어서 / 버스로"가 여기 온다.
     -->
     <div class="flex items-center gap-3 border-t border-hairline-soft px-4 py-3">
-      <p class="min-w-0 flex-1 text-[13px] text-muted">{{ caption }}</p>
+      <!--
+        빨간 점이 무엇인지는 여기서만 말할 수 있다. 점이 뜨는 조건을 아는 곳이
+        이 컴포넌트뿐이라, 페이지마다 캡션에 붙이면 조건과 문구가 어긋난다.
+      -->
+      <p class="min-w-0 flex-1 text-[13px] text-muted">
+        {{ caption }}<template v-if="me"> · {{ t.map.meLegend }}</template>
+      </p>
       <slot name="action" />
     </div>
   </div>

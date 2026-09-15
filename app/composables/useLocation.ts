@@ -75,5 +75,20 @@ export function useLocation() {
     )
   }
 
-  return { location: state, locating, locate }
+  /**
+   * 지도에 찍어도 되는 좌표. 안동 안에서 실제로 잡혔을 때만 값이 있다.
+   *
+   * `label === 'current'`가 곧 "안동 안"이다 — `isInAndong()`을 통과해야만 그 값이
+   * 되기 때문이다(위 `locate`). 그래서 여기서 경계를 다시 판정하지 않는다.
+   *
+   * `reason`까지 보는 건 화면을 연 채 안동을 벗어난 경우 때문이다. 그때 label은
+   * 'current'로 남고 좌표는 낡은 값이라, 그 자리에 점을 찍으면 없는 곳에 내가 찍힌다.
+   */
+  const me = computed(() =>
+    state.value.label === 'current' && state.value.reason !== 'outside'
+      ? { lat: state.value.lat, lng: state.value.lng }
+      : null,
+  )
+
+  return { location: state, locating, locate, me }
 }

@@ -513,6 +513,8 @@ const ko = {
   },
 
   map: {
+    /** 캡션 뒤에 붙는다. 앞에 이미 문장이 있으므로 여기서 문장을 새로 시작하지 않는다. */
+    meLegend: '빨간 점이 내 위치예요',
     reset: '처음 화면으로',
     failed: '지도를 불러오지 못했어요',
     pending: '지도 준비 중',
@@ -571,8 +573,13 @@ const ko = {
       '버스를 놓치면 다음 차까지 오래 기다려야 하는 노선이 많아요. 일정이 걸려 있는 이동은 안동시 교통 부서나 현장 안내로 한 번 더 확인해 주세요.',
 
     locationHead: '위치 정보',
+    /**
+     * ⚠️ "'지금 여기' 화면에서"로만 적혀 있었다. 이제 한 번 허용하면 둘러보기·걷는 길·
+     *    관광지 상세 지도에도 내 위치 점이 뜬다. 코드가 하는 일과 이 문장이 어긋난 채로
+     *    두지 않는다 — 한 번 어긋난 적이 있다(→ ADR-024).
+     */
     locationIntro:
-      "'지금 여기' 화면에서 위치를 허용하시면, 브라우저가 알려준 좌표로 가까운 정류장과 걸어서 다녀올 만한 곳을 찾아드려요.",
+      "'지금 여기' 화면에서 위치를 허용하시면, 브라우저가 알려준 좌표로 가까운 정류장과 걸어서 다녀올 만한 곳을 찾아드려요. 안동 안에 계시면 다른 화면의 지도에도 내 위치가 빨간 점으로 함께 표시돼요.",
     locationPoint1Lead: '좌표를 ',
     locationPoint1Strong: '저희 서버로 보내지 않아요.',
     locationPoint1Tail: ' 정류장을 고르는 계산까지 브라우저 안에서 끝나요',
@@ -580,7 +587,7 @@ const ko = {
     locationPoint3: '위치를 허용하지 않으셔도 안동역을 기준으로 똑같이 쓰실 수 있어요',
     locationCaveatLead: '두 가지는 밝혀둘게요.',
     locationCaveat1:
-      '지도는 카카오맵으로 그려요. 지도를 표시할 때 브라우저가 카카오 서버에 지도 화면을 요청해요',
+      '지도는 카카오맵으로 그려요. 지도를 표시할 때 브라우저가 카카오 서버에 지도 화면을 요청해요. 내 위치 점은 브라우저가 그 위에 직접 그리는 것이고, 지도가 보여주는 범위를 내 쪽으로 옮기지도 않아요 — 위치를 허용하셔도 카카오에 나가는 요청은 달라지지 않아요',
     locationCaveat2:
       '버스 도착 정보를 받으려면 어느 정류장인지는 알려야 해요. 정류장 번호로만 조회하고, 그 요청에 좌표는 들어가지 않아요',
 
@@ -922,6 +929,7 @@ const en: Messages = {
   },
 
   map: {
+    meLegend: 'the red dot is you',
     reset: 'Reset view',
     failed: "Couldn't load the map",
     pending: 'Map coming soon',
@@ -971,7 +979,7 @@ const en: Messages = {
 
     locationHead: 'Location',
     locationIntro:
-      "If you allow location on the 'Right Now' screen, we use the coordinates your browser reports to find nearby stops and places within walking distance.",
+      "If you allow location on the 'Right Now' screen, we use the coordinates your browser reports to find nearby stops and places within walking distance. If you are inside Andong, the maps on the other screens mark you with a red dot too.",
     locationPoint1Lead: 'Your coordinates ',
     locationPoint1Strong: 'never reach our server.',
     locationPoint1Tail: ' Even the math that picks the nearest stop runs inside your browser',
@@ -981,7 +989,7 @@ const en: Messages = {
       'If you decline, everything still works — Andong Station is used as the reference point',
     locationCaveatLead: 'Two things worth stating plainly.',
     locationCaveat1:
-      'Maps are drawn with KakaoMap. Displaying a map means your browser requests map tiles from Kakao servers',
+      'Maps are drawn with KakaoMap. Displaying a map means your browser requests map tiles from Kakao servers. The dot marking you is drawn by your browser on top of that, and it never shifts the area the map shows — allowing location does not change what we request from Kakao',
     locationCaveat2:
       'To fetch bus arrivals we do have to say which stop. We query by stop number only, and no coordinates go with that request',
 
