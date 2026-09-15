@@ -397,8 +397,98 @@ export async function fetchFestivals(): Promise<KorFestivalWithEnglish[]> {
     ...KOR_SERVICE_LDONG_REGION,
   })
 
-  return attachEnglishFestivalNames(items)
+  return attachFestivalGuides(await attachEnglishFestivalNames(items))
 }
+
+/**
+ * 축제 안내를 붙인다 — 한 건당 조회 두 번
+ *
+ * 목록에 없는 것을 가져온다. `searchFestival2`는 좌표·주소·이미지·기간까지가
+ * 전부라 팝업이 "무슨 축제이며 몇 시에 하는지"를 말할 수 없었다.
+ *
+ * ⚠️ **관광지와 달리 `detailCommon2`가 순수한 추가 호출이다.** 관광지는 타입 코드를
+ *    얻으려고 부르던 김에 `overview`를 공짜로 받았지만(→ ADR-047), 축제는 목록에
+ *    `contenttypeid`가 이미 실려 온다. 그래도 부른다 — 설명이 저기에만 있다.
+ *
+ * 값 다듬기는 관광지 이용 안내와 같은 함수를 쓴다. `overview`만 `cleanText`다.
+ * 산문에 `cleanIntro`를 쓰면 문장 한가운데 대괄호에서 줄이 끊긴다. → `cleanIntro`
+ *
+ * 실패해도 던지지 않는다. 설명 한 줄이 축제 목록 전체를 죽이면 안 된다.
+ * 호출 시점은 `/api/festivals`의 1일 캐시 안이다 — 하루 한 번, 7건이면 14회다.
+ *
+ * 실측(2026-09-15) 안동 3건: place·playTime·fee·overview 모두 3/3.
+ */
+async function attachFestivalGuides(
+  festivals: KorFestivalWithEnglish[],
+): Promise<KorFestivalWithEnglish[]> {
+  await mapWithLimit(festivals, 4, async (festival) => {
+    if (!festival.contentid) return
+
+    try {
+      const [common, intro] = await Promise.all([
+        fetchTourApi<unknown>(KOR_DETAIL_COMMON, { contentId: festival.contentid }),
+        fetchTourApi<unknown>(KOR_DETAIL_INTRO, {
+          contentId: festival.contentid,
+          // 목록이 준 값을 그대로 쓴다. 축제는 15지만 상류가 준 것을 믿는다.
+          contentTypeId: String(festival.contenttypeid ?? '15'),
+        }),
+      ])
+
+      const overview = dropLeadingNotice(cleanText(firstItem(common.items)?.overview))
+      if (overview) festival.overview = overview
+
+      const item = firstItem(intro.items)
+      if (!item) return
+
+      const place = pickIntro(item, FESTIVAL_INTRO_KEYS.place)
+      const playTime = pickIntro(item, FESTIVAL_INTRO_KEYS.playTime)
+      const fee = pickIntro(item, FESTIVAL_INTRO_KEYS.fee)
+
+      if (place) festival.place = place
+      if (playTime) festival.playTime = playTime
+      if (fee) festival.fee = fee
+    } catch {
+      // 이 축제만 안내 없이 간다. 이름·기간·좌표는 이미 목록에서 받았다.
+    }
+  })
+
+  return festivals
+}
+
+/**
+ * 설명 앞에 붙은 운영 공지를 뗀다
+ *
+ * 상류가 별표로 감싼 공지를 설명 맨 앞에 끼워 넣는다. 탈춤페스티벌 실측값이 이렇다.
+ *   `*하기 축제장 먹거리 내용은 전년도(2025년) 축제 내용으로 … *안동국제탈춤페스티벌은 …`
+ * 팝업이 설명을 두 줄만 보여주므로, 떼지 않으면 그 두 줄이 통째로 공지가 된다.
+ * 읽는 사람이 알고 싶은 것은 "무슨 축제인가"인데 화면에는 편집 메모가 뜬다.
+ *
+ * **맨 앞의 한 덩어리만 뗀다.** 본문 중간의 별표는 그대로 둔다 — 거기서는 강조나
+ * 각주로 쓰이고, 그것까지 걷으면 문장이 끊긴다.
+ *
+ * ⚠️ 관광지에는 쓰지 않는다. 실측(2026-09-15) 안동 관광지 40건 중 설명이 별표로
+ *    시작하는 것은 **0건**이고, 축제는 3건 중 1건이다. 축제 쪽 편집 관행이라
+ *    산문 전체에 거는 규칙(`cleanText`)이 아니라 이 자리에서만 부른다.
+ */
+function dropLeadingNotice(text: string): string {
+  return text.replace(/^\*[^*]*\*\s*/, '').trim()
+}
+
+/**
+ * 축제 이용 안내의 필드 이름 — `contenttypeid=15` 전용
+ *
+ * `INTRO_KEYS`와 나란히 두지 않은 이유는 접미사 규칙이 다르기 때문이다. 관광지 쪽은
+ * `usetime` + 타입 접미사인데 축제는 `usetimefestival`·`playtime`처럼 이름 자체가
+ * 다르다. 같은 표에 섞으면 관광지 조회가 축제 필드를 먼저 집을 수 있다.
+ */
+const FESTIVAL_INTRO_KEYS = {
+  /** 축제장. `addr1`보다 좁다 — "탈춤공원, 원도심 일원" */
+  place: ['eventplace'],
+  /** 운영시간 */
+  playTime: ['playtime'],
+  /** 관람료 */
+  fee: ['usetimefestival'],
+} as const
 
 /**
  * 축제에 영문 이름을 붙인다 — 조회 한 번

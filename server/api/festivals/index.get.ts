@@ -80,6 +80,11 @@ function toFestival(
     lat,
     lng,
     ...(kor.addr1 ? { address: kor.addr1 } : {}),
+    // 목록에 없어 상세 두 곳에서 받아 온 값들. → `attachFestivalGuides`
+    ...(kor.place ? { place: kor.place } : {}),
+    ...(kor.playTime ? { playTime: kor.playTime } : {}),
+    ...(kor.fee ? { fee: kor.fee } : {}),
+    ...(kor.overview ? { overview: kor.overview } : {}),
     // 실측 7/7이 이미지를 갖고 있지만 그건 오늘의 사실이지 보장이 아니다.
     ...(kor.firstimage ? { imageUrl: httpsImage(kor.firstimage) } : {}),
     contentId: kor.contentid,

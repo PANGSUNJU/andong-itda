@@ -41,6 +41,15 @@ const hasFestival = computed(() => festivals.value.length > 0)
 /** 하나라도 진행중이면 아이콘이 "지금"을 말한다. 아니면 "곧"이다. */
 const anyOngoing = computed(() => festivals.value.some((festival) => festival.status === 'ongoing'))
 
+/**
+ * 시간과 요금은 한 줄에 묶는다. 둘 다 짧고, 따로 두면 줄만 늘어난다.
+ * 한쪽이 없는 축제가 있을 수 있으므로 가운뎃점을 글자에 섞어 쓰지 않는다 —
+ * 없는 쪽을 걸러낸 뒤 이어 붙여야 점 하나가 홀로 남지 않는다.
+ */
+function timeAndFee(festival: Festival): string {
+  return [festival.playTime, festival.fee].filter(Boolean).join(' · ')
+}
+
 const dialog = ref<HTMLDialogElement | null>(null)
 const open = ref(false)
 
@@ -249,8 +258,42 @@ function when(festival: Festival): string {
             </div>
           </div>
 
-          <p v-if="festival.address" class="mt-3 text-[13px] leading-relaxed text-muted">
-            {{ festival.address }}
+          <!--
+            ⚠️ 주소 한 줄뿐이었다. `searchFestival2`가 주는 것이 거기까지여서 팝업이
+               "언제 어디"만 말하고 **"무슨 축제이며 몇 시에 하는지"는 못 말했다.**
+               설명·운영시간·장소·요금은 `detailCommon2`·`detailIntro2`에 있다.
+               → `attachFestivalGuides`
+
+            장소(`eventplace`)를 주소보다 앞세운다. 주소는 "경상북도 안동시 육사로
+            239"인데 장소는 "탈춤공원, 원도심 일원"이라, 축제장이 여러 곳으로
+            흩어지는 축제에서는 뒤쪽이 실제로 가는 곳을 말한다. 없으면 주소가 선다.
+          -->
+          <p
+            v-if="festival.place ?? festival.address"
+            class="mt-3 text-[13px] leading-relaxed text-muted"
+          >
+            {{ festival.place ?? festival.address }}
+          </p>
+
+          <p
+            v-if="timeAndFee(festival)"
+            class="mt-0.5 text-[13px] leading-relaxed text-muted"
+          >
+            {{ timeAndFee(festival) }}
+          </p>
+
+          <!--
+            설명은 두 줄에서 자른다. 실측 355~448자라 그대로 풀면 축제 한 건이
+            팝업을 채우고, 세 건이 쌓이면 목록이 아니라 문서가 된다.
+
+            ⚠️ 국문뿐이다. 영문 화면에도 이 문장이 그대로 나간다 — 상류에 영문
+               설명이 없고, 없는 것을 지어내지 않는다. → `Festival.overview`
+          -->
+          <p
+            v-if="festival.overview"
+            class="mt-2 line-clamp-2 text-[13px] leading-relaxed text-body"
+          >
+            {{ festival.overview }}
           </p>
 
           <!--

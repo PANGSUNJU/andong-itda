@@ -238,6 +238,14 @@ export interface EngFestival extends EngSpot {
 /** 영문 이름까지 붙인 축제 원본. 캐시에 담기는 모양이고, 상태는 아직 없다. */
 export interface KorFestivalWithEnglish extends KorFestival {
   nameEn?: string
+  /**
+   * 아래 넷은 목록 응답에 없다. `detailCommon2`·`detailIntro2`를 한 번 더 불러
+   * 붙인 값이다. → `attachFestivalGuides`
+   */
+  overview?: string
+  place?: string
+  playTime?: string
+  fee?: string
 }
 
 /**
@@ -272,6 +280,28 @@ export interface Festival {
   address?: string
   imageUrl?: string
   contentId: string
+
+  /**
+   * 축제 안내 — `detailCommon2`·`detailIntro2`에서 붙인다
+   *
+   * 목록(`searchFestival2`)에는 없다. 좌표·주소·이미지·기간까지가 전부라
+   * 팝업이 "언제 어디"만 말하고 "무엇이며 몇 시에 하는지"는 못 말했다.
+   *
+   * ⚠️ 국문뿐이다. EngService2는 ID 체계가 달라(→ `EngFestival`) 축제는 이름·날짜로만
+   *    이어지고 실측 3건 중 하나만 걸린다. 영문 화면에도 국문이 그대로 나간다 —
+   *    관광지 이용 안내와 같은 태도다. 지어내지 않는다. → ADR-030
+   *
+   * 없으면 필드를 넣지 않는다. 빈 문자열은 부재와 빈 값을 구분 못 하게 만든다.
+   * 실측(2026-09-15) 안동 3건은 place·playTime·fee·overview 모두 3/3이다.
+   */
+  /** `eventplace`. 주소(`address`)보다 좁다 — "탈춤공원, 원도심 일원"처럼 적힌다. */
+  place?: string
+  /** `playtime`. "10:00 ~ 22:00" */
+  playTime?: string
+  /** `usetimefestival`. "무료 (일부 체험 프로그램 유료)" */
+  fee?: string
+  /** `overview`. 실측 355~448자. 화면이 줄여서 쓴다. */
+  overview?: string
 }
 
 /**
