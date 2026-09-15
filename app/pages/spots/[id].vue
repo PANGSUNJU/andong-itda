@@ -311,7 +311,8 @@ const mapMarkers = computed(() =>
               <template v-if="bus.schedule.departFirst">
                 {{
                   t.spot.schedule(
-                    bus.schedule.outboundFrom ?? t.bus.downtown,
+                    d.pick(bus.schedule.outboundFrom, bus.schedule.outboundFromEn) ??
+                      t.bus.downtown,
                     bus.schedule.departFirst,
                     bus.schedule.departLast ?? '—',
                   )

@@ -61,6 +61,7 @@
       ],
       "timetable": {
         "outboundFrom": "교보건너",
+        "outboundFromEn": "Kyobo Life Insurance Opposite Side",
         "departFirst": "06:30",
         "departLast": "18:20",
         "arriveFirst": "07:35",
@@ -93,6 +94,7 @@
       },
       "timetable": {
         "outboundFrom": "교보건너",
+        "outboundFromEn": "Kyobo Life Insurance Opposite Side",
         "arriveFirst": "09:30",
         "arriveLast": "15:30",
         "runs": 3,
@@ -137,6 +139,7 @@
       ],
       "timetable": {
         "outboundFrom": "교보생명건너",
+        "outboundFromEn": "Kyobo Life Insurance Opposite Side",
         "departFirst": "06:10",
         "departLast": "18:50",
         "arriveFirst": "06:55",
@@ -167,10 +170,12 @@
       },
       "timetable": {
         "outboundFrom": "터미널",
+        "outboundFromEn": "Andong Station(Andong Terminal)",
         "departFirst": "06:10",
         "departLast": "19:50",
         "runs": 7,
         "returnFrom": "온혜발",
+        "returnFromEn": "Onhye Bus Stop",
         "returnFirst": "07:50",
         "returnLast": "20:40",
         "returnRuns": 7,
@@ -203,6 +208,7 @@
       },
       "timetable": {
         "outboundFrom": "터미널발",
+        "outboundFromEn": "Andong Station(Andong Terminal)",
         "departFirst": "08:25",
         "departLast": "18:45",
         "runs": 7,
@@ -248,9 +254,11 @@
       },
       "timetable": {
         "outboundFrom": "교보생명",
+        "outboundFromEn": "Kyobo Life Insurance",
         "departFirst": "05:50",
         "departLast": "20:15",
         "returnFrom": "길안에서안동출발",
+        "returnFromEn": "Gilan Bus Stop",
         "returnFirst": "06:20",
         "returnLast": "20:00",
         "returnRuns": 38,

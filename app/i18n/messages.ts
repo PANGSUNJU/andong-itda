@@ -62,6 +62,30 @@ const EN_MONTHS = [
   'Dec',
 ]
 
+/**
+ * 영문 화면의 노선 번호 — 한글 토큰은 남기고 뜻만 덧붙인다
+ *
+ * 안동 노선의 대부분은 숫자(`210`)지만 `급행2`·`순환2-1`처럼 한글로 시작하는
+ * 것들이 있다. 영문 화면에서 `Bus 급행2`는 읽는 사람에게 아무것도 말하지 않는다.
+ *
+ * 그렇다고 `Express 2`로 **갈아치우지는 않는다.** 버스 앞면과 정류장 표지에
+ * 적힌 글자가 `급행2`라서, 우리만 아는 이름으로 바꾸면 그걸로는 차를 못 찾는다.
+ * ADR-032가 이름에 대해 정한 것과 같은 이유다 — 지어내지 않고, 대신 **앞에
+ * 뜻을 붙인다.** `Express 급행2`는 무슨 버스인지 알려주면서 찾을 글자를 남긴다.
+ *
+ * ⚠️ 지명이 붙은 노선(`풍산`·`도산`·`와룡`…)은 건드리지 않는다. 그건 뜻이 아니라
+ *    이름이고, 이름은 상류에 영문이 없으면 국문 그대로 둔다. → ADR-032
+ */
+const EN_ROUTE_KINDS: [string, string][] = [
+  ['급행', 'Express'],
+  ['순환', 'Loop'],
+]
+
+const enRouteLabel = (routeNum: string) => {
+  const kind = EN_ROUTE_KINDS.find(([prefix]) => routeNum.startsWith(prefix))
+  return kind ? `${kind[1]} ${routeNum}` : `Bus ${routeNum}`
+}
+
 const ko = {
   /** <html lang>. 스크린리더가 어느 언어로 읽을지 정한다. */
   htmlLang: 'ko',
@@ -794,7 +818,7 @@ const en: Messages = {
     head: 'Buses that come here',
     inboundHead: 'From downtown',
     outboundHead: 'Back to downtown',
-    routeLabel: (routeNum: string) => `Bus ${routeNum}`,
+    routeLabel: enRouteLabel,
     getOff: (station: string) => `Get off at ${station}`,
     ride: (stops: number, distance: string) =>
       `${stops} ${stops === 1 ? 'stop' : 'stops'} · ${distance}`,
@@ -820,11 +844,11 @@ const en: Messages = {
     inboundFromDowntown: 'Inbound from the city center',
     downtown: 'the city center',
 
-    arrivingSoon: (routeNum: string) => `Bus ${routeNum} is arriving soon`,
-    onTheWay: (routeNum: string) => `Bus ${routeNum} is on the way`,
+    arrivingSoon: (routeNum: string) => `${enRouteLabel(routeNum)} is arriving soon`,
+    onTheWay: (routeNum: string) => `${enRouteLabel(routeNum)} is on the way`,
     takesYouTo: (places: string) => `This one takes you to ${places}`,
     nextSameRoute: (routeNum: string, minutes: number) =>
-      `The next bus ${routeNum} is in ${minutes} min`,
+      `The next ${enRouteLabel(routeNum)} is in ${minutes} min`,
 
     after: 'away',
     locating: 'Locating bus',

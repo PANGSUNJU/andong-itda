@@ -33,12 +33,28 @@ export interface SeasonalRoute {
 /** 관광지별 운행 시간표 */
 export interface SpotTimetable {
   outboundFrom?: string
+  /**
+   * 출발지의 영문
+   *
+   * `outboundFrom`·`returnFrom`은 공식 시간표의 정류장을 **우리가 줄여 쓴** 말이다
+   * ("교보건너" = 교보생명 건너편). 그래서 상류 응답에 그대로 대응되는 값이 없다.
+   *
+   * ⚠️ 로마자로 지어내지 않는다. 여기 적는 영문은 전부 **상류 정류장 목록의
+   *    `stationEngNm`을 그대로 옮긴 것**이다(`/api/bus/stations`, 2105곳 전부
+   *    채워져 온다). "건너"까지 상류 표기(`Opposite Side`)를 따른다 — 현장
+   *    표지판과 같은 글자여야 그 이름으로 정류장을 찾을 수 있다. → ADR-030 · ADR-032
+   *
+   * 비어 있으면 화면이 국문으로 되돌린다(`d.pick`).
+   */
+  outboundFromEn?: string
   departFirst?: string
   departLast?: string
   arriveFirst?: string
   arriveLast?: string
   runs?: number
   returnFrom?: string
+  /** 귀로 출발지의 영문. 근거는 `outboundFromEn`과 같다. */
+  returnFromEn?: string
   returnFirst?: string
   returnLast?: string
   returnRuns?: number

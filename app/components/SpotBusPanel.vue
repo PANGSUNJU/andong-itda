@@ -81,6 +81,16 @@ const statusText = computed(() => {
 const note = computed(() => d.pick(props.info.schedule.note, props.info.schedule.noteEn))
 const warning = computed(() => d.pick(props.info.warning, props.info.warningEn))
 const outboundReason = computed(() => d.pick(props.info.outbound.reason, props.info.outbound.reasonEn))
+
+/**
+ * 출발 정류장. 영문은 상류 정류장 목록의 이름을 옮겨 둔 것이다(지어낸 로마자가
+ * 아니다 → `SpotTimetable.outboundFromEn`). 없으면 국문 그대로 나간다.
+ */
+const outboundFrom = computed(
+  () =>
+    d.pick(props.info.schedule.outboundFrom, props.info.schedule.outboundFromEn) ??
+    t.value.bus.downtown,
+)
 </script>
 
 <template>
@@ -155,12 +165,12 @@ const outboundReason = computed(() => d.pick(props.info.outbound.reason, props.i
 
     <!--
       시간표. 서버가 준 값만 쓰고 없는 값은 만들지 않는다.
-      출발지(outboundFrom)는 상류 시간표의 정류장명이라 국문 그대로 나간다.
+      출발지(outboundFrom)의 영문은 상류 정류장 이름을 옮겨 둔 것이다 → `outboundFrom`
     -->
     <dl class="border-t border-hairline-soft pt-4 text-sm">
       <div v-if="info.schedule.departFirst" class="flex justify-between py-1.5">
         <dt class="text-muted">
-          {{ t.bus.departsFrom(info.schedule.outboundFrom ?? t.bus.downtown) }}
+          {{ t.bus.departsFrom(outboundFrom) }}
         </dt>
         <dd class="font-medium">
           {{ t.bus.firstLast(info.schedule.departFirst, info.schedule.departLast ?? '—') }}
