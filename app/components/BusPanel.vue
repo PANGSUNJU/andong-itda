@@ -44,7 +44,21 @@ const d = useDisplay()
 const station = computed(() => ({ stationNm: props.stationNm, nameEn: props.stationNmEn }))
 
 const next = computed(() => props.arrivals[0])
-const rest = computed(() => props.arrivals.slice(1, 4))
+
+/**
+ * "곧 도착"이라고 말해도 되는 한계 — 3분
+ *
+ * 이 문구가 12분짜리 도착 위에도 붙어 있었다. 큰 숫자는 `12`인데 그 아래에서
+ * "곧 도착해요"라고 말하면 문장이 자기 화면의 숫자와 어긋난다. 3분을 넘으면
+ * 시각을 주장하지 않는 `onTheWay`("오고 있어요")로 돌아간다 — 그건 12분에도
+ * 참이고, 도착 예정 시각을 못 받았을 때(`predictTm === null`)에도 참이다.
+ */
+const ARRIVING_SOON_MIN = 3
+
+const isArrivingSoon = computed(() => {
+  const minutes = next.value?.predictTm
+  return minutes != null && minutes <= ARRIVING_SOON_MIN
+})
 
 /**
  * 이 버스가 무엇인지 알려주는 한 줄 — 관광지가 먼저, 없으면 방면
@@ -76,6 +90,22 @@ const nextSameRoute = computed(() =>
         .slice(1)
         .find((arrival) => arrival.routeNum === next.value!.routeNum && arrival.predictTm !== null)
     : undefined,
+)
+
+/**
+ * 큰 숫자 아래의 목록 — 위에서 이미 말한 차는 빼고 센다
+ *
+ * `nextSameRoute`("다음 211번은 17분 후예요")가 목록 첫 줄에 `211 · 17분`으로
+ * 한 번 더 나오고 있었다. 같은 버스가 한 화면에 두 번 적히면 읽는 사람은 그것을
+ * 두 대로 읽는다. 문장으로 말한 차를 목록에서 빼면 세 줄이 서로 다른 노선이 된다.
+ *
+ * ⚠️ 걸러낸 **다음에** 세 줄을 센다. 자르고 나서 빼면 줄 수가 들쭉날쭉해진다.
+ */
+const rest = computed(() =>
+  props.arrivals
+    .slice(1)
+    .filter((arrival) => arrival !== nextSameRoute.value)
+    .slice(0, 3),
 )
 </script>
 
@@ -126,11 +156,7 @@ const nextSameRoute = computed(() =>
           }}</em>
         </div>
         <h2 class="mt-2 text-base font-semibold leading-tight">
-          {{
-            next.predictTm !== null
-              ? t.bus.arrivingSoon(next.routeNum)
-              : t.bus.onTheWay(next.routeNum)
-          }}
+          {{ isArrivingSoon ? t.bus.arrivingSoon(next.routeNum) : t.bus.onTheWay(next.routeNum) }}
         </h2>
         <!--
           닿는 관광지가 방향을 대신한다. 홈에서 "지금 오는 버스가 어디로 가나"에

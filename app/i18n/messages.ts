@@ -422,6 +422,12 @@ const ko = {
     /** 서버가 outboundFrom을 주지 않을 때의 기본 출발지 */
     downtown: '시내',
 
+    /**
+     * ⚠️ 두 문구를 가르는 것은 도착 여부가 아니라 **남은 시간**이다.
+     *    "곧"은 3분 이하에서만 참이다 — 그 위에서는 큰 숫자(`12`)와 싸운다.
+     *    `onTheWay`는 12분에도, 도착 예정을 못 받았을 때도 참이라 나머지를 받는다.
+     *    → `BusPanel.ARRIVING_SOON_MIN`
+     */
     arrivingSoon: (routeNum: string) => `${routeNum}번이 곧 도착해요`,
     onTheWay: (routeNum: string) => `${routeNum}번이 오고 있어요`,
     takesYouTo: (places: string) => `타면 ${places}에 가요`,
