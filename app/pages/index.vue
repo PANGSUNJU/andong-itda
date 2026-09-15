@@ -24,6 +24,26 @@ const { location, locating, locate } = useLocation()
 
 /** 위치 상태는 키만 들고 있다. 문구는 지금 언어로 여기서 만든다. → `useLocation` */
 const placeLabel = computed(() => t.value.location[location.value.label])
+
+/**
+ * 제목은 "어디 기준인지"가 아니라 "지금 어떤 상태인지"를 말한다
+ *
+ * 안동 밖인 걸 아는데 "지금 안동역 부근이에요"라고 쓰면 첫 화면의 첫 문장이 거짓이 된다.
+ * 서울에서 연 사람이 26px로 읽는 게 그 문장이었고, 맞는 말은 13px 안내줄에 있었다.
+ * 안동역 기준이라는 사실은 그 안내줄이 계속 맡는다(`t.location.outside`).
+ *
+ * 순서가 중요하다. 화면을 열어 둔 채 안동을 벗어나면 label은 'current'로 남고
+ * reason만 'outside'로 바뀐다(→ `useLocation`). 그때도 바깥이라는 사실이 이긴다.
+ *
+ * 'denied'·'unsupported'는 여기서 갈라지지 않는다 — 권한을 거부한 사람이 실제로
+ * 안동에 있을 수 있어서, 그 경로에서 "안동이 아니신 것 같아요"는 또 다른 거짓이 된다.
+ */
+const heading = computed(() => {
+  if (location.value.reason === 'outside') return t.value.home.headingOutside
+  if (location.value.label === 'current') return t.value.home.headingHere
+  return t.value.home.heading(placeLabel.value)
+})
+
 const locationReason = computed(() =>
   location.value.reason ? t.value.location[location.value.reason] : null,
 )
@@ -230,7 +250,7 @@ onMounted(() => {
       <div class="min-w-0">
         <div class="py-6 pb-4">
           <h1 class="font-serif text-[26px] font-semibold leading-tight tracking-[-0.18px] tablet:text-[28px]">
-            {{ t.home.heading(placeLabel) }}
+            {{ heading }}
           </h1>
           <p class="mt-1.5 text-sm leading-relaxed text-muted">
             {{ t.home.sub }}
@@ -239,7 +259,7 @@ onMounted(() => {
             위치를 못 잡았을 때 이유만 적어 두면 막다른 길이다. 권한을 나중에 허용해도
             새로고침 말고는 되돌릴 방법이 없었다. 다시 시도를 같은 자리에 둔다.
           -->
-          <p v-if="locationReason || locating" class="mt-2 text-[13px] text-muted-soft">
+          <p v-if="locationReason || locating" class="mt-2 text-[13px] text-muted">
             <template v-if="locating">{{ t.home.locating }}</template>
             <template v-else>
               {{ locationReason }}

@@ -136,7 +136,21 @@ const ko = {
 
   home: {
     title: '지금 여기 · 안동잇다',
+    /**
+     * 제목은 셋 중 하나다. 고르는 자리는 `pages/index.vue`의 `heading`.
+     *
+     * 이건 위치를 못 잡았거나 거부했을 때 쓰는 문장이라 place는 언제나 '안동역'이다.
+     * 그래도 함수로 두는 건 지명을 `location.origin` 한 곳에만 적어 두기 위해서다.
+     */
     heading: (place: string) => `지금 ${place} 부근이에요`,
+    /**
+     * ⚠️ 안동 밖인 걸 아는데 "지금 안동역 부근이에요"라고 쓰면 첫 문장이 거짓이 된다.
+     *    26px 제목이 틀린 말을, 13px 안내줄이 맞는 말을 하고 있었다. 위계를 뒤집는다.
+     *    "안동역 기준"이라는 사실은 아래 `location.outside`가 맡는다.
+     */
+    headingOutside: '지금 안동이 아니신 것 같아요',
+    /** 좌표를 잡았을 때. heading(location.current)는 "지금 현재 위치 부근이에요"가 된다. */
+    headingHere: '지금 이 근처예요',
     sub: '가까운 정류장의 버스와, 기다리는 동안 다녀올 만한 곳이에요',
     locating: '위치를 확인하는 중이에요…',
     relocate: '내 위치로 다시',
@@ -508,7 +522,12 @@ const ko = {
     origin: '안동역',
     current: '현재 위치',
     unsupported: '이 브라우저는 위치를 알려주지 못해요',
-    outside: '안동 밖에 계신 것 같아 안동역을 기준으로 보여드려요',
+    /**
+     * ⚠️ 앞에 "안동 밖에 계신 것 같아"가 붙어 있었다. 그 절은 제목(`home.headingOutside`)이
+     *    가져갔다 — 여기 남겨 두면 같은 말이 두 줄 연속으로 나온다.
+     *    `denied`는 제목이 바뀌지 않는 경로라 앞 절을 그대로 둔다.
+     */
+    outside: '안동역을 기준으로 보여드리고 있어요',
     denied: '위치를 확인할 수 없어 안동역을 기준으로 보여드려요',
   },
 
@@ -651,6 +670,8 @@ const en: Messages = {
   home: {
     title: 'Right Now · Andong Itda',
     heading: (place: string) => `You're near ${place}`,
+    headingOutside: "Looks like you're outside Andong",
+    headingHere: "Here's what's around you",
     sub: 'Buses from the nearest stop, and places worth a look while you wait',
     locating: 'Finding your location…',
     relocate: 'Use my location',
@@ -910,7 +931,7 @@ const en: Messages = {
     origin: 'Andong Station',
     current: 'your location',
     unsupported: "This browser can't share your location",
-    outside: "You seem to be outside Andong, so we're using Andong Station as the reference",
+    outside: 'Showing everything from Andong Station',
     denied: "We couldn't get your location, so we're using Andong Station as the reference",
   },
 
