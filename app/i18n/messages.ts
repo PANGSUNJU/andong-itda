@@ -191,6 +191,78 @@ const ko = {
     popularHead: '안동에서 많이 찾는 곳',
     popularSub: '한국관광공사 방문 데이터 기준',
     seeAll: '전체 보기',
+
+    /**
+     * 목적지를 정한 사람에게 — 거르지 않고 **표시하고 정렬만** 한다
+     *
+     * 문구가 그 사실을 드러내야 한다. "없어요"로 끝내면 화면이 빈 것처럼 읽히는데
+     * 목록은 그대로 있다. 안동 외곽 노선은 배차가 하루 3~13회라 "지금 오는 차 중에
+     * 목적지행이 없다"가 흔한 상태이고, 그건 오류가 아니라 답이다.
+     *
+     * ⚠️ 조사를 붙이지 않는다. "하회마을로"와 "도산서원으로"가 갈리는데 관광지
+     *    이름은 상류가 주는 값이라 받침을 미리 알 수 없다. "○○ 방면"은 조사가 없다.
+     */
+    destinationClear: '지우기',
+    destinationBound: (name: string) => `${name} 방면`,
+
+    /**
+     * 목적지 검색 — 검색창이 곧 목적지다(→ ADR-054).
+     *
+     * placeholder는 **묻는 말**이다. "목적지 검색"이라고 쓰면 기능 이름이 되는데,
+     * 이 화면에서 검색창은 기능이 아니라 "지금 여기 / 저기로" 를 가르는 손잡이다.
+     */
+    destinationSearch: '어디로 가시나요?',
+    destinationSearchLabel: '목적지 검색',
+    destinationSearchStops: '정류장',
+    destinationSearchEmpty: (keyword: string) => `"${keyword}"에 해당하는 곳이 없어요`,
+    destinationSearchMore: (count: number) => `그 외 ${count}곳 · 조금 더 입력해 보세요`,
+    destinationNoRoute: (name: string) =>
+      `${name}까지 한 번에 가는 버스가 없어요. 시내에서 갈아타야 해요`,
+    destinationOtherStop: (name: string) =>
+      `이 승강장에는 ${name} 방면이 서지 않아요. 아래에서 다른 승강장을 골라 보세요`,
+    destinationNotArriving: (name: string) => `지금 오는 차 중에는 ${name} 방면이 없어요`,
+    destinationTooFar: (name: string) => `걸어갈 만한 거리에는 ${name} 방면 승강장이 없어요`,
+
+    /**
+     * 돌아오는 편 · 막차 — 목적지를 정했을 때만 뜬다
+     *
+     * 제목에 "돌아오는 편"을 먼저 쓴다. 이 서비스에서 가장 위험한 실패가
+     * "갈 수는 있는데 못 돌아오는" 안내이기 때문이다. → ADR-016
+     */
+    scheduleHead: '돌아오는 편 · 막차',
+    departLabel: '가는 편',
+    /**
+     * 노선 번호 뒤에 꼬리표로 붙는다. 예전에는 아래 줄을 하나 더 써서 2행이었는데,
+     * 44곳 중 37곳이 이 분기라 **가장 흔한 상태가 가장 자리를 많이 먹고 있었다.**
+     * 본문이 "모른다"인 줄에 한 행을 더 줄 이유가 없다. → ADR-051
+     */
+    returnTimeUnknown: '시각 미확인',
+    /**
+     * `t.bus.returnUnknownStrong`을 그대로 쓰면 "돌아오는 편 **돌아오는 편** 시간표는…"이
+     * 된다. 저 문장은 라벨이 없는 상세 화면용이다. 여기서는 왼쪽에 라벨이 이미 있다.
+     */
+    returnUnknownShort: '시간표가 공식 자료에 없어요. 현장에서 기사님께 확인하세요',
+
+    /**
+     * 총 소요시간 — 기다리기 + 타고 가기 + 걷기
+     *
+     * 합계에 "약"을 붙인다. 셋 중 둘이 추정이라 합계도 추정이다.
+     * 내역을 함께 적는 이유는 **어디까지가 잰 값인지** 읽는 사람이 알아야 해서다 —
+     * 기다리는 시간만 상류가 준 값이고 나머지는 우리가 민 것이다.
+     *
+     * ⚠️ 목적지 이름을 문장 **안에** 넣는다. 예전에는 배지("○○ 방면")와 합계
+     *    ("지금 출발하면 약 44분")가 두 줄로 나뉘어 같은 말을 두 번 했다. 한 문장으로
+     *    합치면 "이 차가 목적지행"이라는 사실은 문구가, 위계는 굵기와 primary가
+     *    말한다 — 알약은 한 겹 더 그린 상자였을 뿐이다. → ADR-051
+     *
+     * ⚠️ 조사는 `까지`만 쓴다. 받침이 갈리지 않는 유일한 자리다("하회마을까지"·
+     *    "도산서원까지"). `로/으로`를 쓰면 이름을 받는 순간 깨진다. → 위 205행 규칙
+     */
+    tripToDestination: (name: string, minutes: number) => `${name}까지 약 ${minutes}분`,
+    tripBreakdown: (wait: number, ride: number, walk: number) =>
+      `기다리기 ${wait}분 · 타고 약 ${ride}분 · 내려서 약 ${walk}분`,
+    /** 목적지가 정류장이면 내려서 걸을 거리가 없다. 없는 조각을 0분으로 적지 않는다. */
+    tripBreakdownNoWalk: (wait: number, ride: number) => `기다리기 ${wait}분 · 타고 약 ${ride}분`,
   },
 
   /**
@@ -347,6 +419,11 @@ const ko = {
     busPendingBody: '이 관광지의 정류장은 아직 확인하지 못했어요. 임의로 채우지 않고 비워 둡니다.',
     busNoneBody: '버스 정보가 등록되지 않은 곳이에요. 현재는 인기 관광지 7곳만 안내하고 있어요.',
     directions: '카카오맵으로 길찾기',
+    /**
+     * 위의 "가는 방법"은 시내 기준이다. 이 링크는 **지금 선 자리** 기준으로
+     * 다시 묻는다. 두 문장이 서로 다른 질문에 답하므로 버튼도 둘이다.
+     */
+    goFromHere: '지금 여기서 가기',
 
     /**
      * 이용 안내 — `detailIntro2`. "몇 시에 문 여나"에 답한다.
@@ -709,6 +786,35 @@ const en: Messages = {
     popularHead: 'Most visited in Andong',
     popularSub: 'Based on Korea Tourism Organization visit data',
     seeAll: 'See all',
+
+    /**
+     * 관광지 이름은 두 언어에서 같을 수 있다. 영문명이 있는 곳만 영문으로 오고
+     * 나머지는 국문 그대로다 — 지어내지 않는다. → ADR-030 · ADR-032
+     */
+    destinationClear: 'Clear',
+    destinationBound: (name: string) => `To ${name}`,
+
+    destinationSearch: 'Where are you headed?',
+    destinationSearchLabel: 'Search destination',
+    destinationSearchStops: 'Bus stop',
+    destinationSearchEmpty: (keyword: string) => `Nothing matches "${keyword}"`,
+    destinationSearchMore: (count: number) => `${count} more · keep typing to narrow`,
+    destinationNoRoute: (name: string) =>
+      `No single bus goes to ${name}. You will need to change in the city centre`,
+    destinationOtherStop: (name: string) =>
+      `No bus to ${name} stops at this platform. Try another one below`,
+    destinationNotArriving: (name: string) => `None of the buses coming now go to ${name}`,
+    destinationTooFar: (name: string) => `No platform within walking distance serves ${name}`,
+
+    scheduleHead: 'Return trip & last bus',
+    departLabel: 'Going',
+    returnTimeUnknown: 'times unconfirmed',
+    returnUnknownShort: 'Not in the official timetable. Ask the driver when you arrive',
+
+    tripToDestination: (name: string, minutes: number) => `About ${minutes} min to ${name}`,
+    tripBreakdown: (wait: number, ride: number, walk: number) =>
+      `${wait} min wait · about ${ride} min ride · about ${walk} min walk`,
+    tripBreakdownNoWalk: (wait: number, ride: number) => `${wait} min wait · about ${ride} min ride`,
   },
 
   error: {
@@ -825,6 +931,7 @@ const en: Messages = {
     busNoneBody:
       'No bus information is registered here. We currently cover 7 of the most visited places.',
     directions: 'Directions in KakaoMap',
+    goFromHere: 'Get here from where I am',
 
     guideHead: 'Visiting',
     guideTime: 'Hours',

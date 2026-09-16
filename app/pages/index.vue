@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { ArrivalWithSpots, NearbyStation, StationPin } from '#shared/types/bus'
+import type { ArrivalForDestination, ArrivalWithSpots, NearbyStation, StationPin } from '#shared/types/bus'
+import type { SpotBoarding, SpotBusInfo, SpotRouteInfo } from '#shared/types/static-data'
 import type { Spot } from '#shared/types/tour'
-import { busMinutes, nearest } from '#shared/constants/location'
+import { busMinutes, distanceMeters, nearest, WALKABLE_M, walkMinutes } from '#shared/constants/location'
 
 /**
  * 지금 여기 — 홈
@@ -16,6 +17,7 @@ import { busMinutes, nearest } from '#shared/constants/location'
  */
 const t = useT()
 const d = useDisplay()
+const route = useRoute()
 const localePath = useLocalePath()
 
 usePageTitle(() => t.value.home.title)
@@ -58,22 +60,184 @@ const coords = computed(() => ({ lat: location.value.lat, lng: location.value.ln
  * SSR에서는 안동역 폴백 기준으로 계산되고, 브라우저에서 좌표가 잡히면
  * 같은 computed가 다시 돈다. 그때 네트워크 요청은 더 나가지 않는다.
  */
-const { data: allStations } = await useFetch<StationPin[]>('/api/bus/stations', {
-  default: () => [],
-})
-const { data: spots } = await useFetch<Spot[]>('/api/spots', { default: () => [] })
+// 둘은 서로를 기다릴 이유가 없다. 줄지어 await하면 왕복이 두 번 쌓인다. → browse.vue
+const [{ data: allStations }, { data: spots }] = await Promise.all([
+  useFetch<StationPin[]>('/api/bus/stations', { default: () => [] }),
+  useFetch<Spot[]>('/api/spots', { default: () => [] }),
+])
 
 /**
- * 도착정보가 오지 않는 승강장은 뒤로 보낸다
+ * 목적지 — 주소에 실어 둔다
+ *
+ * `?to=<관광지 id>`. `useState`에 담지 않는 이유는 언어와 같다(→ ADR-031) —
+ * 주소에 있어야 새로고침과 공유를 견디고, 뒤로가기로 해제된다. 상세 화면의
+ * "지금 여기서 가기"가 이 주소를 만든다.
+ */
+const destinationId = computed(() => {
+  const value = route.query.to
+  return typeof value === 'string' && value ? value : null
+})
+
+/**
+ * 정류장 목적지 — `?stop=<정류장 이름>`
+ *
+ * 관광 API에는 **교통 거점이 한 곳도 없다**(실측 2026-09-16: 44곳 중 0). 그래서
+ * "안동역"·"터미널"을 검색해도 아무것도 안 나왔다. 차 없이 여행하는 사람의 마지막
+ * 이동은 대개 터미널로 돌아가는 길인데, 그 목적지를 고를 방법이 없었던 셈이다.
+ *
+ * ⚠️ id가 아니라 **이름**이다. "안동역(안동터미널)"은 승강장이 셋이고 노선마다
+ *    서는 곳이 다르다. 승강장 하나로 고정하면 다른 승강장에 서는 노선이 통째로
+ *    빠진다. → `/api/stop-boarding/[name]`
+ *
+ * `to`와 별도 파라미터로 둔다. 한 파라미터에 접두어를 붙여 두 종류를 실으면
+ * 읽는 쪽마다 그 규칙을 알아야 하고, 주소만 봐서는 무엇인지 알 수 없다.
+ */
+const destinationStop = computed(() => {
+  const value = route.query.stop
+  return typeof value === 'string' && value ? value : null
+})
+
+/**
+ * 목적지 쪽 사실만 받아 온다. **내가 어디 있는지는 보내지 않는다.**
+ *
+ * 서버는 "이 관광지로 데려다주는 노선과 그 노선에서 탈 수 있는 정류장"까지만
+ * 답하고, 내 정류장과 대조하는 계산은 아래에서 브라우저가 한다. → ADR-024
+ */
+const { data: boarding } = await useAsyncData<SpotBoarding | null>(
+  'home-boarding',
+  () => {
+    if (destinationId.value) {
+      return $fetch<SpotBoarding>(`/api/spot-boarding/${destinationId.value}`)
+    }
+    if (destinationStop.value) {
+      // 없는 이름이면 404다. 던지지 않는다 — 주소를 손으로 고친 경우까지 화면이 죽으면 안 된다.
+      return $fetch<SpotBoarding>(
+        `/api/stop-boarding/${encodeURIComponent(destinationStop.value)}`,
+      ).catch(() => null)
+    }
+    return Promise.resolve(null)
+  },
+  { watch: [destinationId, destinationStop], default: () => null },
+)
+
+/** 목적지 관광지. 이름으로 묻는 라우트(`/api/spot-bus`·`/api/spot-routes`)에 넘긴다. */
+const destinationSpot = computed(
+  () => spots.value.find((candidate) => candidate.id === destinationId.value) ?? null,
+)
+
+/**
+ * 화면에 적을 목적지 이름. 영문이 있으면 영문으로 쓴다.
+ *
+ * ⚠️ 정류장 목적지(`?stop=`)는 **응답이 왔을 때만** 이름을 띄운다. 없는 이름을
+ *    주소에 실어 들어온 경우까지 목적지가 있는 척하지 않기 위해서다. 검색으로
+ *    고른 이름은 실제 정류장이므로 이 분기에서 걸리지 않는다. → ADR-054
+ */
+const destinationName = computed(() => {
+  if (destinationStop.value) {
+    // 응답이 왔을 때만 이름을 띄운다. 404면 목적지가 없는 화면으로 되돌아간다.
+    if (!boarding.value) return null
+    const station = allStations.value.find(
+      (candidate) => candidate.stationNm === destinationStop.value,
+    )
+    return station ? d.stationName(station) : destinationStop.value
+  }
+  if (!destinationId.value) return null
+  return destinationSpot.value ? d.name(destinationSpot.value) : (boarding.value?.spot ?? null)
+})
+
+/**
+ * 돌아오는 편 · 막차 — 목적지를 정했을 때만 묻는다
+ *
+ * 둘을 따로 부르는 이유는 근거가 다르기 때문이다. 합치지 않는 것이 이 프로젝트의
+ * 규칙이고(→ `spot-routes/[spot].get.ts`), 하나가 없어도 다른 하나는 화면에 남아야 한다.
+ *
+ *   `/api/spot-bus`     사람이 확인한 7곳만. 404가 정상 응답이다 — **던지지 않는다.**
+ *   `/api/spot-routes`  44곳 전부. 시내로 나오는 노선을 주지만 시각은 없다.
+ *
+ * ⚠️ 이 서비스에서 가장 위험한 실패가 "갈 수는 있는데 못 돌아오는" 안내다(ADR-016).
+ *    그 사실을 상세 화면까지 들어가야 볼 수 있게 두면, 홈에서 목적지를 정하고 버스에
+ *    오른 사람은 모른 채 떠난다.
+ */
+const { data: destinationBus } = await useAsyncData<SpotBusInfo | null>(
+  'home-destination-bus',
+  () =>
+    destinationSpot.value
+      ? $fetch<SpotBusInfo>(`/api/spot-bus/${encodeURIComponent(destinationSpot.value.name)}`).catch(
+          () => null,
+        )
+      : Promise.resolve(null),
+  { watch: [destinationId], default: () => null },
+)
+
+const { data: destinationRoutes } = await useAsyncData<SpotRouteInfo | null>(
+  'home-destination-routes',
+  () =>
+    destinationSpot.value
+      ? $fetch<SpotRouteInfo>(
+          `/api/spot-routes/${encodeURIComponent(destinationSpot.value.name)}`,
+        ).catch(() => null)
+      : Promise.resolve(null),
+  { watch: [destinationId], default: () => null },
+)
+
+/** 목적지로 가는 노선이 지나는 정류장. 승강장 칩을 다시 세우는 데 쓴다. */
+const boardingStations = computed(() => new Set(boarding.value?.boardingStations ?? []))
+
+/**
+ * 걸어가서 탈 수 있는 목적지행 승강장 — 가까운 다섯 곳에 없을 때의 대안
+ *
+ * 하나만 고른다. 여럿을 끌어오면 칩 줄이 목적지행으로 덮여 "지금 여기 오는 버스"가
+ * 뒤로 밀린다. 목적지는 화면의 전부가 아니다.
+ *
+ * `radius`가 비면 빈 배열이다 — 그 상태가 곧 "걸어갈 만한 거리에는 없다"이다.
+ */
+const walkableBoarding = computed<NearbyStation[]>(() =>
+  boardingStations.value.size
+    ? nearest(
+        allStations.value.filter((station) => boardingStations.value.has(station.stationId)),
+        coords.value,
+        { limit: 1, radius: WALKABLE_M },
+      )
+    : [],
+)
+
+/**
+ * 도착정보가 오지 않는 승강장은 뒤로 보낸다 — 그리고 목적지행을 앞으로 당긴다
  *
  * 안동터미널처럼 노선의 기점·종점으로만 쓰이는 승강장에는 "접근 중인 차량"이
  * 성립하지 않아 도착정보가 항상 빈 배열이다(→ ADR-015). 그런 칩이 맨 앞에 오면
  * 첫 화면이 "버스가 없어요"로 열린다. 지우지는 않는다 — 실재하는 승강장이고,
  * 거기 서 있는 사람에게는 "여기는 안 뜬다"는 사실 자체가 답이다.
+ *
+ * ⚠️ 목적지행도 **거르지 않는다.** 목적지행만 남기면 "표시할 승강장 없음"이 흔한
+ *    화면이 된다. 기점 승강장을 지우지 않기로 한 것과 같은 이유다.
+ *
+ * ⚠️ 가까운 다섯 곳에 목적지행이 하나도 없으면 **여섯 번째 밖에서 끌어온다.**
+ *    이게 이 기능에서 값이 가장 큰 한 줄이다. 도착 목록만 다뤄서는 "이 정류장엔
+ *    없다"까지만 말하고 어디로 가야 하는지는 끝내 말하지 못한다. 200m 더 걸어야
+ *    탈 수 있는 곳이라면 그게 답이다.
+ *
+ * ⚠️ **끌어오되 도보권까지만.** 처음엔 거리 제한 없이 가장 가까운 목적지행 승강장을
+ *    끌어왔다. 실측(2026-09-16)에서 안동대 → 하회마을은 6.1km(도보 91분),
+ *    도산서원 → 병산서원은 **20.8km(도보 311분)** 짜리 승강장이 1순위 칩으로
+ *    올라왔다. 그건 안내가 아니다. 도보권 밖이면 끌어오지 않고 문구로 말한다
+ *    (`destinationTooFar`). → ADR-050
  */
 const stations = computed<NearbyStation[]>(() => {
   const near = nearest(allStations.value, coords.value, { limit: 5 })
-  return [...near.filter((s) => !s.terminusOnly), ...near.filter((s) => s.terminusOnly)]
+  const ordered = [...near.filter((s) => !s.terminusOnly), ...near.filter((s) => s.terminusOnly)]
+
+  const reach = boardingStations.value
+  if (!reach.size) return ordered
+
+  const list = ordered.some((station) => reach.has(station.stationId))
+    ? ordered
+    : [...walkableBoarding.value, ...ordered]
+
+  return [
+    ...list.filter((station) => reach.has(station.stationId)),
+    ...list.filter((station) => !reach.has(station.stationId)),
+  ]
 })
 
 /**
@@ -126,6 +290,120 @@ const {
 })
 
 /**
+ * 이 차를 타면 목적지에 닿는가
+ *
+ * ⚠️ **노선이 같기만 해서는 안 된다.** 내 정류장이 목적지보다 뒤면 그 차는 이미
+ *    지나쳤고, 거기 태우면 반대 방향으로 보낸다. 순번을 비교한다.
+ *    안동은 방향별로 routeId가 다르므로(ADR-007) 이 비교 하나로 방향까지 갈린다.
+ *    → `server/utils/boardingDirection.ts` · `scripts/check-boarding.ts`
+ */
+function goesToDestination(arrival: ArrivalWithSpots): boolean {
+  return Boolean(
+    boarding.value?.routes.some(
+      (option) => option.routeId === arrival.routeId && arrival.stationOrd < option.destOrd,
+    ),
+  )
+}
+
+/**
+ * 카드에 넘길 도착 목록 — 목적지행을 앞으로, **거르지는 않고**
+ *
+ * 안동 외곽 노선은 배차가 하루 3~13회다. 목적지행만 남기면 "표시할 버스 없음"이
+ * 기본 화면이 된다. 지금 오는 차가 무엇인지는 그것대로 알아야 하므로 순서만 바꾼다.
+ *
+ * 각 묶음 안에서는 원래 순서(도착 임박순)가 그대로다. `filter`가 순서를 지킨다.
+ */
+const arrivalsForPanel = computed<ArrivalForDestination[]>(() => {
+  if (!boarding.value) return arrivals.value
+
+  const marked = arrivals.value.map((arrival) => ({
+    ...arrival,
+    toDestination: goesToDestination(arrival),
+  }))
+
+  return [...marked.filter((a) => a.toDestination), ...marked.filter((a) => !a.toDestination)]
+})
+
+/**
+ * 지금 출발하면 총 몇 분 — 기다리기 + 타고 가기 + 내려서 걷기
+ *
+ * `busMinutes` 주석이 못박아 둔 조합이다: *"기다리는 시간은 빠져 있다. … 이 값만
+ * 단독으로 쓰면 안 된다."* 배차가 하루 3~13회인 안동에서 **대기가 이동보다 긴 경우가
+ * 흔하므로**, 이동 시간만 말하면 여행 계획이 통째로 틀어진다.
+ *
+ * 세 조각의 근거가 서로 다르다. 그래서 화면에도 쪼개서 적는다 —
+ * 합계만 보여주면 어디까지가 실측이고 어디부터가 추정인지 알 수 없다.
+ *
+ *   기다리기  상류가 준 도착 예정 시간(`predictTm`). **잰 값이다.**
+ *   타고 가기 승차 정류장 ↔ **하차 정류장** 직선거리 추정. 5분 단위. → `busMinutes`
+ *   걷기      하차 정류장 → 목적지 직선거리 추정. → `walkMinutes`
+ *
+ * ⚠️ 타는 구간을 목적지까지로 재면 마지막 구간이 **걷기와 겹쳐 두 번 세어진다.**
+ *    그래서 `/api/spot-boarding`이 하차 정류장 id를 함께 준다.
+ *
+ * ⚠️ 목적지행 차가 실제로 오고 있을 때만 값이 있다. 오지 않으면 기다리는 시간을
+ *    알 수 없고, 그걸 배차 간격으로 지어내면 이 화면의 다른 문장들과 어긋난다.
+ */
+const trip = computed(() => {
+  const arrival = arrivalsForPanel.value.find(
+    (candidate) => candidate.toDestination && candidate.predictTm !== null,
+  )
+  const station = activeStation.value
+  const option = boarding.value?.routes.find((route) => route.routeId === arrival?.routeId)
+  if (!arrival || !station || !option) return null
+
+  const alight = allStations.value.find((candidate) => candidate.stationId === option.stationId)
+  if (!alight) return null
+
+  const wait = arrival.predictTm!
+  const ride = busMinutes(distanceMeters(station.lat, station.lng, alight.lat, alight.lng))
+  /**
+   * 목적지가 정류장이면 내려서 걸을 거리가 없다(`walkMeters === 0`).
+   * `walkMinutes`는 바닥이 1분이라 그대로 쓰면 없는 1분이 붙는다.
+   */
+  const walk = option.walkMeters > 0 ? walkMinutes(option.walkMeters) : 0
+
+  return { wait, ride, walk, total: wait + ride + walk }
+})
+
+/**
+ * 목적지는 정했는데 이 승강장에는 그리로 가는 노선이 서지 않는 상태
+ *
+ * 도착이 없는 것과 다르다. 여기는 아무리 기다려도 안 온다는 뜻이므로 다른
+ * 승강장으로 보내야 한다. 칩은 이미 목적지행이 앞에 오도록 정렬돼 있다.
+ */
+const destinationElsewhere = computed(
+  () =>
+    Boolean(destinationName.value) &&
+    boardingStations.value.size > 0 &&
+    Boolean(activeStation.value) &&
+    !boardingStations.value.has(activeStation.value!.stationId),
+)
+
+/** 목적지까지 한 번에 가는 노선이 아예 없는 상태. 환승은 아직 계산하지 않는다. */
+const destinationUnreachable = computed(
+  () => Boolean(destinationName.value) && boarding.value?.routes.length === 0,
+)
+
+/**
+ * 목적지행 승강장은 있는데 **전부 도보권 밖**인 상태
+ *
+ * "이 승강장에는 안 서요, 다른 데를 고르세요"와 다르다. 고를 다른 데가 화면에
+ * 없기 때문이다. 도보 91분짜리 칩을 끌어와 있는 척하지 않고 사실을 적는다.
+ *
+ * ⚠️ "시내에서 타세요"라고 쓰지 않는다. 그럴듯하지만 **44곳 중 4곳에서 거짓**이다
+ *    (고산정·농암종택·한국문화테마파크·안동국제컨벤션센터는 시내 승강장에서 탈 수
+ *    없다, 실측 2026-09-16). 언제나 참인 것만 적는다.
+ */
+const destinationTooFar = computed(
+  () =>
+    Boolean(destinationName.value) &&
+    boardingStations.value.size > 0 &&
+    walkableBoarding.value.length === 0 &&
+    !stations.value.some((station) => boardingStations.value.has(station.stationId)),
+)
+
+/**
  * 도착 정보를 마지막으로 받은 시각
  *
  * SSR에서는 만들지 않는다. 서버 시각으로 "방금"을 찍으면 하이드레이션이 어긋난다.
@@ -159,7 +437,6 @@ const nearbySpots = computed(() =>
   nearest(spots.value, coords.value, { radius: 30_000, limit: 12 }),
 )
 
-const WALKABLE_M = 2000
 const walkable = computed(() => nearbySpots.value.filter((s) => s.distance <= WALKABLE_M))
 const rideable = computed(() =>
   nearbySpots.value.filter((s) => s.distance > WALKABLE_M).slice(0, 6),
@@ -288,12 +565,70 @@ onMounted(() => {
           </button>
         </div>
 
+        <!--
+          목적지 — **검색창 하나가 두 상태를 다 표현한다.**
+
+          비어 있으면 "지금 접근 중인 버스", 차 있으면 "거기로 가는 버스"다. 예전에는
+          검색창과 목적지 칩이 자리를 주고받았는데, 그러면 목적지를 정한 순간 검색창이
+          사라져서 **다른 곳으로 바꾸려면 먼저 지워야 한다**는 것을 알아내야 했다.
+
+          주소를 만드는 일은 여기서만 한다. `?to=`/`?stop=` 계약을 읽는 쪽과 쓰는 쪽이
+          한 파일에 있어야 한쪽만 바뀌는 일이 없다. → ADR-054
+        -->
+        <DestinationSearch
+          :spots="spots"
+          :stations="allStations"
+          :coords="coords"
+          :destination-name="destinationName"
+          :clear-to="localePath('/')"
+          @select="
+            navigateTo({
+              path: localePath('/'),
+              query: 'to' in $event ? { to: $event.to } : { stop: $event.stop },
+            })
+          "
+        />
+
+        <!--
+          한 번에 가는 노선이 아예 없는 경우. "갈 수 없다"가 아니라 "직행이 없다"이다 —
+          환승은 아직 계산하지 않으므로 그 차이를 문구가 지켜야 한다.
+        -->
+        <p
+          v-if="destinationUnreachable && destinationName"
+          class="mb-3 rounded-md border border-hairline bg-surface-soft px-4 py-3 text-[13px] leading-relaxed text-muted"
+        >
+          {{ t.home.destinationNoRoute(destinationName) }}
+        </p>
+
+        <!-- 노선은 있는데 걸어가서 탈 수 있는 승강장이 없다. 고를 다른 칩이 화면에 없다. -->
+        <p
+          v-else-if="destinationTooFar && destinationName"
+          class="mb-3 rounded-md border border-hairline bg-surface-soft px-4 py-3 text-[13px] leading-relaxed text-muted"
+        >
+          {{ t.home.destinationTooFar(destinationName) }}
+        </p>
+
+        <!-- 이 승강장에는 안 서지만 다른 승강장에는 선다. 칩이 이미 그 순서로 서 있다. -->
+        <p
+          v-else-if="destinationElsewhere && destinationName"
+          class="mb-3 rounded-md border border-hairline bg-surface-soft px-4 py-3 text-[13px] leading-relaxed text-muted"
+        >
+          {{ t.home.destinationOtherStop(destinationName) }}
+        </p>
+
+        <!--
+          ⚠️ 위의 두 안내는 카드를 **대신하지 않는다.** `v-else-if`로 묶었다가
+             안내가 뜨는 순간 도착 카드가 통째로 사라졌다. 목적지행이 없다는 것과
+             지금 오는 차가 없다는 것은 다른 사실이고, 뒤엣것은 그것대로 알아야 한다.
+        -->
         <BusPanel
-          v-else-if="activeStation"
+          v-if="activeStation && !arrivalsError"
           :station-nm="activeStation.stationNm"
           :station-nm-en="activeStation.nameEn"
           :subtitle="stationSubtitle"
-          :arrivals="arrivals"
+          :arrivals="arrivalsForPanel"
+          :destination="destinationName ?? undefined"
+          :trip="trip"
           :pending="arrivalsPending"
           :terminus-only="activeStation.terminusOnly"
           :updated-at="updatedAt"
@@ -339,6 +674,19 @@ onMounted(() => {
             </span>
           </button>
         </div>
+
+        <!--
+          돌아오는 편 · 막차 — 목적지를 정했을 때만.
+
+          칩 **아래**에 둔다. 읽는 순서가 "몇 분 후"(카드) → "여기서 타면 되나"(칩)
+          → "가서 돌아올 수 있나"라서다. 위로 올리면 이 화면의 앵커인 도착 카드가
+          그만큼 밀린다. → ADR-012의 정보 순서
+        -->
+        <DestinationSchedule
+          v-if="destinationName"
+          :schedule="destinationBus?.schedule ?? null"
+          :outbound="destinationRoutes?.outbound"
+        />
 
         <!--
           지도는 정류장 칩 바로 아래다. 고르는 것(칩)과 보는 것(점)이 붙어 있어야
