@@ -71,43 +71,67 @@ if (!spot.value) {
 usePageTitle(() => t.value.spot.title(spot.value ? d.name(spot.value) : ''))
 
 /**
- * 버스 정보는 이름으로 조회한다. 정류장 매핑이 있는 7곳만 200을 준다.
- * 나머지는 404이고, 그건 오류가 아니라 "아직 확인하지 못한 관광지"라는 뜻이다.
- * error를 그대로 두고 화면에서 구분해 안내한다. → ADR-016
+ * 상세 화면이 쓰는 네 요청 — 한꺼번에 띄운다
+ *
+ * ⚠️ 줄지어 `await`하면 **서로를 기다린다.** 넷을 차례로 세워 뒀더니 클릭에서
+ *    화면이 바뀌기까지 넷의 합이 됐다. 실측(2026-09-16, 배포본): 각 0.13~0.45초,
+ *    합계 약 1.4초. 그동안 브라우저는 **이전 화면을 그대로 들고 있어서**, 누른
+ *    사람에게는 눌리지 않은 것과 구별되지 않는다. 병렬로 두면 가장 느린
+ *    하나(약 0.45초)로 끝난다. `browse.vue`가 같은 이유로 같은 모양이다.
+ *
+ * 넷은 `/api/spots` 뒤에 선다. 주소에 관광지 이름이 들어가고(`spot.value.name`)
+ * 그 이름이 목록에서 나오기 때문이다. 앞에 세울 수 있는 것은 그것뿐이다.
+ *
+ * `Promise.all`이지만 하나가 실패해도 나머지는 뜬다. `useFetch`가 거부로 끝나지
+ * 않고 `error`에 담아 주기 때문이다 — 아래 `busError`가 그걸 받아 쓴다.
  */
-const {
-  data: bus,
-  error: busError,
-  pending: busRequestPending,
-  refresh: refreshBus,
-} = await useFetch<SpotBusInfo>(() => `/api/spot-bus/${encodeURIComponent(spot.value!.name)}`)
+const [
+  { data: bus, error: busError, pending: busRequestPending, refresh: refreshBus },
+  { data: routes },
+  { data: guide },
+  { data: related },
+] = await Promise.all([
+  /**
+   * 버스 정보는 이름으로 조회한다. 정류장 매핑이 있는 7곳만 200을 준다.
+   * 나머지는 404이고, 그건 오류가 아니라 "아직 확인하지 못한 관광지"라는 뜻이다.
+   * error를 그대로 두고 화면에서 구분해 안내한다. → ADR-016
+   */
+  useFetch<SpotBusInfo>(() => `/api/spot-bus/${encodeURIComponent(spot.value!.name)}`),
 
-/**
- * 노선 안내는 44곳 전부에 답한다.
- *
- * 위의 `/api/spot-bus`는 사람이 확인한 7곳에만 200을 준다. 나머지 37곳에서
- * "가는 방법" 자리가 "버스 정보가 등록되지 않은 곳이에요" 한 줄로 끝나던 것을
- * 이 요청이 메운다. 근거가 다르므로 엔드포인트도 화면 문구도 따로 둔다.
- *
- * 두 요청이 서로를 기다리지 않는다. 하나가 실패해도 다른 하나는 뜬다.
- */
-const { data: routes } = await useFetch<SpotRouteInfo>(
-  () => `/api/spot-routes/${encodeURIComponent(spot.value!.name)}`,
-)
+  /**
+   * 노선 안내는 44곳 전부에 답한다.
+   *
+   * 위의 `/api/spot-bus`는 사람이 확인한 7곳에만 200을 준다. 나머지 37곳에서
+   * "가는 방법" 자리가 "버스 정보가 등록되지 않은 곳이에요" 한 줄로 끝나던 것을
+   * 이 요청이 메운다. 근거가 다르므로 엔드포인트도 화면 문구도 따로 둔다.
+   */
+  useFetch<SpotRouteInfo>(() => `/api/spot-routes/${encodeURIComponent(spot.value!.name)}`),
+
+  /**
+   * 이용 안내 — 운영시간·휴무일·주차·관람료·문의
+   *
+   * 목록 조회에는 없는 값이라 관광지 한 곳씩 따로 물어야 한다. 그래서 별도
+   * 엔드포인트다. 없으면 빈 객체가 오고, 그때는 아래에서 섹션 자체가 사라진다.
+   * 404가 아니다 — 안내가 없는 것은 오류가 아니다. → ADR-046
+   */
+  useFetch<SpotGuide>(() => `/api/spot-guide/${id.value}`, {
+    default: () => ({}) as SpotGuide,
+  }),
+
+  /**
+   * 함께 많이 찾는 곳 — 방문 데이터가 고른 곳
+   *
+   * 아래 "근처에 함께 볼 곳"은 **거리**로 고른다. 이건 **행동**으로 고른다.
+   * 가깝다고 같이 보는 것은 아니고, 멀어도 같이 본다. 두 질문이 다르므로
+   * 두 목록을 둔다. → ADR-042
+   *
+   * 데이터가 없으면 빈 배열이 온다(44곳 중 21곳에만 있다). 404가 아니다.
+   */
+  useFetch<RelatedSpot[]>(() => `/api/spot-related/${id.value}`, { default: () => [] }),
+])
 
 /** "가는 방법" 첫 문장이 쓸 대표 노선. 가장 덜 걷는 것이 맨 앞이다. */
 const mainRoute = computed(() => routes.value?.inbound[0])
-
-/**
- * 이용 안내 — 운영시간·휴무일·주차·관람료·문의
- *
- * 목록 조회에는 없는 값이라 관광지 한 곳씩 따로 물어야 한다. 그래서 별도
- * 엔드포인트다. 없으면 빈 객체가 오고, 그때는 아래에서 섹션 자체가 사라진다.
- * 404가 아니다 — 안내가 없는 것은 오류가 아니다. → ADR-046
- */
-const { data: guide } = await useFetch<SpotGuide>(() => `/api/spot-guide/${id.value}`, {
-  default: () => ({}) as SpotGuide,
-})
 
 /**
  * 이런 곳이에요 — 영문이 있으면 영문, 없으면 국문
@@ -174,20 +198,6 @@ const guideRows = computed(() => {
     { label: t.value.spot.guideTel, value: g.tel ?? null },
   ].filter((row): row is { label: string; value: string } => Boolean(row.value))
 })
-
-/**
- * 함께 많이 찾는 곳 — 방문 데이터가 고른 곳
- *
- * 아래 "근처에 함께 볼 곳"은 **거리**로 고른다. 이건 **행동**으로 고른다.
- * 가깝다고 같이 보는 것은 아니고, 멀어도 같이 본다. 두 질문이 다르므로
- * 두 목록을 둔다. → ADR-042
- *
- * 데이터가 없으면 빈 배열이 온다(44곳 중 21곳에만 있다). 404가 아니다.
- */
-const { data: related } = await useFetch<RelatedSpot[]>(
-  () => `/api/spot-related/${id.value}`,
-  { default: () => [] },
-)
 
 /**
  * 상류가 준 코드를 우리 목록에서 찾는다. **이름으로 잇지 않는다** — 그 코드가
@@ -374,14 +384,31 @@ const mapMarkers = computed(() =>
             버스 정보가 있든 없든 붙인다. 정류장을 아직 확인하지 못한 관광지일수록
             "그럼 어떻게 가나"가 남는데, 그 답을 이 화면에서 끊지 않는다.
           -->
-          <a
-            :href="kakaoDirectionsUrl(spot.name, spot.lat, spot.lng)"
-            target="_blank"
-            rel="noopener"
-            class="mt-4 inline-flex items-center gap-1.5 rounded-full border border-ink px-4 py-2.5 text-sm font-medium"
-          >
-            {{ t.spot.directions }}
-          </a>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <a
+              :href="kakaoDirectionsUrl(spot.name, spot.lat, spot.lng)"
+              target="_blank"
+              rel="noopener"
+              class="inline-flex items-center gap-1.5 rounded-full border border-ink px-4 py-2.5 text-sm font-medium"
+            >
+              {{ t.spot.directions }}
+            </a>
+
+            <!--
+              지금 있는 자리에서 이 관광지로 가는 버스를 보러 간다.
+              위의 "가는 방법"은 **시내 기준**이라 지금 선 자리와 다를 수 있다.
+
+              홈에 검색창을 새로 달지 않고 이 링크 하나로 목적지를 넘긴다. 목적지는
+              주소에 실리므로(`?to=`) 새로고침·공유·뒤로가기가 그대로 동작한다.
+              → ADR-031의 판단을 목적지에도 적용
+            -->
+            <NuxtLink
+              :to="{ path: localePath('/'), query: { to: spot.id } }"
+              class="inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-white"
+            >
+              {{ t.spot.goFromHere }}
+            </NuxtLink>
+          </div>
         </section>
 
         <!--

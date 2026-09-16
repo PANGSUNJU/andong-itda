@@ -73,38 +73,65 @@ const foodCategories = computed(() => [
 ])
 
 /**
- * 이름과 주소 둘 다에서 찾는다. "석주로"로 헛제삿밥 두 곳이 함께 잡힌다.
+ * 이름으로 먼저 찾고, **한 곳도 없을 때만** 주소로 되짚는다.
  *
  * 영문명도 함께 본다. 영문 화면에서 "Hahoe"를 친 사람에게 국문 이름만 뒤져
  * 0곳을 돌려주면, 화면에 보이는 그 이름으로는 검색이 안 되는 셈이 된다.
  * 대소문자는 무시한다 — 상류 영문명이 "Andong Folk Village" 꼴이다.
+ *
+ * ⚠️ 이름과 주소를 **동시에** 뒤지던 때는 이유가 안 보이는 결과가 쏟아졌다.
+ *    카드에 적히는 것은 읍·면·동 토큰뿐(`shortAddress`)이라 도로명이 안 보인다.
+ *    실측(2026-09-16, 관광지 44곳):
+ *    ```
+ *    "안동"  38곳 중 25곳이 주소에만 걸림 — 안동 주소는 전부 "경상북도 안동시"다
+ *    "길"    23곳 중 20곳 — 도로명이 거의 다 "○○길"이다
+ *    ```
+ *
+ *    그렇다고 주소를 통째로 버리지는 않는다. "석주로"로 헛제삿밥 두 곳이 함께
+ *    잡히는 것은 실제로 쓸모가 있었다. 이름에서 **하나도 못 찾았을 때만** 주소로
+ *    내려가면 그 쓸모는 남고 잡음은 사라진다 — "안동"·"길"은 이름에서 이미 걸리므로
+ *    주소를 들여다볼 일이 없다.
  */
-function matchesKeyword(place: Spot): boolean {
-  const query = keyword.value.trim()
-  if (!query) return true
-
+/**
+ * 조합 중인 낱자를 떼는 `normalizeQuery`는 `app/utils/search.ts`에 있다(자동 임포트).
+ * 홈의 목적지 검색이 같은 처리를 해야 해서 올렸다 — 복붙하면 자모 범위가 두 벌이
+ * 되고, 한쪽만 고치는 날이 온다. → ADR-054
+ */
+function matchesName(place: Spot, query: string): boolean {
   return (
-    place.name.includes(query) ||
-    Boolean(place.address?.includes(query)) ||
-    Boolean(place.nameEn?.toLowerCase().includes(query.toLowerCase()))
+    place.name.includes(query) || Boolean(place.nameEn?.toLowerCase().includes(query.toLowerCase()))
   )
 }
 
+/**
+ * ⚠️ **목록마다 따로 판단한다.** 관광지에서 이름이 걸렸다고 식도락의 주소 검색까지
+ *    막으면, "석주로"를 친 사람이 관광지 탭에 한 곳 걸렸다는 이유로 헛제삿밥을
+ *    못 찾게 된다. 두 탭은 서로 다른 목록이고 개수도 따로 표시된다.
+ */
+function byKeyword(list: Spot[]): Spot[] {
+  const query = normalizeQuery(keyword.value)
+  if (!query) return list
+
+  const byName = list.filter((place) => matchesName(place, query))
+  if (byName.length) return byName
+
+  return list.filter((place) => Boolean(place.address?.includes(query)))
+}
+
 const visibleSpots = computed(() =>
-  spots.value
-    .filter((spot) => spotCategory.value === ALL || spot.category === spotCategory.value)
-    .filter(matchesKeyword)
-    .sort((a, b) =>
-      // 이름순은 화면에 보이는 이름으로 줄을 세운다. → `useDisplay().compareNames`
-      sort.value === 'name' ? d.compareNames(a, b) : (a.rank ?? Infinity) - (b.rank ?? Infinity),
-    ),
+  byKeyword(
+    spots.value.filter((spot) => spotCategory.value === ALL || spot.category === spotCategory.value),
+  ).sort((a, b) =>
+    // 이름순은 화면에 보이는 이름으로 줄을 세운다. → `useDisplay().compareNames`
+    sort.value === 'name' ? d.compareNames(a, b) : (a.rank ?? Infinity) - (b.rank ?? Infinity),
+  ),
 )
 
 // 정렬하지 않는다. /api/food가 이미 분류 순서대로 준다. 그게 이 목록의 기본 순서다.
 const visibleFoods = computed(() =>
-  foods.value
-    .filter((food) => foodCategory.value === ALL || food.category === foodCategory.value)
-    .filter(matchesKeyword),
+  byKeyword(
+    foods.value.filter((food) => foodCategory.value === ALL || food.category === foodCategory.value),
+  ),
 )
 
 /**
@@ -155,12 +182,25 @@ const mapCaption = computed(() =>
             <circle cx="10.5" cy="10.5" r="6.5" />
             <path d="M15.5 15.5L21 21" />
           </svg>
+          <!--
+            ⚠️ `v-model`이 아니다. **일부러** 뺐다.
+
+            `v-model`은 한글 조합 중(`compositionstart`~`compositionend`)의 `input`을
+            무시한다. 중간 조합 상태로 모델이 더럽혀지는 것을 막는 기본 동작인데,
+            검색창에서는 그 때문에 **목록이 한 음절씩 뒤처진다.** 실측(2026-09-16,
+            배포본): 조합 중 "하회"를 친 상태에서 입력창에는 글자가 보이는데 결과는
+            44곳(=전체)이었고, 음절이 확정되자 3곳이 됐다.
+
+            `:value` + `@input`은 그 가드를 타지 않으므로 치는 대로 걸린다. 조합
+            중간의 낱자는 `normalizeQuery`가 떼어낸다. → ADR-053
+          -->
           <input
-            v-model="keyword"
+            :value="keyword"
             type="search"
             :placeholder="tab === 'spots' ? t.browse.searchSpots : t.browse.searchFood"
             :aria-label="t.browse.searchLabel(tabLabel[tab])"
             class="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted"
+            @input="keyword = ($event.target as HTMLInputElement).value"
           />
         </label>
 

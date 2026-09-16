@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ArrivalWithSpots } from '#shared/types/bus'
+import type { ArrivalForDestination } from '#shared/types/bus'
 
 /**
  * 정류장 도착 카드 — 홈의 앵커
@@ -17,7 +17,19 @@ const props = defineProps<{
   /** 영문 정류장명. 상류가 전 정류장을 채워 주므로 거의 항상 있다. */
   stationNmEn?: string
   subtitle?: string
-  arrivals: ArrivalWithSpots[]
+  /**
+   * 도착 목록. 목적지를 정했으면 **목적지행이 앞으로 정렬되어** 온다.
+   * 거르지는 않는다 — 배차가 드문 노선에서 거르면 화면이 자주 빈다.
+   */
+  arrivals: ArrivalForDestination[]
+  /** 목적지 이름. 정했을 때만 온다. 표와 안내 문구가 이 값을 쓴다. */
+  destination?: string
+  /**
+   * 지금 출발하면 목적지까지 총 몇 분. 목적지행 차가 실제로 오고 있을 때만 온다.
+   * 셋을 따로 받는 이유는 화면에 쪼개서 적기 위해서다 — 어디까지가 잰 값인지
+   * 읽는 사람이 알아야 한다. → `index.vue`의 `trip`
+   */
+  trip?: { wait: number; ride: number; walk: number; total: number } | null
   pending?: boolean
   /**
    * 노선의 기점·종점으로만 쓰이는 승강장. 도착정보가 원리적으로 오지 않는다. → ADR-015
@@ -107,6 +119,43 @@ const rest = computed(() =>
     .filter((arrival) => arrival !== nextSameRoute.value)
     .slice(0, 3),
 )
+
+/**
+ * 목적지를 정했는데 지금 오는 차 중에 그리로 가는 게 하나도 없는 상태
+ *
+ * 흔한 상태다. 안동 외곽 노선은 배차가 하루 3~13회라 "지금은 없다"가 기본값에
+ * 가깝다. 그래서 목록을 지우지 않고 이 한 줄만 덧붙인다 — 지금 오는 차가
+ * 무엇인지는 그것대로 알아야 하기 때문이다.
+ *
+ * `toDestination`이 `undefined`인 목록(목적지 미지정)에서는 뜨지 않는다.
+ */
+const noneBound = computed(
+  () =>
+    Boolean(props.destination) &&
+    props.arrivals.length > 0 &&
+    !props.arrivals.some((arrival) => arrival.toDestination),
+)
+
+/**
+ * 큰 숫자가 가리키는 **그 차**가 목적지행인가
+ *
+ * 히어로의 분기를 이 값 하나가 가른다. 목적지행일 때는 "이 차가 무엇인가" 슬롯이
+ * 목적지 이야기로 **바뀐다** — 더해지지 않는다. 그래서 목적지가 없을 때의 마크업은
+ * 한 글자도 달라지지 않는다. → ADR-051
+ */
+const bound = computed(() => Boolean(props.destination) && Boolean(next.value?.toDestination))
+
+/**
+ * 합계는 **큰 숫자와 같은 차일 때만** 쓴다
+ *
+ * ⚠️ `index.vue`의 `trip`은 "목적지행이면서 도착 예정을 받은 첫 차"로 계산된다.
+ *    `next`가 목적지행인데 `predictTm`이 null이면 그 합계는 **뒤쪽 다른 차의 값**이다.
+ *    두 줄로 나뉘어 있을 때는 그 어긋남이 가려졌지만, "○○까지 약 44분" 한 문장으로
+ *    합치면 큰 숫자 `—` 옆에서 정면으로 드러난다. 여기서 끊는다.
+ */
+const boundTrip = computed(() =>
+  bound.value && next.value?.predictTm !== null ? (props.trip ?? null) : null,
+)
 </script>
 
 <template>
@@ -158,16 +207,42 @@ const rest = computed(() =>
         <h2 class="mt-2 text-base font-semibold leading-tight">
           {{ isArrivingSoon ? t.bus.arrivingSoon(next.routeNum) : t.bus.onTheWay(next.routeNum) }}
         </h2>
+
         <!--
+          목적지 줄 — 배지와 합계를 한 문장으로 합쳤다.
+
+          예전에는 알약 배지("○○ 방면")와 합계("지금 출발하면 약 44분")가 두 줄이었다.
+          둘 다 목적지 이야기라 같은 말을 두 번 한 셈이다. 이름을 문장 안에 넣으면
+          "이 차가 목적지행"이라는 사실은 문구가, 위계는 굵기와 primary가 말한다.
+          알약은 한 겹 더 그린 상자였을 뿐이다. → ADR-051
+
+          합계를 못 냈을 때(`boundTrip`이 null)는 목적지 이름만 말한다. 그래도
+          "목적지행"이라는 사실은 남는다.
+        -->
+        <p
+          v-if="bound && destination"
+          class="mt-2 text-base font-semibold leading-tight text-primary"
+        >
+          {{
+            boundTrip
+              ? t.home.tripToDestination(destination, boundTrip.total)
+              : t.home.destinationBound(destination)
+          }}
+        </p>
+
+        <!--
+          목적지행이 **아닐 때**의 줄 — 오늘과 완전히 같다.
+
           닿는 관광지가 방향을 대신한다. 홈에서 "지금 오는 버스가 어디로 가나"에
           답하는 자리다. 방향(via의 종점)을 함께 쓰면 같은 이름이 두 번 나온다 —
           매핑된 관광지가 대부분 그 노선의 종점이기 때문이다. → ADR-025
 
-          관광지를 판정하지 못하면 방향으로 되돌아간다. 줄이 통째로 사라지면
-          이 버스가 무엇인지 말해주는 정보가 노선번호밖에 남지 않는다.
+          ⚠️ 위 목적지 줄이 이 슬롯을 **대체한다**(`v-else-if`). 나란히 두면
+             "○○까지 약 44분" 아래 "교보생명 방면"이 붙어, 이미 답이 난 물음에
+             다시 답한다.
         -->
         <p
-          v-if="nextHeadline || next.remainStation !== null"
+          v-else-if="nextHeadline || next.remainStation !== null"
           class="mt-1 text-sm"
           :class="next.spots.length ? 'font-medium text-primary' : 'text-muted'"
         >
@@ -176,6 +251,32 @@ const rest = computed(() =>
             <!-- 앞 문구가 없으면 구분점도 없다. 점만 남으면 그게 오류로 보인다. -->
             <template v-if="nextHeadline">· </template>{{ t.common.stopsAway(next.remainStation) }}
           </span>
+        </p>
+
+        <!--
+          근거 줄 — 위 한 문장이 어디서 나왔는지. 목적지 줄이 떴을 때만 있다.
+
+          ⚠️ `22정거장 전`을 위 줄에 붙이지 않는다. "○○까지 약 44분 · 22정거장 전"은
+             두 숫자가 나란해서 **22를 목적지까지의 정거장으로 읽게 된다.** 실제로는
+             이 버스가 지금 어디쯤인가이고, 곧 `기다리기 18분`의 근거다. 그래서
+             내역의 맨 앞에 둔다.
+
+          내역을 지우지 않는 이유는 그대로다 — 셋 중 기다리는 시간만 잰 값이고
+          나머지는 우리가 민 추정이라, 합계만 두면 어디까지 믿을 값인지 알 수 없다.
+        -->
+        <p
+          v-if="bound && (boundTrip || next.remainStation !== null)"
+          class="mt-1 text-[13px] leading-relaxed text-muted"
+        >
+          <template v-if="next.remainStation !== null">{{
+            t.common.stopsAway(next.remainStation)
+          }}</template>
+          <template v-if="next.remainStation !== null && boundTrip"> · </template>
+          <template v-if="boundTrip">{{
+            boundTrip.walk > 0
+              ? t.home.tripBreakdown(boundTrip.wait, boundTrip.ride, boundTrip.walk)
+              : t.home.tripBreakdownNoWalk(boundTrip.wait, boundTrip.ride)
+          }}</template>
         </p>
 
         <!-- 놓쳐도 되는지 아닌지가 여기서 갈린다. 같은 번호의 다음 차만 말한다. -->
@@ -193,7 +294,21 @@ const rest = computed(() =>
         :predict-tm="arrival.predictTm"
         :remain-station="arrival.remainStation"
         :spots="arrival.spots"
+        :destination-bound="
+          arrival.toDestination && destination ? t.home.destinationBound(destination) : undefined
+        "
       />
+
+      <!--
+        목록을 지우지 않았으므로 "없다"는 사실은 따로 적어야 한다.
+        이 줄이 없으면 목적지를 정한 사람이 위의 목록을 전부 목적지행으로 읽는다.
+      -->
+      <p
+        v-if="noneBound && destination"
+        class="border-t border-hairline-soft pt-3 text-[13px] leading-relaxed text-muted"
+      >
+        {{ t.home.destinationNotArriving(destination) }}
+      </p>
     </template>
 
     <!--

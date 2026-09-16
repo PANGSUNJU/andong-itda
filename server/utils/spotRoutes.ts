@@ -35,7 +35,7 @@ const index = routeStations as unknown as RouteStationIndex
  * 관광지 4곳을 살린다. 더 늘리지 않는 이유는 1.3km가 도보 20분이고, 그보다 멀면
  * "이 정류장에서 내려요"가 안내가 아니라 떠넘기기가 되기 때문이다.
  */
-const SPOT_RADIUS = 1300
+export const SPOT_RADIUS = 1300
 
 /** 화면에 내보내는 노선 수. 시내 관광지는 80개까지 나온다. */
 const MAX_OPTIONS = 5
@@ -48,7 +48,7 @@ const MAX_OPTIONS = 5
  */
 let reverse: Map<number, [string, number][]> | null = null
 
-function reverseIndex(): Map<number, [string, number][]> {
+export function reverseIndex(): Map<number, [string, number][]> {
   if (reverse) return reverse
 
   reverse = new Map()

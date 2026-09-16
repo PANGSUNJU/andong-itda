@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { NuxtLink } from '#components'
 import type { Spot } from '#shared/types/tour'
-import { busMinutes } from '#shared/constants/location'
+import { busMinutes, WALKABLE_M } from '#shared/constants/location'
 
 /**
  * 관광지 카드 — 둘러보기 그리드의 단위
@@ -50,8 +50,10 @@ const isTop = computed(
 /**
  * 도보 시간은 걸어갈 만한 거리에서만 뜻이 있다.
  * 4.4km 떨어진 곳에 "걸어서 약 66분"을 붙이면 버스를 타야 한다는 사실을 가린다.
+ *
+ * 선은 `shared/constants/location.ts`가 들고 있다. 홈도 같은 선으로 목록을 가르고
+ * 목적지행 승강장을 끌어오므로, 각자 들고 있으면 조용히 어긋난다. → WALKABLE_M
  */
-const WALKABLE_M = 2000
 const showWalk = computed(
   () => props.spot.distance !== undefined && props.spot.distance <= WALKABLE_M,
 )

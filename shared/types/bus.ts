@@ -147,6 +147,26 @@ export interface ArrivalWithSpots extends BusArrival {
 }
 
 /**
+ * 도착정보 + 목적지행 여부 — 홈이 화면에서 덧붙인다
+ *
+ * 응답 타입(`ArrivalWithSpots`)에 넣지 않는다. 목적지는 보는 사람이 정하는 것이지
+ * 정류장의 성질이 아니고, 서버는 **내가 어디 있는지 모른 채로** 목적지 쪽 사실만
+ * 준다(`/api/spot-boarding`). 대조는 브라우저에서 한다. → ADR-024
+ */
+export interface ArrivalForDestination extends ArrivalWithSpots {
+  /**
+   * 이 차를 타면 목적지에 닿는가.
+   *
+   * ⚠️ 노선이 같기만 해서는 안 된다. 내 정류장이 목적지보다 뒤면 그 차는 이미
+   *    지나쳤다. 순번을 비교해 정한다. → `boardingDirection.ts`
+   *
+   * 목적지를 정하지 않았으면 `undefined`다. `false`와 뜻이 다르다 —
+   * 저쪽은 "묻지 않았다", 이쪽은 "묻고 아니라고 답했다"이다.
+   */
+  toDestination?: boolean
+}
+
+/**
  * 노선 목록 — `?tab=3`
  *
  * 방향별로 별도 routeId가 존재한다. 시간표 문서에 귀로 시각이 생략되어
